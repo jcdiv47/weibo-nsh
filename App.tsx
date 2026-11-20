@@ -6,11 +6,13 @@ import { t } from "nsh/i18n";
 import { forgetAccount } from "./api";
 import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from "./bridge";
 import { ImageViewer } from "./components/ImageViewer";
+import { ReplySheet } from "./components/ReplySheet";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { nav } from "./nav";
 import { Edits } from "./pages/Edits";
 import { Post } from "./pages/Post";
 import { Profile } from "./pages/Profile";
+import { Replies } from "./pages/Replies";
 import { Timeline } from "./pages/Timeline";
 import { People } from "./pages/People";
 import { Topic } from "./pages/Topic";
@@ -137,10 +139,13 @@ function App() {
                 return <Profile {...route} />;
               case "edits":
                 return <Edits id={route.id} />;
+              case "replies":
+                return <Replies postId={route.postId} commentId={route.commentId} />;
             }
           }}
         </NavStack>
       </If>
+      <ReplySheet />
       <ImageViewer />
       <VideoPlayer />
       <Bridge />

@@ -9,6 +9,7 @@ import {
   parseLongText,
   parsePeople,
   parseProfile,
+  parseReply,
   parseStatus,
   parseTimeline,
   parseUserPosts,
@@ -266,4 +267,13 @@ test("a profile without its user is a change, with a message that names the endp
 test("a long text that lost its text falls back to the cut one, reported", () => {
   expect(parseLongText({ ok: 1, data: { content: "全文" } })).toBeNull();
   expect(reported("/ajax/statuses/longtext", "data.longTextContent")).toBe(true);
+});
+
+test("reply: the comment Weibo answers with, at the top or under data; none without one", () => {
+  const c = { ok: 1, idstr: "5200000000000099", created_at: "Fri Nov 20 10:00:00 +0800 2026", text_raw: "回复@路人乙:好",
+    user: { idstr: "4000000001", screen_name: "路人甲" } };
+  expect(parseReply(c)?.id).toBe("5200000000000099");
+  expect(parseReply(c)?.text).toBe("回复@路人乙:好");
+  expect(parseReply({ ok: 1, data: c })?.user.name).toBe("路人甲");
+  expect(parseReply({ ok: 1 })).toBe(null);
 });

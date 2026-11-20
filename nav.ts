@@ -1,7 +1,7 @@
 // The navigation stack and the posts pages pass along: a post page reads the post the timeline
 // already has instead of fetching it again.
 import { createNavStack } from "nsh/base";
-import type { Status } from "./api";
+import type { Comment, Status } from "./api";
 
 export type Route =
   | { name: "timeline" }
@@ -16,7 +16,9 @@ export type Route =
   /** A topic's posts, by its name without the `#`s. */
   | { name: "topic"; topic: string }
   /** An edited post's versions, by the post's id. */
-  | { name: "edits"; id: string };
+  | { name: "edits"; id: string }
+  /** All the replies to a comment of a post, by the post's and the comment's ids. */
+  | { name: "replies"; postId: string; commentId: string };
 
 export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
@@ -28,6 +30,17 @@ export function openPost(status: Status) {
 }
 
 export const postById = (id: string) => posts.get(id);
+
+const commentsById = new Map<string, Comment>();
+
+/** The thread of a comment: the comment and all its replies. */
+export function openReplies(status: Status, comment: Comment) {
+  posts.set(status.id, status);
+  commentsById.set(comment.id, comment);
+  nav.push({ name: "replies", postId: status.id, commentId: comment.id });
+}
+
+export const commentById = (id: string) => commentsById.get(id);
 
 /** The versions of an edited post. */
 export function openEdits(status: Status) {

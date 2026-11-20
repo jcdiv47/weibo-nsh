@@ -74,6 +74,10 @@ export function createFeed<T extends { id: string }, C = string>(
     error: () => error(),
     done: () => next() === null,
     savedAt: () => savedAt(),
+    /** Changes the items in place (a reply sent, a count bumped), as a load would. */
+    update(fn: (list: T[]) => T[]) {
+      items.update(fn);
+    },
     refresh() {
       refreshing.set(true);
       return fetchPage(undefined, true);

@@ -20,7 +20,6 @@ post:
   comments: "Comments %{n}"
   likes: "Likes %{n}"
   via: "via %{source}"
-  more_replies: "More replies"
   view_replies: "View %{n} replies"
   reposted_by: "Reposted post by %{name}"
   picture: "Picture %{i} of %{n}"
@@ -30,6 +29,14 @@ post:
   edited: "Edited"
   edit_history: "Edited · history"
   region: "Posted from %{region}"
+replies:
+  title: "%{n} replies"
+reply:
+  to: "Reply to %{name}"
+  placeholder: "Write a reply…"
+  send: "Send"
+  sending: "Sending…"
+  failed: "Couldn't send: %{error}"
 edits:
   title: "Edit history"
   current: "Current version"

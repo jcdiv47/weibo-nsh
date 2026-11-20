@@ -20,7 +20,6 @@ post:
   comments: "评论 %{n}"
   likes: "赞 %{n}"
   via: "来自 %{source}"
-  more_replies: "更多回复"
   view_replies: "查看 %{n} 条回复"
   reposted_by: "%{name} 的原微博"
   picture: "第 %{i} 张图片，共 %{n} 张"
@@ -30,6 +29,14 @@ post:
   edited: "已编辑"
   edit_history: "已编辑 · 查看记录"
   region: "发布于 %{region}"
+replies:
+  title: "%{n} 条回复"
+reply:
+  to: "回复 %{name}"
+  placeholder: "写回复…"
+  send: "发送"
+  sending: "发送中…"
+  failed: "发送失败：%{error}"
 edits:
   title: "编辑记录"
   current: "当前版本"

@@ -10,7 +10,9 @@ What it does now:
   gid, then `/ajax/feed/friendstimeline`), with ads and posts from accounts you don't follow
   filtered out. Pull to refresh, more on scroll.
 - **Post page** with its full text (`/ajax/statuses/longtext`) and comments
-  (`/ajax/statuses/buildComments`), with a comment's replies opening in place.
+  (`/ajax/statuses/buildComments`). A press on a comment opens a reply box over the keyboard
+  (`/ajax/comments/reply`); a press on its replies opens its thread, "N replies", where a press on
+  the comment or any reply answers it.
 - **Edit history**: an edited post (`edit_count`) says so; on its page, "Edited · history" lists its
   versions (`/ajax/statuses/editHistory`), newest first, each with what changed from the one before.
 - **Profile** (`/ajax/profile/info`, `/ajax/statuses/mymblog`): following / follows you and the

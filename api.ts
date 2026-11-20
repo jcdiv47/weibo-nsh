@@ -342,6 +342,30 @@ export async function replies(comment: Comment, statusUid: string, maxId?: strin
   return parseComments(await get(`/ajax/statuses/buildComments?${q}`));
 }
 
+/**
+ * Replies to a comment, or to a reply in its thread (`comment`), as weibo.com's reply box does:
+ * Weibo files it in the comment's thread and, for a reply, prefixes "回复@name:" itself.
+ * Returns the reply when Weibo answers with it.
+ */
+export async function replyComment(status: Status, comment: Comment, text: string): Promise<Comment | null> {
+  const json = await post("/ajax/comments/reply", {
+    id: status.id,
+    cid: comment.id,
+    comment: text,
+    pic_id: "",
+    is_repost: "0",
+    comment_ori: "0",
+    is_comment: "0",
+  });
+  return parseReply(json);
+}
+
+/** The reply in `/ajax/comments/reply`'s answer (the comment itself, or under `data`), if any. */
+export function parseReply(json: any): Comment | null {
+  const c = json?.data && typeof json.data === "object" ? json.data : json;
+  return c?.idstr || c?.id ? toComment(c) : null;
+}
+
 /** Whether I block an account, as far as the profile answer tells. */
 export interface BlockState {
   /** `null`: the answer carries no field that says. */
