@@ -34,6 +34,15 @@ export function timeAgo(time: number, now = Date.now()): string {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}${sameYear ? "" : `, ${year}`}`;
 }
 
+/** A Weibo date as a full local date and time to the minute: "2026-11-18 09:41". */
+export function fullTime(s: string): string {
+  const time = parseWeiboDate(s);
+  if (time === null) return s;
+  const d = new Date(time);
+  const two = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`;
+}
+
 // One decimal, without a trailing ".0".
 const short = (n: number) => n.toFixed(1).replace(/\.0$/, "");
 

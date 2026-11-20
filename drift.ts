@@ -36,6 +36,10 @@ export const shapes = {
     required: ["idstr|id", "user.idstr|user.id", "text_raw|text"],
     expected: ["created_at", "user.screen_name"],
   },
+  /** A version of an edited post: its `id` is `-1`, its user the post's. */
+  version: {
+    required: ["text_raw|text", "created_at"],
+  },
   user: {
     required: ["idstr|id"],
     expected: ["screen_name", "avatar_large|avatar_hd|profile_image_url"],

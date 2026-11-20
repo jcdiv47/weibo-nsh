@@ -1,11 +1,11 @@
 // One post: author, text, pictures, the post it reposts, counts. Pressing the author opens
 // their profile, a picture the viewer, a video the player, the reposted post that post, elsewhere
-// the post's comments.
+// the post's comments. An edited post says so; on its own page, its versions open from below it.
 import { Image, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import type { Status, User, Video } from "../api";
 import { count, relativeTime } from "../format";
-import { openPost, openProfile } from "../nav";
+import { openEdits, openPost, openProfile } from "../nav";
 import { openViewer } from "./ImageViewer";
 import { RichText } from "./RichText";
 import { openVideo } from "./VideoPlayer";
@@ -97,7 +97,9 @@ function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
 export function StatusCard(props: { status: Status; full?: boolean }) {
   const s = () => props.status;
   const meta = () =>
-    [relativeTime(s().createdAt), s().source && t("post.via", { source: s().source }), s().region].filter(Boolean).join(" · ");
+    [relativeTime(s().createdAt), s().source && t("post.via", { source: s().source }), !props.full && s().region]
+      .filter(Boolean)
+      .join(" · ");
   return (
     <View
       role={props.full ? undefined : "button"}
@@ -113,7 +115,12 @@ export function StatusCard(props: { status: Status; full?: boolean }) {
               <Text class="text-xs text-primary">✓</Text>
             </If>
           </View>
-          <Text class="text-xs text-muted-foreground line-clamp-1">{meta()}</Text>
+          <View class="flex-row items-center gap-1">
+            <Text class="shrink text-xs text-muted-foreground line-clamp-1">{meta()}</Text>
+            <If when={!props.full && s().editCount}>
+              <Text class="shrink-0 text-xs text-muted-foreground">· {t("post.edited")}</Text>
+            </If>
+          </View>
         </View>
       </View>
       <Body status={s()} lines={props.full ? undefined : 8} selectable={props.full} />
@@ -135,6 +142,20 @@ export function StatusCard(props: { status: Status; full?: boolean }) {
             <Body status={rt()} lines={props.full ? undefined : 6} />
           </View>
         )}
+      </If>
+      {/* On the post's page: its edit history at the left, where it was sent from at the right. */}
+      <If when={props.full && (s().editCount || s().region)}>
+        <View class="flex-row items-center gap-3">
+          <If when={s().editCount}>
+            <Text role="link" onPress={() => openEdits(s())} class="text-xs text-primary active:opacity-60">
+              {t("post.edit_history")}
+            </Text>
+          </If>
+          <View class="flex-1" />
+          <If when={s().region}>
+            <Text class="text-xs text-muted-foreground">{t("post.region", { region: s().region })}</Text>
+          </If>
+        </View>
       </If>
       <View class="flex-row gap-6">
         <Text class="text-xs text-muted-foreground">{t("post.reposts", { n: count(s().reposts) })}</Text>

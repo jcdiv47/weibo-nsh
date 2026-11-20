@@ -27,6 +27,17 @@ post:
   play_video: "Play video: %{title}"
   topic: "Topic %{topic}"
   mention: "@%{name}'s profile"
+  edited: "Edited"
+  edit_history: "Edited · history"
+  region: "Posted from %{region}"
+edits:
+  title: "Edit history"
+  current: "Current version"
+  original: "Original"
+  edit: "Edit %{n}"
+  count: "Edited %{n} times"
+  show_changes: "Show changes"
+  hide_changes: "Hide changes"
 video:
   error: "Can't play this video: %{error}"
 profile:

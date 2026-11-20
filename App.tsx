@@ -8,6 +8,7 @@ import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from 
 import { ImageViewer } from "./components/ImageViewer";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { nav } from "./nav";
+import { Edits } from "./pages/Edits";
 import { Post } from "./pages/Post";
 import { Profile } from "./pages/Profile";
 import { Timeline } from "./pages/Timeline";
@@ -134,6 +135,8 @@ function App() {
                 return <Topic topic={route.topic} />;
               case "profile":
                 return <Profile {...route} />;
+              case "edits":
+                return <Edits id={route.id} />;
             }
           }}
         </NavStack>

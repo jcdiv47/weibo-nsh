@@ -41,6 +41,8 @@ export interface Status {
   /** What the post's short links (`http://t.cn/...`) stand for, by short link. */
   links: Record<string, Link>;
   retweeted?: Status;
+  /** Times the author edited it since posting (`edit_count`); its versions: `editHistory`. */
+  editCount: number;
 }
 
 export interface Video {
@@ -196,6 +198,7 @@ function toStatus(s: any): Status {
     video,
     links: toLinks(s?.url_struct),
     retweeted,
+    editCount: num(s?.edit_count),
   };
 }
 
@@ -435,6 +438,44 @@ export async function status(id: string): Promise<Status> {
 }
 
 export const parseStatus = (json: any): Status => toStatus(one("/ajax/statuses/show", json, "", shapes.status));
+
+/** One version of an edited post, as it read from `createdAt` until the next edit. */
+export interface Version {
+  /** Made here (Weibo's versions have none): the post's id and the version's time. */
+  id: string;
+  text: string;
+  createdAt: string;
+  pics: Pic[];
+  video?: Video;
+  links: Record<string, Link>;
+}
+
+/** An edited post's versions, newest (the current one) first, the original last; pages count from 1. */
+export async function editHistory(mid: string, page = 1): Promise<Page<Version, number>> {
+  return parseEditHistory(await get(`/ajax/statuses/editHistory?mid=${encodeURIComponent(mid)}&page=${page}`), mid, page);
+}
+
+export function parseEditHistory(json: any, mid: string, page: number): Page<Version, number> {
+  const EP = "/ajax/statuses/editHistory";
+  const raw = list(EP, json, "statuses");
+  const versions = items(EP, raw, shapes.version).map((v: any): Version => {
+    const s = toStatus(v);
+    // `text_raw` is the whole text today, long or not; `longText.content` too, in case it is cut.
+    const long = str(v?.longText?.content);
+    return {
+      id: `${mid}@${s.createdAt}`,
+      text: long.length > s.text.length ? long : s.text,
+      createdAt: s.createdAt,
+      pics: s.pics,
+      video: s.video,
+      links: s.links,
+    };
+  });
+  // `total` counts every version, the original too. Without it, read on until a page is empty.
+  if (raw.length && json.total === undefined) reportDrift(EP, ["total"], json);
+  const more = json.total === undefined ? raw.length > 0 : num(json.total) > page * raw.length;
+  return { items: versions, next: raw.length && more ? page + 1 : null };
+}
 
 // Runs `f` over `items`, `limit` at a time, keeping their order.
 async function mapLimit<T, R>(items: T[], limit: number, f: (t: T) => Promise<R>): Promise<R[]> {

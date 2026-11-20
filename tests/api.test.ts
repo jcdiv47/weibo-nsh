@@ -4,6 +4,7 @@
 import { expect, test } from "nsh/test";
 import {
   parseComments,
+  parseEditHistory,
   parseGroups,
   parseLongText,
   parsePeople,
@@ -12,9 +13,11 @@ import {
   parseTimeline,
   parseUserPosts,
 } from "../api";
+import { diff } from "../diff";
 import { driftReports, WeiboChanged } from "../drift";
 import allGroups from "./fixtures/allGroups.json";
 import buildComments from "./fixtures/buildComments.json";
+import editHistory from "./fixtures/editHistory.json";
 import friends from "./fixtures/friends.json";
 import friendstimeline from "./fixtures/friendstimeline.json";
 import longtext from "./fixtures/longtext.json";
@@ -153,6 +156,56 @@ test("one post", () => {
   expect(parseStatus(statusShow)).toMatchObject({ id: "5100000000000201", text: "#晚霞# 今天也很好看", likes: 50 });
 });
 
+test("a post's edit count", () => {
+  expect(parseStatus(statusShow).editCount).toBe(0);
+  expect(parseStatus({ ...copy(statusShow), edit_count: 4 }).editCount).toBe(4);
+});
+
+test("edit history: versions newest first, with their own text, time and pictures", () => {
+  const page = parseEditHistory(editHistory, "5100000000000001", 1);
+  expect(page.items.map((v) => v.createdAt)).toEqual([
+    "Wed Nov 18 14:01:56 +0800 2026",
+    "Wed Nov 18 13:51:29 +0800 2026",
+    "Wed Nov 18 13:48:49 +0800 2026",
+  ]);
+  // Weibo's versions all have the id -1: each gets one of its own.
+  expect(new Set(page.items.map((v) => v.id)).size).toBe(3);
+  expect(page.items[0].text).toBe("今天的晚霞是橘红色的，从六点一直烧到七点。\n明天再去江边看看。");
+  expect(page.items[0].pics).toEqual([
+    {
+      thumb: "https://wx1.sinaimg.cn/bmiddle/006aaaa1ly1hedit0002.jpg",
+      large: "https://wx1.sinaimg.cn/large/006aaaa1ly1hedit0002.jpg",
+    },
+  ]);
+  expect(page.items[2].pics).toEqual([]);
+  // All 3 of `total` came on this page.
+  expect(page.next).toBeNull();
+  expect(parseEditHistory({ ...copy(editHistory), total: 8 }, "1", 1).next).toBe(2);
+  expect(parseEditHistory({ ok: 1, statuses: [], total: 3 }, "1", 2).next).toBeNull();
+});
+
+test("edit history: a cut text reads the long one", () => {
+  const json = copy(editHistory);
+  json.statuses[0].text_raw = "今天的晚霞是橘红色的…";
+  expect(parseEditHistory(json, "1", 1).items[0].text).toBe(editHistory.statuses[0].longText!.content);
+});
+
+test("diff: what was added and removed between versions", () => {
+  expect(diff("今天的晚霞是红色的。", "今天的晚霞是橘红色的，从六点一直烧到七点。")).toEqual([
+    { kind: "same", text: "今天的晚霞是" },
+    { kind: "added", text: "橘" },
+    { kind: "same", text: "红色的" },
+    { kind: "added", text: "，从六点一直烧到七点" },
+    { kind: "same", text: "。" },
+  ]);
+  expect(diff("abc", "abc")).toEqual([{ kind: "same", text: "abc" }]);
+  expect(diff("", "new")).toEqual([{ kind: "added", text: "new" }]);
+  // Rejoined, each side is its text again.
+  const parts = diff("小红书分发的是你感兴趣的内容主题与话题，微博", "小红书分发的是你感兴趣的内容话题，微博分发");
+  expect(parts.filter((p) => p.kind !== "added").map((p) => p.text).join("")).toBe("小红书分发的是你感兴趣的内容主题与话题，微博");
+  expect(parts.filter((p) => p.kind !== "removed").map((p) => p.text).join("")).toBe("小红书分发的是你感兴趣的内容话题，微博分发");
+});
+
 test("following and followers, by page", () => {
   const page = parsePeople(friends, 1);
   expect(page.items.map((u) => u.name)).toEqual(["晚霞观察员", "转发达人"]);
@@ -172,6 +225,7 @@ test("a list under a new name is a change, not an empty feed", () => {
   expect(() => parseUserPosts({ ok: 1, data: { statuses: [] } }, 1)).toThrow(WeiboChanged);
   expect(() => parsePeople({ ok: 1, list: [] }, 1)).toThrow(WeiboChanged);
   expect(() => parseGroups({ ok: 1, data: [] })).toThrow(WeiboChanged);
+  expect(() => parseEditHistory({ ok: 1, data: { statuses: [] } }, "1", 1)).toThrow(WeiboChanged);
 });
 
 test("an empty list is not a change", () => {

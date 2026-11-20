@@ -14,7 +14,9 @@ export type Route =
   /** Who an account follows, or who follows it. */
   | { name: "people"; uid: string; kind: "following" | "followers" }
   /** A topic's posts, by its name without the `#`s. */
-  | { name: "topic"; topic: string };
+  | { name: "topic"; topic: string }
+  /** An edited post's versions, by the post's id. */
+  | { name: "edits"; id: string };
 
 export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
@@ -26,6 +28,12 @@ export function openPost(status: Status) {
 }
 
 export const postById = (id: string) => posts.get(id);
+
+/** The versions of an edited post. */
+export function openEdits(status: Status) {
+  posts.set(status.id, status);
+  nav.push({ name: "edits", id: status.id });
+}
 
 export const openProfile = (uid: string) => {
   if (uid) nav.push({ name: "profile", uid });

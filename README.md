@@ -11,6 +11,8 @@ What it does now:
   filtered out. Pull to refresh, more on scroll.
 - **Post page** with its full text (`/ajax/statuses/longtext`) and comments
   (`/ajax/statuses/buildComments`), with a comment's replies opening in place.
+- **Edit history**: an edited post (`edit_count`) says so; on its page, "Edited · history" lists its
+  versions (`/ajax/statuses/editHistory`), newest first, each with what changed from the one before.
 - **Profile** (`/ajax/profile/info`, `/ajax/statuses/mymblog`): following / follows you and the
   block status (`block` / `blockText` of the profile answer), with **Follow / Unfollow**
   (`/ajax/friendships/create`, `/ajax/friendships/destory`) and **Block / Unblock**

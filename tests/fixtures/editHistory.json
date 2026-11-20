@@ -1,0 +1,77 @@
+{
+  "statuses": [
+    {
+      "visible": { "type": 0, "list_id": 0 },
+      "created_at": "Wed Nov 18 14:01:56 +0800 2026",
+      "id": -1,
+      "idstr": "-1",
+      "mid": "-1",
+      "mblogid": "",
+      "user": { "id": 2000000001, "idstr": "2000000001", "screen_name": "晚霞观察员", "following": true },
+      "can_edit": false,
+      "edit_count": 2,
+      "textLength": 60,
+      "source": "",
+      "pic_ids": ["006aaaa1ly1hedit0002"],
+      "pic_num": 1,
+      "pic_infos": {
+        "006aaaa1ly1hedit0002": {
+          "bmiddle": { "url": "https://wx1.sinaimg.cn/bmiddle/006aaaa1ly1hedit0002.jpg" },
+          "largest": { "url": "https://wx1.sinaimg.cn/large/006aaaa1ly1hedit0002.jpg" }
+        }
+      },
+      "reposts_count": 3,
+      "comments_count": 12,
+      "attitudes_count": 108,
+      "isLongText": true,
+      "longText": { "pic_ids": [], "pic_num": 0, "content": "今天的晚霞是橘红色的，从六点一直烧到七点。\n明天再去江边看看。" },
+      "text": "今天的晚霞是橘红色的，从六点一直烧到七点。<br />明天再去江边看看。",
+      "text_raw": "今天的晚霞是橘红色的，从六点一直烧到七点。\n明天再去江边看看。",
+      "region_name": "发布于 上海"
+    },
+    {
+      "visible": { "type": 0, "list_id": 0 },
+      "created_at": "Wed Nov 18 13:51:29 +0800 2026",
+      "id": -1,
+      "idstr": "-1",
+      "mid": "-1",
+      "mblogid": "",
+      "user": { "id": 2000000001, "idstr": "2000000001", "screen_name": "晚霞观察员", "following": true },
+      "can_edit": false,
+      "textLength": 50,
+      "source": "",
+      "pic_ids": ["006aaaa1ly1hedit0001"],
+      "pic_num": 1,
+      "reposts_count": 0,
+      "comments_count": 0,
+      "attitudes_count": 0,
+      "isLongText": false,
+      "text": "今天的晚霞是红色的，从六点一直烧到七点。",
+      "text_raw": "今天的晚霞是红色的，从六点一直烧到七点。",
+      "region_name": "发布于 上海"
+    },
+    {
+      "visible": { "type": 0, "list_id": 0 },
+      "created_at": "Wed Nov 18 13:48:49 +0800 2026",
+      "id": -1,
+      "idstr": "-1",
+      "mid": "-1",
+      "mblogid": "",
+      "user": { "id": 2000000001, "idstr": "2000000001", "screen_name": "晚霞观察员", "following": true },
+      "can_edit": false,
+      "textLength": 40,
+      "source": "",
+      "pic_ids": [],
+      "pic_num": 0,
+      "reposts_count": 0,
+      "comments_count": 0,
+      "attitudes_count": 0,
+      "isLongText": false,
+      "text": "今天的晚霞是红色的。",
+      "text_raw": "今天的晚霞是红色的。",
+      "region_name": "发布于 上海"
+    }
+  ],
+  "total": 3,
+  "ok": 1
+}

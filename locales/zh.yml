@@ -27,6 +27,17 @@ post:
   play_video: "播放视频：%{title}"
   topic: "话题 %{topic}"
   mention: "@%{name} 的主页"
+  edited: "已编辑"
+  edit_history: "已编辑 · 查看记录"
+  region: "发布于 %{region}"
+edits:
+  title: "编辑记录"
+  current: "当前版本"
+  original: "原文"
+  edit: "第 %{n} 次编辑"
+  count: "共编辑 %{n} 次"
+  show_changes: "显示改动"
+  hide_changes: "隐藏改动"
 video:
   error: "无法播放此视频：%{error}"
 profile:
