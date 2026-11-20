@@ -90,11 +90,13 @@ export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
           <Each of={rows(shown(), 3)}>
             {(row, r) => (
               <View class="flex-row gap-1">
+                {/* The cell takes a third of the row, the picture in it its width and as much
+                    height: an aspect ratio on the `flex-1` cell itself lays out with no height. */}
                 <Each of={[0, 1, 2]}>
                   {(c) => (
-                    <If when={row()[c()]} else={<View class="flex-1" />}>
-                      {(p) => pic(p(), r() * 3 + c(), "aspect-square flex-1")}
-                    </If>
+                    <View class="flex-1">
+                      <If when={row()[c()]}>{(p) => pic(p(), r() * 3 + c(), "aspect-square w-full")}</If>
+                    </View>
                   )}
                 </Each>
               </View>
