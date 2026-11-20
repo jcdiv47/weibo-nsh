@@ -39,7 +39,7 @@ export function InlineReply(props: { comment: Comment }) {
   return (
     <View class="gap-1">
       <Text class="text-sm leading-6 text-foreground">
-        <Text role="button" onPress={() => openProfile(props.comment.user.id)} class="text-primary active:opacity-60">
+        <Text role="button" onPress={() => openProfile(props.comment.user.id)} class={`${LINK_CLASS} active:opacity-60`}>
           {props.comment.user.name}
         </Text>
         {": "}
