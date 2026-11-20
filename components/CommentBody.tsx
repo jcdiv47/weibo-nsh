@@ -8,7 +8,7 @@ import { type Comment, likeComment } from "../api";
 import { count, relativeTime } from "../format";
 import { openProfile } from "../nav";
 import { Icon } from "./Icon";
-import { LINK_CLASS, LINK_TINT, RichText } from "./RichText";
+import { LINK_CLASS, RichText } from "./RichText";
 import { Pictures } from "./StatusCard";
 
 // Who a reply answers isn't shown apart: Weibo starts its text with "回复@name:" already.
@@ -16,19 +16,20 @@ const commentText = (c: Comment, cls: string) => (
   <RichText text={c.text.trimEnd()} links={c.links} plainMentions hidePictureLinks class={cls} />
 );
 
-/** The author's name, then the text and pictures. */
-export function CommentBody(props: { comment: Comment }) {
+/** The author's name, then the text and pictures. `root`: the comment heading its thread, its
+ * name bold and its text larger. */
+export function CommentBody(props: { comment: Comment; root?: boolean }) {
   // No `flex-1`: in a column it sets a zero basis, and the replies' bodies collapsed onto each other.
   return (
-    <View class="gap-1">
+    <View class={props.root ? "gap-2" : "gap-1.5"}>
       <Text
         role="button"
         onPress={() => openProfile(props.comment.user.id)}
-        class="text-sm text-muted-foreground active:opacity-60"
+        class={`self-start active:opacity-60 ${props.root ? "text-body leading-5 font-semibold text-ink" : "text-sm leading-[18px] text-ink-2"}`}
       >
         {props.comment.user.name}
       </Text>
-      {commentText(props.comment, "select-text text-[15px] leading-6 text-foreground")}
+      {commentText(props.comment, `select-text ${props.root ? "text-base leading-[26px]" : "text-body"} text-ink`)}
       <Pictures pics={props.comment.pics} small />
     </View>
   );
@@ -38,7 +39,7 @@ export function CommentBody(props: { comment: Comment }) {
 export function InlineReply(props: { comment: Comment }) {
   return (
     <View class="gap-1">
-      <Text class="text-sm leading-6 text-foreground">
+      <Text class="text-sm leading-[22px] text-ink">
         <Text role="button" onPress={() => openProfile(props.comment.user.id)} class={`${LINK_CLASS} active:opacity-60`}>
           {props.comment.user.name}
         </Text>
@@ -75,43 +76,44 @@ async function toggleLike(c: Comment) {
   }
 }
 
-/** When and where from at the left; like, repost and reply at the right. */
+/** When and where from at the left; like, repost and reply at the right, each in a lane of its own. */
 export function CommentFooter(props: { comment: Comment; onReply: () => void; onRepost: () => void }) {
   const c = () => props.comment;
   const like = () => likeOf(c());
+  const meta = () => [relativeTime(c().createdAt), c().region && t("post.comment_region", { region: c().region })].filter(Boolean).join(" · ");
   return (
-    <View class="flex-row items-center gap-2">
-      <Text class="text-xs text-muted-foreground">{relativeTime(c().createdAt)}</Text>
-      <If when={c().region}>
-        <Text class="text-xs text-muted-foreground">{t("post.comment_region", { region: c().region })}</Text>
-      </If>
+    <View class="flex-row items-center gap-2 pt-0.5">
+      <Text class="shrink text-xs text-ink-2 line-clamp-1">{meta()}</Text>
       <View class="flex-1" />
-      <View class="flex-row items-center gap-6">
-        <View
-          role="button"
-          accessibilityLabel={`${t(like().liked ? "comment.unlike" : "comment.like")}, ${t("post.likes", { n: count(like().likes) })}`}
-          onPress={() => toggleLike(c())}
-          class="flex-row items-center gap-1 active:opacity-60"
-        >
-          <If when={like().likes}>
-            <Text class={`text-xs ${like().liked ? LINK_CLASS : "text-muted-foreground"}`}>{count(like().likes)}</Text>
-          </If>
-          <Icon
-            name={like().liked ? "thumb-up-filled" : "thumb-up"}
-            class={`size-4 ${like().liked ? LINK_TINT : "tint-muted-foreground"}`}
-          />
-        </View>
-        <View role="button" accessibilityLabel={t("repost.action")} onPress={props.onRepost} class="active:opacity-60">
-          <Icon name="repeat" class="size-4 tint-muted-foreground" />
-        </View>
-        <View
-          role="button"
-          accessibilityLabel={t("reply.to", { name: c().user.name })}
-          onPress={props.onReply}
-          class="active:opacity-60"
-        >
-          <Icon name="message-circle" class="size-4 tint-muted-foreground" />
-        </View>
+      <View
+        role="button"
+        accessibilityLabel={`${t(like().liked ? "comment.unlike" : "comment.like")}, ${t("post.likes", { n: count(like().likes) })}`}
+        onPress={() => toggleLike(c())}
+        hitSlop={8}
+        class="w-[52px] shrink-0 flex-row items-center justify-end gap-[3px] active:opacity-60"
+      >
+        <If when={like().likes}>
+          <Text class={`text-xs ${like().liked ? "text-link" : "text-ink-2"}`}>{count(like().likes)}</Text>
+        </If>
+        <Icon name={like().liked ? "thumb-up-filled" : "thumb-up"} class={`size-4 ${like().liked ? "tint-link" : "tint-ink-2"}`} />
+      </View>
+      <View
+        role="button"
+        accessibilityLabel={t("repost.action")}
+        onPress={props.onRepost}
+        hitSlop={8}
+        class="w-10 shrink-0 flex-row justify-end active:opacity-60"
+      >
+        <Icon name="repeat" class="size-4 tint-ink-2" />
+      </View>
+      <View
+        role="button"
+        accessibilityLabel={t("reply.to", { name: c().user.name })}
+        onPress={props.onReply}
+        hitSlop={8}
+        class="w-10 shrink-0 flex-row justify-end active:opacity-60"
+      >
+        <Icon name="message-circle" class="size-4 tint-ink-2" />
       </View>
     </View>
   );

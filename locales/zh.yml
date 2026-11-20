@@ -42,18 +42,25 @@ reply:
   send: "发送"
   sending: "发送中…"
   failed: "发送失败：%{error}"
+  also_repost: "同时转发"
 repost:
   title: "转发 @%{name} 的评论"
   placeholder: "说说分享心得…"
   failed: "转发失败：%{error}"
   action: "转发"
+  also_comment: "同时评论"
 comment:
   like: "赞"
   unlike: "取消赞"
 favorite:
-  title: "收藏"
+  title: "我的收藏"
   add: "收藏"
   remove: "取消收藏"
+  saved: "已收藏"
+  view: "查看收藏"
+  remove_short: "取消收藏"
+  empty_title: "还没有收藏"
+  empty_note: "在微博正文页点右上角的收藏按钮，\n想再看的微博就会留在这里。"
 edits:
   title: "编辑记录"
   current: "当前版本"
@@ -91,6 +98,8 @@ profile:
   show_raw: "查看原始数据"
   hide_raw: "隐藏原始数据"
   no_such_name: "没有昵称为 @%{name} 的用户"
+  more: "更多"
+  posts: "微博"
 time:
   just_now: "刚刚"
   minutes: "%{n}分钟前"
@@ -104,3 +113,9 @@ error:
 saved:
   updating: "正在显示保存的内容（%{time}）· 更新中…"
   stale: "刷新失败，正在显示保存的内容（%{time}）。"
+menu:
+  my_profile: "我的主页"
+  my_favorites: "我的收藏"
+compose:
+  mention: "提及"
+  topic: "话题"

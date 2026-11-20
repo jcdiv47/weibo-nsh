@@ -17,10 +17,10 @@ What it does now:
   the comment or any reply answers it. Under each comment, a like (`/ajax/statuses/updateLike`,
   `destroyLike`, with `object_type=comment`) and a repost (`/ajax/statuses/normal_repost` with its
   `cid`, the box starting with "//@author:text" as weibo.com's does).
-- **Favorites** (收藏): a bookmark on each post (at the end of its counts; on its page, of its
-  tabs) saves it or takes it out (`/ajax/statuses/createFavorites`, `destoryFavorites`), filled
-  while saved (the post's `favorited`). My profile opens "Favorites", the posts I saved, latest
-  first (`/ajax/favorites/all_fav`).
+- **Favorites** (收藏): the bookmark at the top right of a post's page saves it or takes it out
+  (`/ajax/statuses/createFavorites`, `destoryFavorites`), filled while saved (the post's `favorited`);
+  saving says so in a toast that leads to them. The "我" menu on the timeline opens "My favorites",
+  the posts I saved, latest first (`/ajax/favorites/all_fav`); swiping one left takes it out.
 - **Edit history**: an edited post (`edit_count`) says so; on its page, "Edited · history" lists its
   versions (`/ajax/statuses/editHistory`), newest first, each with what changed from the one before.
 - **Profile** (`/ajax/profile/info`, `/ajax/statuses/mymblog`): following / follows you and the
@@ -71,6 +71,10 @@ device. Differences handled already:
 - The first page of each list (except a post's reposts and likes) and each profile are saved on the device (`saved.ts`, the newest
   40): a page opens on its saved copy while it loads and keeps it, marked as saved, when the load
   fails. Signing out clears them.
+- The look follows the "Weibo for iPhone" design (Paper): its tokens are `theme.json`, light and
+  dark, named as the design names them (`ground`, `well`, `hairline`, `ink`, `ink-2`, `weibo`,
+  `link`, ...), its type scale `nsh.json`'s `tailwind`. Every page draws its own header
+  (`components/Header.tsx`): glass back and action buttons, the system header hidden.
 - Icons are [Tabler Icons](https://tabler.io/icons) (MIT, `icons/LICENSE`): only the SVGs the app
   uses, in `icons/`, named in `components/Icon.tsx`. To add one, copy it from `@tabler/icons`'
   `icons/outline/` (or `filled/`) and list it there; give each use a `tint-*` class.

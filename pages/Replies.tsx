@@ -1,12 +1,11 @@
 // A comment's thread: the comment, then all its replies, oldest first. A press on the comment or
 // on a reply answers it.
 import { List, signal, Text, View } from "nsh";
-import { NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
 import { type Comment, replies, type Status } from "../api";
 import { CommentBody, CommentFooter } from "../components/CommentBody";
 import { FeedFooter } from "../components/FeedFooter";
-import { Header } from "../components/Header";
+import { Page } from "../components/Header";
 import { openReply, openRepost } from "../components/ReplySheet";
 import { Avatar } from "../components/StatusCard";
 import { createFeed } from "../feed";
@@ -24,11 +23,11 @@ function ReplyRow(props: {
       role="button"
       accessibilityLabel={t("reply.to", { name: props.comment.user.name })}
       onPress={props.onPress}
-      class={`flex-row gap-3 px-4 py-3 active:bg-muted/40 ${props.root ? "border-b-8 border-muted" : "border-b border-border"}`}
+      class={`flex-row px-4 pt-3.5 active:bg-well ${props.root ? "gap-3 border-b-8 border-well pb-4" : "gap-2.5 border-b-[0.5px] border-hairline pb-3"}`}
     >
-      <Avatar user={props.comment.user} size="sm" />
-      <View class="flex-1 gap-2">
-        <CommentBody comment={props.comment} />
+      <Avatar user={props.comment.user} size={props.root ? "md" : "sm"} />
+      <View class={`flex-1 ${props.root ? "gap-2" : "gap-1.5"}`}>
+        <CommentBody comment={props.comment} root={props.root} />
         <CommentFooter comment={props.comment} onReply={props.onPress} onRepost={props.onRepost} />
       </View>
     </View>
@@ -40,9 +39,9 @@ export function Replies(props: { postId: string; commentId: string }) {
   const root = commentById(props.commentId);
   if (!status || !root) {
     return (
-      <NavPage title={t("post.title")} header={<Header title={t("post.title")} />}>
-        <Text class="p-4 text-muted-foreground">{t("post.gone")}</Text>
-      </NavPage>
+      <Page title={t("post.title")}>
+        <Text class="p-4 text-ink-2">{t("post.gone")}</Text>
+      </Page>
     );
   }
   const total = signal(root.replyCount);
@@ -58,7 +57,7 @@ export function Replies(props: { postId: string; commentId: string }) {
     });
 
   return (
-    <NavPage title={title()} header={<Header title={title()} />}>
+    <Page title={title()}>
       <List
         each={feed.items()}
         keyExtractor={(c) => c.id}
@@ -84,6 +83,6 @@ export function Replies(props: { postId: string; commentId: string }) {
           />
         )}
       </List>
-    </NavPage>
+    </Page>
   );
 }

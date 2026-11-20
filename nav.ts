@@ -1,7 +1,7 @@
 // The navigation stack and the posts pages pass along: a post page reads the post the timeline
 // already has instead of fetching it again.
 import { createNavStack } from "nsh/base";
-import type { Comment, Status } from "./api";
+import type { Comment, Status, User } from "./api";
 
 export type Route =
   | { name: "timeline" }
@@ -11,8 +11,15 @@ export type Route =
   | { name: "profile"; screenName: string }
   /** The signed-in account's own profile. */
   | { name: "profile"; me: true }
-  /** Who an account follows, or who follows it. */
-  | { name: "people"; uid: string; kind: "following" | "followers" }
+  /** Who an account follows, or who follows it (its name and counts for the title and tabs). */
+  | {
+      name: "people";
+      uid: string;
+      kind: "following" | "followers";
+      userName?: string;
+      followingCount?: number;
+      followersCount?: number;
+    }
   /** A topic's posts, by its name without the `#`s. */
   | { name: "topic"; topic: string }
   /** An edited post's versions, by the post's id. */
@@ -82,9 +89,17 @@ export const openTopic = (topic: string) => {
 /** My own profile. */
 export const openMe = () => nav.push({ name: "profile", me: true });
 
-/** Who `uid` follows, or who follows `uid`. */
-export const openPeople = (uid: string, kind: "following" | "followers") => {
-  if (uid) nav.push({ name: "people", uid, kind });
+/** Who `user` follows, or who follows `user`. */
+export const openPeople = (user: User, kind: "following" | "followers") => {
+  if (user.id)
+    nav.push({
+      name: "people",
+      uid: user.id,
+      kind,
+      userName: user.name,
+      followingCount: user.followingCount,
+      followersCount: user.followersCount,
+    });
 };
 
 /** The posts I saved (收藏). */

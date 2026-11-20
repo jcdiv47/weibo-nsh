@@ -1,9 +1,8 @@
 // A topic's posts (`#name#`), as Weibo's search lists them: pull to refresh, more as it scrolls.
 import { List } from "nsh";
-import { NavPage } from "nsh/base";
 import { type Status, topicPosts } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
-import { Header } from "../components/Header";
+import { Page } from "../components/Header";
 import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
@@ -15,7 +14,7 @@ export function Topic(props: { topic: string }) {
   feed.more();
   const title = `#${props.topic}#`;
   return (
-    <NavPage title={title} header={<Header title={title} />}>
+    <Page title={title}>
       <List
         each={feed.items()}
         keyExtractor={(s) => s.id}
@@ -37,6 +36,6 @@ export function Topic(props: { topic: string }) {
       >
         {(status) => <StatusCard status={status()} />}
       </List>
-    </NavPage>
+    </Page>
   );
 }

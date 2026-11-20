@@ -10,8 +10,8 @@ import { Icon } from "./Icon";
 import { openViewer } from "./ImageViewer";
 
 /** Weibo's link orange, for mentions and links. */
-export const LINK_CLASS = "text-[#eb7350]";
-export const LINK_TINT = "tint-[#eb7350]";
+export const LINK_CLASS = "text-link";
+export const LINK_TINT = "tint-link";
 
 // Weibo screen names: letters (Chinese included), digits, `_` and `-`, up to 30 characters. A
 // mention ends at anything else: `//@name:` in repost chains, `@name ` before text.

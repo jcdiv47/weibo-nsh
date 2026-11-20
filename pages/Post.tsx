@@ -2,7 +2,7 @@
 // it, one on its replies opens its thread.
 // A post the app has not got (one a "微博正文" link points at) loads by its id first.
 import { computed, List, signal, Text, View } from "nsh";
-import { Button, NavPage } from "nsh/base";
+import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
 import { type Comment, comments, likes, longText, reposts, type Status, status as loadStatus, type User } from "../api";
@@ -10,7 +10,7 @@ import { CommentBody, CommentFooter, InlineReply } from "../components/CommentBo
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { Icon } from "../components/Icon";
-import { Header } from "../components/Header";
+import { Page } from "../components/Header";
 import { Spinner } from "../components/Spinner";
 import { openReply, openRepost } from "../components/ReplySheet";
 import { RichText } from "../components/RichText";
@@ -24,9 +24,9 @@ export function Post(props: { id: string }) {
   const cached = postById(props.id);
   if (cached) {
     return (
-      <NavPage title={t("post.title")} header={<Header title={t("post.title")} />}>
+      <Page title={t("post.title")} right={<FavoriteButton status={cached} />}>
         <PostBody status={cached} />
-      </NavPage>
+      </Page>
     );
   }
 
@@ -47,7 +47,7 @@ export function Post(props: { id: string }) {
   load();
   // One page, there from the start: the post takes the spinner's place when it comes.
   return (
-    <NavPage title={t("post.title")} header={<Header title={t("post.title")} />}>
+    <Page title={t("post.title")} right={<If when={loaded()}>{(s) => <FavoriteButton status={s()} />}</If>}>
       <If
         when={loaded()}
         else={
@@ -61,7 +61,7 @@ export function Post(props: { id: string }) {
       >
         {(s) => <PostBody status={s()} />}
       </If>
-    </NavPage>
+    </Page>
   );
 }
 
@@ -189,29 +189,27 @@ function Tabs(props: { status: Status; tab: Tab; onTab: (tab: Tab) => void }) {
     { id: "likes", label: () => t("post.tab_likes"), n: () => props.status.likes, a11y: () => t("post.likes", { n: count(props.status.likes) }) },
   ];
   return (
-    <View class="flex-row gap-8 border-b border-border px-4">
+    <View class="flex-row items-end gap-7 border-b-[0.5px] border-t-8 border-b-hairline border-t-well px-4">
       <Each of={tabs} key={(tb) => tb.id}>
         {(tb) => {
           const on = () => props.tab === tb().id;
           return (
             <Button
+              role="tab"
               accessibilityLabel={tb().a11y()}
               selected={on()}
               onPress={() => props.onTab(tb().id)}
               class="items-center gap-2 pt-3 active:opacity-60"
             >
-              <Text class={`text-[15px] ${on() ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+              <Text class={`text-body leading-5 ${on() ? "font-semibold text-ink" : "text-ink-2"}`}>
                 {tb().label()}
                 {tb().n() ? ` ${count(tb().n())}` : ""}
               </Text>
-              <View class={`h-0.5 w-6 rounded-full ${on() ? "bg-primary" : "bg-transparent"}`} />
+              <View class={`h-[3px] w-6 rounded-full ${on() ? "bg-weibo" : "bg-transparent"}`} />
             </Button>
           );
         }}
       </Each>
-      {/* Saving the post sits at the row's end, as the tabs' row is the post's last. */}
-      <View class="flex-1" />
-      <FavoriteButton status={props.status} class="self-center" />
     </View>
   );
 }
@@ -223,10 +221,10 @@ function LikeRow(props: { user: User }) {
       role="button"
       accessibilityLabel={props.user.name}
       onPress={() => openProfile(props.user.id)}
-      class="flex-row items-center gap-3 border-b border-border px-4 py-2.5 active:bg-muted/40"
+      class="flex-row items-center gap-2.5 border-b-[0.5px] border-hairline px-4 py-2.5 active:bg-well"
     >
       <Avatar user={props.user} size="sm" still />
-      <Text class="flex-1 text-sm font-semibold text-foreground line-clamp-1">{props.user.name}</Text>
+      <Text class="flex-1 text-body font-semibold text-ink line-clamp-1">{props.user.name}</Text>
     </View>
   );
 }
@@ -238,17 +236,17 @@ function RepostRow(props: { repost: Status }) {
     <View
       role="button"
       onPress={() => openPost(s())}
-      class="flex-row gap-3 border-b border-border px-4 py-3 active:bg-muted/40"
+      class="flex-row gap-2.5 border-b-[0.5px] border-hairline px-4 pb-3 pt-3.5 active:bg-well"
     >
       <Avatar user={s().user} size="sm" />
-      <View class="flex-1 gap-1">
+      <View class="flex-1 gap-1.5">
         <View class="flex-row items-center gap-2">
-          <Text role="button" onPress={() => openProfile(s().user.id)} class="text-sm font-semibold text-foreground">
+          <Text role="button" onPress={() => openProfile(s().user.id)} class="text-sm leading-[18px] text-ink-2">
             {s().user.name}
           </Text>
-          <Text class="text-xs text-muted-foreground">{relativeTime(s().createdAt)}</Text>
+          <Text class="text-xs text-ink-3">{relativeTime(s().createdAt)}</Text>
         </View>
-        <RichText text={s().text} links={s().links} class="text-[15px] leading-6 text-foreground" />
+        <RichText text={s().text} links={s().links} class="text-body text-ink" />
       </View>
     </View>
   );
@@ -261,25 +259,25 @@ function CommentRow(props: { comment: Comment; onReply: () => void; onRepost: ()
       role="button"
       accessibilityLabel={t("reply.to", { name: c().user.name })}
       onPress={props.onReply}
-      class="flex-row gap-3 border-b border-border px-4 py-3 active:bg-muted/40"
+      class="flex-row gap-2.5 border-b-[0.5px] border-hairline px-4 pb-3 pt-3.5 active:bg-well"
     >
       <Avatar user={c().user} size="sm" />
-      <View class="flex-1 gap-2">
+      <View class="flex-1 gap-1.5">
         <CommentBody comment={c()} />
         <If when={c().replyCount > 0 || c().preview.length}>
           <View
             role="button"
             accessibilityLabel={t("replies.title", { n: count(c().replyCount) })}
             onPress={props.onReplies}
-            class="gap-1 rounded-lg bg-muted px-3 py-2 active:opacity-60"
+            class="gap-1 rounded-[8px] bg-well px-2.5 py-2 active:opacity-60"
           >
             <Each of={c().preview} key={(r) => r.id}>
               {(r) => <InlineReply comment={r()} />}
             </Each>
             <If when={c().replyCount > c().preview.length}>
-              <View class="flex-row items-center gap-1">
-                <Icon name="message-circle" class="size-3.5 tint-primary" />
-                <Text class="text-xs text-primary">{t("post.view_replies", { n: count(c().replyCount) })}</Text>
+              <View class="flex-row items-center gap-0.5 pt-0.5">
+                <Text class="text-meta text-link">{t("post.view_replies", { n: count(c().replyCount) })}</Text>
+                <Icon name="chevron-right" class="size-3.5 tint-link" />
               </View>
             </If>
           </View>

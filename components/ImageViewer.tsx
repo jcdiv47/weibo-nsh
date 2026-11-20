@@ -90,14 +90,14 @@ export function ImageViewer() {
               accessibilityLabel={t("common.close")}
               onPress={close}
               hitSlop={8}
-              class="absolute left-4 size-9 items-center justify-center rounded-full bg-black/50 active:opacity-60"
-              style={{ top: safeArea().top + 8 }}
+              class="absolute left-4 size-11 items-center justify-center rounded-full bg-white/15 backdrop-blur-xl active:opacity-60"
+              style={{ top: safeArea().top + 4 }}
             >
-              <Icon name="x" class="size-5 tint-white" />
+              <Icon name="x" class="size-[22px] tint-white" />
             </Button>
             <If when={v().pics.length > 1}>
-              <View class="pointer-events-none absolute inset-x-0 items-center" style={{ top: safeArea().top + 12 }}>
-                <Text class="rounded-full bg-black/50 px-3 py-1 text-sm text-white">
+              <View class="pointer-events-none absolute inset-x-0 h-11 items-center justify-center" style={{ top: safeArea().top + 4 }}>
+                <Text class="rounded-full bg-white/15 px-3 py-1 text-sm font-medium text-white">
                   {`${Math.min(page(), v().pics.length - 1) + 1} / ${v().pics.length}`}
                 </Text>
               </View>

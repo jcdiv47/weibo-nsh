@@ -1,6 +1,6 @@
 // An account: who they are, how we relate (following, follows me, blocked), and their posts.
 import { List, signal, Text, View } from "nsh";
-import { AlertDialog, Button, NavPage } from "nsh/base";
+import { AlertDialog, Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
   block,
@@ -16,54 +16,17 @@ import {
 } from "../api";
 import { NotSignedIn } from "../bridge";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
-import { Header } from "../components/Header";
-import { Icon, type IconName } from "../components/Icon";
+import { GlassButton, Page } from "../components/Header";
+import { PopMenu } from "../components/PopMenu";
+import { Spinner } from "../components/Spinner";
+import { Icon } from "../components/Icon";
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
-import { openFavorites, openPeople } from "../nav";
+import { openPeople } from "../nav";
 import { loadSaved, save } from "../saved";
-
-function Badge(props: { label: string; icon?: IconName; tone?: "primary" | "danger" | "muted" }) {
-  const tone = () =>
-    props.tone === "danger"
-      ? "border-destructive text-destructive"
-      : props.tone === "primary"
-        ? "border-primary text-primary"
-        : "border-border text-muted-foreground";
-  const tint = () =>
-    props.tone === "danger" ? "tint-destructive" : props.tone === "primary" ? "tint-primary" : "tint-muted-foreground";
-  return (
-    <View class={`flex-row items-center gap-1 rounded-full border px-2 py-0.5 ${tone()}`}>
-      <If when={props.icon}>{(icon) => <Icon name={icon()} class={`size-3.5 ${tint()}`} />}</If>
-      <Text class={`text-xs ${tone()}`}>{props.label}</Text>
-    </View>
-  );
-}
-
-// What the buttons above don't say: whether they follow me, and a block state the answer left
-// unknown (with the fields it was read from).
-function Relationship(props: { data: ProfileData }) {
-  const block = () => props.data.block;
-  return (
-    <>
-      <If when={props.data.user.followsMe}>
-        <View class="flex-row">
-          <Badge label={t("profile.follows_you")} icon="arrows-left-right" tone="primary" />
-        </View>
-      </If>
-      <If when={block().blocked === null}>
-        <Text class="text-xs text-muted-foreground">
-          {block().evidence.length
-            ? t("profile.block_unknown_from", { fields: block().evidence.join(", ") })
-            : t("profile.block_unknown")}
-        </Text>
-      </If>
-    </>
-  );
-}
 
 type Action = "follow" | "unfollow" | "block" | "unblock";
 
@@ -80,16 +43,17 @@ const confirmations: Partial<Record<Action, (name: string) => { title: string; d
   }),
 };
 
-/** Follow / unfollow and block / unblock; the profile is read again after each. */
-function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
-  const u = () => props.data.user;
-  const blocked = () => props.data.block.blocked === true;
+/**
+ * Follow / unfollow and block / unblock, asking first before an unfollow or a block; the profile
+ * is read again after each. One per profile page: its header's menu and its buttons share it.
+ */
+function createActions(data: () => ProfileData | null, reload: () => Promise<void>) {
   const busy = signal<Action | null>(null);
   const error = signal<string | null>(null);
-
   async function run(action: Action) {
-    if (busy()) return;
-    const ask = confirmations[action]?.(u().name);
+    const d = data();
+    if (busy() || !d) return;
+    const ask = confirmations[action]?.(d.user.name);
     if (ask) {
       const { action: chosen } = await AlertDialog.show({
         title: ask.title,
@@ -104,124 +68,140 @@ function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
     busy.set(action);
     error.set(null);
     try {
-      const uid = u().id;
-      await { follow, unfollow, block, unblock }[action](uid);
-      await props.reload();
+      await { follow, unfollow, block, unblock }[action](d.user.id);
+      await reload();
     } catch (e) {
       error.set(String((e as Error)?.message ?? e));
     } finally {
       busy.set(null);
     }
   }
+  return { busy, error, run };
+}
+type Actions = ReturnType<typeof createActions>;
 
-  const button = "flex-row items-center gap-1.5 rounded-full border px-4 py-1.5 active:opacity-60";
+const BUTTON = "h-10 flex-row items-center justify-center gap-1.5 rounded-full active:opacity-70 disabled:opacity-50";
+
+/** Follow (orange) or 已关注 (grey, a press unfollows); blocked, 解除拉黑 beside it. */
+function ActionButtons(props: { data: ProfileData; actions: Actions }) {
+  const u = () => props.data.user;
+  const blocked = () => props.data.block.blocked === true;
+  const busy = () => props.actions.busy();
+  const following = () => !!u().following && !blocked();
   return (
-    <View class="gap-2">
-      <View class="flex-row gap-2">
-        <If when={!blocked()}>
-          <Button
-            onPress={() => run(u().following ? "unfollow" : "follow")}
-            disabled={!!busy()}
-            class={`${button} ${u().following ? "border-border" : "border-primary bg-primary"}`}
-          >
-            <Icon
-              name={busy() === "unfollow" ? "user-minus" : u().following ? "user-check" : "user-plus"}
-              class={`size-4 ${u().following ? "tint-foreground" : "tint-primary-foreground"}`}
-            />
-            <Text class={`text-sm font-semibold ${u().following ? "text-foreground" : "text-primary-foreground"}`}>
-              {busy() === "follow"
-                ? t("profile.following_busy")
-                : busy() === "unfollow"
-                  ? t("profile.unfollow_busy")
-                  : u().following
-                    ? t("profile.following")
-                    : t("profile.follow")}
+    <View class="gap-2 pt-0.5">
+      <View class="flex-row gap-2.5">
+        <Button
+          onPress={() => props.actions.run(following() ? "unfollow" : "follow")}
+          disabled={!!busy()}
+          class={`${BUTTON} flex-1 ${following() ? "bg-well" : "bg-weibo"}`}
+        >
+          <Icon
+            name={busy() === "unfollow" ? "user-minus" : following() ? "user-check" : "user-plus"}
+            class={`size-[17px] ${following() ? "tint-ink" : "tint-white"}`}
+          />
+          <Text class={`text-body leading-5 font-semibold ${following() ? "text-ink" : "text-white"}`}>
+            {busy() === "follow"
+              ? t("profile.following_busy")
+              : busy() === "unfollow"
+                ? t("profile.unfollow_busy")
+                : following()
+                  ? t("profile.following")
+                  : t("profile.follow")}
+          </Text>
+        </Button>
+        <If when={blocked()}>
+          <Button onPress={() => props.actions.run("unblock")} disabled={!!busy()} class={`${BUTTON} w-[120px] bg-well`}>
+            <Icon name="ban" class="size-[17px] tint-ink" />
+            <Text class="text-body leading-5 font-semibold text-ink">
+              {busy() === "unblock" ? t("profile.unblock_busy") : t("profile.unblock")}
             </Text>
           </Button>
         </If>
-        <Button
-          onPress={() => run(blocked() ? "unblock" : "block")}
-          disabled={!!busy()}
-          class={`${button} ${blocked() ? "border-border" : "border-destructive"}`}
-        >
-          <Icon name="ban" class={`size-4 ${blocked() ? "tint-foreground" : "tint-destructive"}`} />
-          <Text class={`text-sm font-semibold ${blocked() ? "text-foreground" : "text-destructive"}`}>
-            {busy() === "block"
-              ? t("profile.block_busy")
-              : busy() === "unblock"
-                ? t("profile.unblock_busy")
-                : blocked()
-                  ? t("profile.unblock")
-                  : t("profile.block")}
-          </Text>
-        </Button>
       </View>
-      <If when={error()}>
-        <Text class="text-xs text-destructive">{error()}</Text>
+      <If when={props.actions.error()}>
+        <Text class="text-xs text-danger">{props.actions.error()}</Text>
       </If>
     </View>
   );
 }
 
-function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void>; mine: boolean }) {
+/** A count: the number in ink and bold, its label after it; a press opens the list, if any. */
+function Count(props: { n: number; label: string; onPress?: () => void }) {
+  return (
+    <Text role={props.onPress ? "link" : undefined} onPress={props.onPress} class="text-sm leading-5 text-ink-2 active:opacity-60">
+      <Text class="font-semibold text-ink">{count(props.n)}</Text> {props.label}
+    </Text>
+  );
+}
+
+function ProfileHeader(props: { data: ProfileData; actions: Actions; mine: boolean }) {
   const u = () => props.data.user;
+  const unknownBlock = () => props.data.block.blocked === null;
   const showRaw = signal(false);
   return (
-    <View class="gap-3 border-b border-border px-4 py-4">
+    <View class="gap-3.5 px-5 pb-[18px] pt-2">
       <View class="flex-row items-center gap-4">
         <Avatar user={u()} size="lg" still />
         <View class="flex-1 gap-1">
-          <Text class="text-lg font-semibold text-foreground">{u().name}</Text>
+          <Text class="select-text text-title font-bold tracking-tight text-ink">{u().name}</Text>
           <If when={u().verified}>
-            <Text class="text-xs text-muted-foreground line-clamp-2">{u().verified}</Text>
+            <Text class="text-meta text-ink-2 line-clamp-2">{u().verified}</Text>
           </If>
           <If when={u().location}>
-            <View class="flex-row items-center gap-1">
-              <Icon name="map-pin" class="size-3.5 tint-muted-foreground" />
-              <Text class="text-xs text-muted-foreground">{u().location}</Text>
+            <View class="flex-row items-center gap-[3px]">
+              <Icon name="map-pin" class="size-[13px] tint-ink-2" />
+              <Text class="text-meta text-ink-2">{u().location}</Text>
             </View>
           </If>
         </View>
       </View>
       <If when={u().description}>
-        <RichText text={u().description!} class="select-text text-sm text-foreground" />
+        <RichText text={u().description!} class="select-text text-body leading-[22px] text-ink" />
       </If>
-      <View class="flex-row gap-5">
-        <Text
-          role="link"
-          onPress={() => openPeople(u().id, "following")}
-          class="text-sm text-muted-foreground active:opacity-60"
-        >
-          {t("profile.following_count", { n: count(u().followingCount ?? 0) })}
-        </Text>
-        <Text
-          role="link"
-          onPress={() => openPeople(u().id, "followers")}
-          class="text-sm text-muted-foreground active:opacity-60"
-        >
-          {t("profile.followers_count", { n: count(u().followersCount ?? 0) })}
-        </Text>
-        <Text class="text-sm text-muted-foreground">{t("profile.posts_count", { n: count(u().posts ?? 0) })}</Text>
+      <View class="flex-row items-center gap-5">
+        <Count n={u().followingCount ?? 0} label={t("people.following")} onPress={() => openPeople(u(), "following")} />
+        <Count n={u().followersCount ?? 0} label={t("people.followers")} onPress={() => openPeople(u(), "followers")} />
+        <Count n={u().posts ?? 0} label={t("profile.posts")} />
+        <View class="flex-1" />
+        <If when={u().followsMe && !props.mine}>
+          <View class="flex-row items-center gap-1 rounded-full bg-weibo-wash px-2 py-[3px]">
+            <Icon name="arrows-left-right" class="size-[13px] tint-weibo" />
+            <Text class="text-xs font-medium text-weibo-ink">{t("profile.follows_you")}</Text>
+          </View>
+        </If>
       </View>
-      {/* My favorites are mine alone to see: Weibo lists no one else's. */}
-      <If when={props.mine}>
-        <Button onPress={openFavorites} class="flex-row items-center gap-1.5 self-start active:opacity-60">
-          <Icon name="bookmark" class="size-4 tint-primary" />
-          <Text class="text-sm text-primary">{t("favorite.title")}</Text>
-        </Button>
-      </If>
       <If when={!props.mine}>
-        <Actions data={props.data} reload={props.reload} />
+        <ActionButtons data={props.data} actions={props.actions} />
       </If>
-      <Relationship data={props.data} />
-      <Button onPress={() => showRaw.update((v) => !v)} class="self-start active:opacity-60">
-        <Text class="text-xs text-primary">{showRaw() ? t("profile.hide_raw") : t("profile.show_raw")}</Text>
-      </Button>
-      <If when={showRaw()}>
-        <Text class="select-text rounded-md bg-muted p-2 font-mono text-[11px] text-foreground">
-          {JSON.stringify(props.data.raw, null, 2)}
+      {/* The answer said nothing of a block: what it was read from, and the answer itself. */}
+      <If when={unknownBlock()}>
+        <Text class="text-xs text-ink-2">
+          {props.data.block.evidence.length
+            ? t("profile.block_unknown_from", { fields: props.data.block.evidence.join(", ") })
+            : t("profile.block_unknown")}
         </Text>
+        <Button onPress={() => showRaw.update((v) => !v)} class="self-start active:opacity-60">
+          <Text class="text-xs text-link">{showRaw() ? t("profile.hide_raw") : t("profile.show_raw")}</Text>
+        </Button>
+        <If when={showRaw()}>
+          <Text class="select-text rounded-pic bg-well p-2 font-mono text-[11px] text-ink">
+            {JSON.stringify(props.data.raw, null, 2)}
+          </Text>
+        </If>
       </If>
+    </View>
+  );
+}
+
+/** Where the posts would be, for an account I block. */
+function BlockedNotice(props: { message?: string }) {
+  return (
+    <View class="items-center gap-3 border-t-8 border-well px-10 py-14">
+      <View class="size-12 items-center justify-center rounded-full bg-well">
+        <Icon name="ban" class="size-6 tint-ink-3" />
+      </View>
+      <Text class="text-center text-sm leading-5 text-ink-2">{props.message ?? t("profile.blocked_posts")}</Text>
     </View>
   );
 }
@@ -293,8 +273,25 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
   loadProfile();
   const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : "me" in props ? t("profile.me") : t("profile.title"));
 
+  const actions = createActions(data, loadProfile);
+  // The header's menu: block (unblock is a button of its own while blocked). Not on mine.
+  const more = () => {
+    const d = data();
+    if (!d || mine() || d.block.blocked === true) return undefined;
+    return (
+      <PopMenu
+        trigger={
+          <GlassButton label={t("profile.more")}>
+            <Icon name="dots" class="size-6 tint-ink" />
+          </GlassButton>
+        }
+        items={[{ label: t("profile.block"), icon: "ban", danger: true, onSelect: () => actions.run("block") }]}
+      />
+    );
+  };
+
   return (
-    <NavPage title={title()} header={<Header title={title()} />}>
+    <Page title={title()} right={more()}>
       <List
         each={blocked() ? [] : posts.items()}
         keyExtractor={(s) => s.id}
@@ -305,7 +302,7 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
             when={data()}
             else={
               <View class="items-center gap-2 p-6">
-                <If when={error()} else={<Text class="text-sm text-muted-foreground">{t("profile.loading")}</Text>}>
+                <If when={error()} else={<Spinner />}>
                   <ErrorText error={error()!} />
                   <RetryButton onPress={loadProfile} />
                 </If>
@@ -315,20 +312,16 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
             {(d) => (
               <View>
                 <SavedNotice at={savedAt()} failed={!!error()} onRetry={loadProfile} />
-                <ProfileHeader data={d()} reload={loadProfile} mine={mine()} />
+                <ProfileHeader data={d()} actions={actions} mine={mine()} />
+                <If when={!blocked()}>
+                  <View class="h-2 bg-well" />
+                </If>
               </View>
             )}
           </If>
         }
         footer={
-          <If
-            when={!blocked()}
-            else={
-              <Text class="p-6 text-center text-sm text-muted-foreground">
-                {data()?.block.message ?? t("profile.blocked_posts")}
-              </Text>
-            }
-          >
+          <If when={!blocked()} else={<BlockedNotice message={data()?.block.message} />}>
             <If when={data()}>
               <FeedFooter
                 loading={posts.loading()}
@@ -344,6 +337,6 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
       >
         {(s) => <StatusCard status={s()} />}
       </List>
-    </NavPage>
+    </Page>
   );
 }

@@ -42,18 +42,25 @@ reply:
   send: "Send"
   sending: "Sending…"
   failed: "Couldn't send: %{error}"
+  also_repost: "Also repost"
 repost:
   title: "Repost @%{name}'s comment"
   placeholder: "Say something…"
   failed: "Repost failed: %{error}"
   action: "Repost"
+  also_comment: "Also comment"
 comment:
   like: "Like"
   unlike: "Unlike"
 favorite:
-  title: "Favorites"
+  title: "My favorites"
   add: "Add to favorites"
   remove: "Remove from favorites"
+  saved: "Saved"
+  view: "View"
+  remove_short: "Remove"
+  empty_title: "No favorites yet"
+  empty_note: "Tap the bookmark at the top right of a post,\nand the posts you want to read again stay here."
 edits:
   title: "Edit history"
   current: "Current version"
@@ -91,6 +98,8 @@ profile:
   show_raw: "Show raw answer"
   hide_raw: "Hide raw answer"
   no_such_name: "No account is named @%{name}"
+  more: "More"
+  posts: "Posts"
 time:
   just_now: "just now"
   minutes: "%{n}m"
@@ -104,3 +113,9 @@ error:
 saved:
   updating: "Showing a saved copy (%{time}) · updating…"
   stale: "Couldn't refresh: showing a saved copy (%{time})."
+menu:
+  my_profile: "My profile"
+  my_favorites: "My favorites"
+compose:
+  mention: "Mention"
+  topic: "Topic"
