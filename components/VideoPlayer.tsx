@@ -2,6 +2,7 @@
 // opened with `openVideo`.
 import { signal, Text, Video, View } from "nsh";
 import { Dialog } from "nsh/base";
+import { t } from "nsh/i18n";
 import type { Video as VideoData } from "../api";
 
 const shown = signal<VideoData | null>(null);
@@ -39,7 +40,7 @@ export function VideoPlayer() {
             />
             <If when={error()}>
               <View class="pointer-events-none absolute inset-0 items-center justify-center p-6">
-                <Text class="text-center text-sm text-white">Can't play this video: {error()}</Text>
+                <Text class="text-center text-sm text-white">{t("video.error", { error: error() })}</Text>
               </View>
             </If>
           </View>

@@ -1,6 +1,7 @@
 // An account: who they are, how we relate (following, follows me, blocked), and their posts.
 import { List, signal, Text, View } from "nsh";
 import { AlertDialog, Button, NavPage } from "nsh/base";
+import { t } from "nsh/i18n";
 import {
   block,
   follow,
@@ -38,14 +39,14 @@ function Relationship(props: { data: ProfileData }) {
     <>
       <If when={props.data.user.followsMe}>
         <View class="flex-row">
-          <Badge label="Follows you" tone="primary" />
+          <Badge label={t("profile.follows_you")} tone="primary" />
         </View>
       </If>
       <If when={block().blocked === null}>
         <Text class="text-xs text-muted-foreground">
           {block().evidence.length
-            ? `Block status unknown; read from ${block().evidence.join(", ")}`
-            : "Block status unknown: the profile answer has no block field; open the raw answer to find it."}
+            ? t("profile.block_unknown_from", { fields: block().evidence.join(", ") })
+            : t("profile.block_unknown")}
         </Text>
       </If>
     </>
@@ -55,12 +56,15 @@ function Relationship(props: { data: ProfileData }) {
 type Action = "follow" | "unfollow" | "block" | "unblock";
 
 const confirmations: Partial<Record<Action, (name: string) => { title: string; description: string; label: string }>> = {
-  unfollow: (name) => ({ title: `Unfollow ${name}?`, description: "Their posts leave your timeline.", label: "Unfollow" }),
+  unfollow: (name) => ({
+    title: t("profile.unfollow_title", { name }),
+    description: t("profile.unfollow_description"),
+    label: t("profile.unfollow"),
+  }),
   block: (name) => ({
-    title: `Block ${name}?`,
-    description:
-      "You won't see their posts, they can't interact with you or follow you, and you stop following them. Unblocking does not follow them again.",
-    label: "Block",
+    title: t("profile.block_title", { name }),
+    description: t("profile.block_description"),
+    label: t("profile.block"),
   }),
 };
 
@@ -79,7 +83,7 @@ function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
         title: ask.title,
         description: ask.description,
         actions: [
-          { id: "cancel", label: "Cancel", role: "cancel" },
+          { id: "cancel", label: t("common.cancel"), role: "cancel" },
           { id: "ok", label: ask.label, role: "destructive" },
         ],
       });
@@ -109,7 +113,13 @@ function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
             class={`${button} ${u().following ? "border-border" : "border-primary bg-primary"}`}
           >
             <Text class={`text-sm font-semibold ${u().following ? "text-foreground" : "text-primary-foreground"}`}>
-              {busy() === "follow" ? "Following…" : busy() === "unfollow" ? "Unfollowing…" : u().following ? "Following ✓" : "Follow"}
+              {busy() === "follow"
+                ? t("profile.following_busy")
+                : busy() === "unfollow"
+                  ? t("profile.unfollow_busy")
+                  : u().following
+                    ? t("profile.following")
+                    : t("profile.follow")}
             </Text>
           </Button>
         </If>
@@ -119,7 +129,13 @@ function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
           class={`${button} ${blocked() ? "border-border" : "border-destructive"}`}
         >
           <Text class={`text-sm font-semibold ${blocked() ? "text-foreground" : "text-destructive"}`}>
-            {busy() === "block" ? "Blocking…" : busy() === "unblock" ? "Unblocking…" : blocked() ? "Unblock" : "Block"}
+            {busy() === "block"
+              ? t("profile.block_busy")
+              : busy() === "unblock"
+                ? t("profile.unblock_busy")
+                : blocked()
+                  ? t("profile.unblock")
+                  : t("profile.block")}
           </Text>
         </Button>
       </View>
@@ -148,14 +164,14 @@ function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void> }
         <RichText text={u().description!} class="select-text text-sm text-foreground" />
       </If>
       <View class="flex-row gap-5">
-        <Text class="text-sm text-muted-foreground">{count(u().followingCount ?? 0)} following</Text>
-        <Text class="text-sm text-muted-foreground">{u().followers ?? "0"} followers</Text>
-        <Text class="text-sm text-muted-foreground">{count(u().posts ?? 0)} posts</Text>
+        <Text class="text-sm text-muted-foreground">{t("profile.following_count", { n: count(u().followingCount ?? 0) })}</Text>
+        <Text class="text-sm text-muted-foreground">{t("profile.followers_count", { n: count(u().followersCount ?? 0) })}</Text>
+        <Text class="text-sm text-muted-foreground">{t("profile.posts_count", { n: count(u().posts ?? 0) })}</Text>
       </View>
       <Actions data={props.data} reload={props.reload} />
       <Relationship data={props.data} />
       <Button onPress={() => showRaw.update((v) => !v)} class="self-start active:opacity-60">
-        <Text class="text-xs text-primary">{showRaw() ? "Hide raw answer" : "Show raw answer"}</Text>
+        <Text class="text-xs text-primary">{showRaw() ? t("profile.hide_raw") : t("profile.show_raw")}</Text>
       </Button>
       <If when={showRaw()}>
         <Text class="select-text rounded-md bg-muted p-2 font-mono text-[11px] text-foreground">
@@ -201,7 +217,7 @@ export function Profile(props: { uid: string } | { screenName: string }) {
       );
   };
   loadProfile();
-  const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : "Profile");
+  const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : t("profile.title"));
 
   return (
     <NavPage title={title()} header={<Header title={title()} />}>
@@ -215,10 +231,10 @@ export function Profile(props: { uid: string } | { screenName: string }) {
             when={data()}
             else={
               <View class="items-center gap-2 p-6">
-                <Text class="text-sm text-muted-foreground">{error() ?? "Loading profile…"}</Text>
+                <Text class="text-sm text-muted-foreground">{error() ?? t("profile.loading")}</Text>
                 <If when={error()}>
                   <Button onPress={loadProfile} class="rounded-(--radius) border border-border px-4 py-2">
-                    <Text class="text-foreground">Retry</Text>
+                    <Text class="text-foreground">{t("common.retry")}</Text>
                   </Button>
                 </If>
               </View>
@@ -232,7 +248,7 @@ export function Profile(props: { uid: string } | { screenName: string }) {
             when={!blocked()}
             else={
               <Text class="p-6 text-center text-sm text-muted-foreground">
-                {data()?.block.message ?? "You blocked this account: its posts are hidden."}
+                {data()?.block.message ?? t("profile.blocked_posts")}
               </Text>
             }
           >

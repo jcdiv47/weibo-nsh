@@ -2,6 +2,7 @@
 // `#topics#` to their posts, short links show what they stand for ("网页链接", "xxx的微博视频")
 // and open it: the post's video in the player, anything else in the browser.
 import { openUrl, Text } from "nsh";
+import { t } from "nsh/i18n";
 import type { Link } from "../api";
 import { openProfileByName, openTopic } from "../nav";
 import { openViewer } from "./ImageViewer";
@@ -79,7 +80,7 @@ export function RichText(props: {
         ) : "topic" in s ? (
           <Text
             role="link"
-            accessibilityLabel={`Topic ${s.topic}`}
+            accessibilityLabel={t("post.topic", { topic: s.topic })}
             onPress={() => openTopic(s.topic)}
             class={`${LINK_CLASS} active:opacity-60`}
           >
@@ -88,7 +89,7 @@ export function RichText(props: {
         ) : (
           <Text
             role="link"
-            accessibilityLabel={`@${s.mention}'s profile`}
+            accessibilityLabel={t("post.mention", { name: s.mention })}
             onPress={() => openProfileByName(s.mention)}
             class={`${props.plainMentions ? "" : LINK_CLASS} active:opacity-60`}
           >

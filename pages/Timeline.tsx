@@ -1,6 +1,7 @@
 // The timeline of followed accounts: pull to refresh, more as it scrolls.
 import { List } from "nsh";
 import { NavPage } from "nsh/base";
+import { t } from "nsh/i18n";
 import { friendsTimeline } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
@@ -11,7 +12,7 @@ export function Timeline() {
   const feed = createFeed(friendsTimeline);
   feed.more();
   return (
-    <NavPage title="Following" header={<Header title="Following" />}>
+    <NavPage title={t("timeline.title")} header={<Header title={t("timeline.title")} />}>
       <List
         each={feed.items()}
         keyExtractor={(s) => s.id}

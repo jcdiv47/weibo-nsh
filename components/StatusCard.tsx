@@ -2,6 +2,7 @@
 // their profile, a picture the viewer, a video the player, the reposted post that post, elsewhere
 // the post's comments.
 import { Image, Text, View } from "nsh";
+import { t } from "nsh/i18n";
 import type { Status, User, Video } from "../api";
 import { count, relativeTime } from "../format";
 import { openPost, openProfile } from "../nav";
@@ -34,7 +35,7 @@ export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
           {(pic, i) => (
             <View
               role="button"
-              accessibilityLabel={`Picture ${i() + 1} of ${props.pics.length}`}
+              accessibilityLabel={t("post.picture", { i: i() + 1, n: props.pics.length })}
               onPress={() => openViewer(props.pics, i())}
               class={`${props.small ? (props.pics.length === 1 ? "h-32 w-32" : "size-20") : props.pics.length === 1 ? "h-56 w-56" : "size-24"} overflow-hidden rounded-md bg-muted active:opacity-80`}
             >
@@ -56,7 +57,7 @@ function VideoCard(props: { video: Video }) {
   return (
     <View
       role="button"
-      accessibilityLabel={`Play video: ${v().title}`}
+      accessibilityLabel={t("post.play_video", { title: v().title })}
       onPress={() => openVideo(v())}
       class={`${v().portrait ? "h-72 w-52" : "aspect-video w-full"} overflow-hidden rounded-md bg-black active:opacity-80`}
     >
@@ -95,7 +96,7 @@ function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
 export function StatusCard(props: { status: Status; full?: boolean }) {
   const s = () => props.status;
   const meta = () =>
-    [relativeTime(s().createdAt), s().source && `via ${s().source}`, s().region].filter(Boolean).join(" · ");
+    [relativeTime(s().createdAt), s().source && t("post.via", { source: s().source }), s().region].filter(Boolean).join(" · ");
   return (
     <View
       role={props.full ? undefined : "button"}
@@ -119,7 +120,7 @@ export function StatusCard(props: { status: Status; full?: boolean }) {
         {(rt) => (
           <View
             role="button"
-            accessibilityLabel={`Reposted post by ${rt().user.name}`}
+            accessibilityLabel={t("post.reposted_by", { name: rt().user.name })}
             onPress={() => openPost(rt())}
             class="gap-2 rounded-lg bg-muted px-3 py-2 active:opacity-70"
           >
@@ -135,9 +136,9 @@ export function StatusCard(props: { status: Status; full?: boolean }) {
         )}
       </If>
       <View class="flex-row gap-6">
-        <Text class="text-xs text-muted-foreground">Reposts {count(s().reposts)}</Text>
-        <Text class="text-xs text-muted-foreground">Comments {count(s().comments)}</Text>
-        <Text class="text-xs text-muted-foreground">Likes {count(s().likes)}</Text>
+        <Text class="text-xs text-muted-foreground">{t("post.reposts", { n: count(s().reposts) })}</Text>
+        <Text class="text-xs text-muted-foreground">{t("post.comments", { n: count(s().comments) })}</Text>
+        <Text class="text-xs text-muted-foreground">{t("post.likes", { n: count(s().likes) })}</Text>
       </View>
     </View>
   );

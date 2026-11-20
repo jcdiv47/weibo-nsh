@@ -2,6 +2,7 @@
 // and the navigation stack of native pages.
 import { effect, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { NavStack } from "nsh/base";
+import { t } from "nsh/i18n";
 import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from "./bridge";
 import { ImageViewer } from "./components/ImageViewer";
 import { VideoPlayer } from "./components/VideoPlayer";
@@ -55,9 +56,9 @@ function Bridge() {
     >
       <If when={visible()}>
         <View class="gap-1 border-b border-border px-4 py-3">
-          <Text class="font-semibold text-foreground">Sign in to Weibo</Text>
+          <Text class="font-semibold text-foreground">{t("app.sign_in_title")}</Text>
           <Text class="text-xs text-muted-foreground">
-            The session stays in this app's web view; the app never reads your password or cookies.
+            {t("app.sign_in_note")}
           </Text>
         </View>
       </If>
@@ -110,7 +111,7 @@ function App() {
         when={started()}
         else={
           <View class="flex-1 items-center justify-center">
-            <Text class="text-muted-foreground">Connecting to Weibo…</Text>
+            <Text class="text-muted-foreground">{t("app.connecting")}</Text>
           </View>
         }
       >

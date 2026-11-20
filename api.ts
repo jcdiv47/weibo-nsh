@@ -1,6 +1,7 @@
 // weibo.com's web API (the endpoints weibo.com's own client calls), mapped to the few fields the
 // app shows. Undocumented and subject to change: every endpoint lives here, and mapping reads
 // fields defensively so a renamed field degrades one value instead of a screen.
+import { t } from "nsh/i18n";
 import { get, getSearchPage, post } from "./bridge";
 
 export interface User {
@@ -10,7 +11,7 @@ export interface User {
   verified?: string;
   description?: string;
   location?: string;
-  followers?: string;
+  followersCount?: number;
   followingCount?: number;
   posts?: number;
   /** I follow them. */
@@ -108,7 +109,7 @@ export function toUser(u: any): User {
     verified: u?.verified ? str(u?.verified_reason) || "Verified" : undefined,
     description: str(u?.description) || undefined,
     location: str(u?.location) || undefined,
-    followers: str(u?.followers_count_str ?? u?.followers_count) || undefined,
+    followersCount: u?.followers_count === undefined ? undefined : num(u.followers_count),
     followingCount: u?.friends_count === undefined ? undefined : num(u.friends_count),
     posts: u?.statuses_count === undefined ? undefined : num(u.statuses_count),
     following: u?.following === undefined ? undefined : !!u.following,
@@ -349,7 +350,7 @@ export function uidByName(name: string): Promise<string> {
   if (!uid) {
     uid = get(`/ajax/profile/info?screen_name=${encodeURIComponent(name)}`).then((json) => {
       const id = str(json.data?.user?.idstr ?? json.data?.user?.id);
-      if (!id) throw new Error(json.msg ? `@${name}: ${json.msg}` : `No account is named @${name}`);
+      if (!id) throw new Error(json.msg ? `@${name}: ${json.msg}` : t("profile.no_such_name", { name }));
       return id;
     });
     uid.catch(() => uids.delete(name)); // Ask again next time.

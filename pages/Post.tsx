@@ -1,6 +1,7 @@
 // A post and its comments; a comment's replies open in place.
 import { List, signal, Text, View } from "nsh";
 import { Button, NavPage } from "nsh/base";
+import { t } from "nsh/i18n";
 import { type Comment, comments, longText, replies, type Status } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
@@ -21,8 +22,8 @@ export function Post(props: { id: string }) {
   const status = postById(props.id);
   if (!status) {
     return (
-      <NavPage title="Post" header={<Header title="Post" />}>
-        <Text class="p-4 text-muted-foreground">This post is no longer loaded.</Text>
+      <NavPage title={t("post.title")} header={<Header title={t("post.title")} />}>
+        <Text class="p-4 text-muted-foreground">{t("post.gone")}</Text>
       </NavPage>
     );
   }
@@ -52,7 +53,7 @@ export function Post(props: { id: string }) {
   }
 
   return (
-    <NavPage title="Post" header={<Header title="Post" />}>
+    <NavPage title={t("post.title")} header={<Header title={t("post.title")} />}>
       <List
         each={feed.items()}
         keyExtractor={(c) => c.id}
@@ -62,7 +63,7 @@ export function Post(props: { id: string }) {
           <View>
             <StatusCard status={full()} full />
             <Text class="px-4 pt-3 pb-1 text-sm font-semibold text-muted-foreground">
-              Comments {count(status.comments)}
+              {t("post.comments", { n: count(status.comments) })}
             </Text>
           </View>
         }
@@ -149,10 +150,10 @@ function CommentRow(props: { comment: Comment; thread?: Thread; onReplies: () =>
               <Button onPress={props.onReplies} disabled={props.thread?.loading} class="self-start active:opacity-60">
                 <Text class="text-xs text-primary">
                   {props.thread?.loading
-                    ? "Loading…"
+                    ? t("common.loading")
                     : props.thread
-                      ? "More replies"
-                      : `View ${count(props.comment.replyCount)} replies`}
+                      ? t("post.more_replies")
+                      : t("post.view_replies", { n: count(props.comment.replyCount) })}
                 </Text>
               </Button>
             </If>

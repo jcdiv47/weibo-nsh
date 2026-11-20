@@ -1,6 +1,7 @@
 // Under a paged list: loading, the error with a retry, or the end.
 import { Text, View } from "nsh";
 import { Button } from "nsh/base";
+import { t } from "nsh/i18n";
 
 export function FeedFooter(props: {
   loading: boolean;
@@ -14,14 +15,14 @@ export function FeedFooter(props: {
       <If when={props.error}>
         <Text class="text-center text-sm text-destructive">{props.error}</Text>
         <Button onPress={props.onRetry} class="rounded-(--radius) border border-border px-4 py-2 active:opacity-60">
-          <Text class="text-foreground">Retry</Text>
+          <Text class="text-foreground">{t("common.retry")}</Text>
         </Button>
       </If>
       <If when={!props.error && props.loading}>
-        <Text class="text-sm text-muted-foreground">Loading…</Text>
+        <Text class="text-sm text-muted-foreground">{t("common.loading")}</Text>
       </If>
       <If when={!props.error && !props.loading && props.done}>
-        <Text class="text-sm text-muted-foreground">{props.empty ? "Nothing here" : "No more"}</Text>
+        <Text class="text-sm text-muted-foreground">{props.empty ? t("common.nothing_here") : t("common.no_more")}</Text>
       </If>
     </View>
   );
