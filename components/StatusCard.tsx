@@ -94,6 +94,10 @@ function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
   );
 }
 
+// A post that is deleted or hidden from me (its author's visibility settings) comes without its
+// author, whom `toUser` names "(unknown)".
+const hasAuthor = (s: Status) => !!s.user.id && s.user.name !== "(unknown)";
+
 export function StatusCard(props: { status: Status; full?: boolean }) {
   const s = () => props.status;
   const meta = () =>
@@ -128,17 +132,19 @@ export function StatusCard(props: { status: Status; full?: boolean }) {
         {(rt) => (
           <View
             role="button"
-            accessibilityLabel={t("post.reposted_by", { name: rt().user.name })}
+            accessibilityLabel={hasAuthor(rt()) ? t("post.reposted_by", { name: rt().user.name }) : undefined}
             onPress={() => openPost(rt())}
             class="gap-2 rounded-lg bg-muted px-3 py-2 active:opacity-70"
           >
-            <Text
-              role="button"
-              onPress={() => openProfile(rt().user.id)}
-              class="text-sm font-semibold text-primary"
-            >
-              @{rt().user.name}
-            </Text>
+            <If when={hasAuthor(rt())}>
+              <Text
+                role="button"
+                onPress={() => openProfile(rt().user.id)}
+                class="text-sm font-semibold text-primary"
+              >
+                @{rt().user.name}
+              </Text>
+            </If>
             <Body status={rt()} lines={props.full ? undefined : 6} />
           </View>
         )}
