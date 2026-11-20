@@ -82,6 +82,10 @@ export interface Comment {
   createdAt: string;
   user: User;
   likes: number;
+  /** I liked it. */
+  liked: boolean;
+  /** Where it was sent from ("广东"): Weibo's `source`, "来自广东". */
+  region?: string;
   /** Replies to this comment, of which `preview` is the first few. */
   replyCount: number;
   preview: Comment[];
@@ -255,6 +259,8 @@ function toComment(c: any): Comment {
     createdAt: str(c?.created_at),
     user: toUser(c?.user),
     likes: num(c?.like_counts),
+    liked: c?.liked === true || c?.liked === 1,
+    region: stripTags(str(c?.source)).replace(/^来自\s*/, "").trim() || undefined,
     replyCount: num(c?.total_number),
     preview: Array.isArray(c?.comments) ? c.comments.map(toComment) : [],
     replyTo: c?.reply_comment?.user?.screen_name ? str(c.reply_comment.user.screen_name) : undefined,
@@ -432,6 +438,40 @@ export async function replyComment(status: Status, comment: Comment, text: strin
     is_comment: "0",
   });
   return parseReply(json);
+}
+
+/** Likes a comment, or takes the like back, as weibo.com's comment like button does. */
+export async function likeComment(comment: Comment, like: boolean): Promise<void> {
+  await post(`/ajax/statuses/${like ? "updateLike" : "destroyLike"}`, { object_id: comment.id, object_type: "comment" });
+}
+
+/**
+ * What weibo.com's repost box for a comment starts with: "//@author:text", then the comment it
+ * replies to in a thread (`parent`) and, when the post is a repost, the post's own text, each as
+ * " //@name:text". What I write goes in front.
+ */
+export function repostText(status: Status, comment: Comment, parent?: Comment): string {
+  const quote = (name: string, text: string) => `//@${name}:${text.trim()}`;
+  return [
+    quote(comment.user.name, comment.text),
+    parent && quote(parent.user.name, parent.text),
+    status.retweeted && quote(status.user.name, status.text),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Reposts the post (`status`) with a comment on it quoted in `text`, as weibo.com's repost box for a comment does. */
+export async function repostComment(status: Status, comment: Comment, text: string): Promise<void> {
+  await post("/ajax/statuses/normal_repost", {
+    id: status.id,
+    cid: comment.id,
+    comment: text,
+    pic_id: "",
+    is_repost: "0",
+    comment_ori: "0",
+    is_comment: "0",
+  });
 }
 
 /** The reply in `/ajax/comments/reply`'s answer (the comment itself, or under `data`), if any. */

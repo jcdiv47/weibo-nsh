@@ -4,26 +4,33 @@ import { List, signal, Text, View } from "nsh";
 import { NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
 import { type Comment, replies, type Status } from "../api";
-import { CommentBody } from "../components/CommentBody";
+import { CommentBody, CommentFooter } from "../components/CommentBody";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
-import { openReply } from "../components/ReplySheet";
+import { openReply, openRepost } from "../components/ReplySheet";
 import { Avatar } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
 import { commentById, postById } from "../nav";
 
-function ReplyRow(props: { comment: Comment; root?: boolean; parent?: Comment; onPress: () => void }) {
+function ReplyRow(props: {
+  comment: Comment;
+  root?: boolean;
+  parent?: Comment;
+  onPress: () => void;
+  onRepost: () => void;
+}) {
   return (
     <View
       role="button"
       accessibilityLabel={t("reply.to", { name: props.comment.user.name })}
       onPress={props.onPress}
-      class={`flex-row gap-3 border-b border-border px-4 py-3 active:bg-muted/40 ${props.root ? "" : "pl-8"}`}
+      class={`flex-row gap-3 px-4 py-3 active:bg-muted/40 ${props.root ? "border-b-8 border-muted" : "border-b border-border"}`}
     >
       <Avatar user={props.comment.user} size="sm" />
-      <View class="flex-1">
-        <CommentBody comment={props.comment} small={!props.root} parent={props.parent} />
+      <View class="flex-1 gap-2">
+        <CommentBody comment={props.comment} parent={props.parent} />
+        <CommentFooter comment={props.comment} onReply={props.onPress} onRepost={props.onRepost} />
       </View>
     </View>
   );
@@ -58,7 +65,7 @@ export function Replies(props: { postId: string; commentId: string }) {
         keyExtractor={(c) => c.id}
         estimatedItemSize={80}
         onLoadMore={() => feed.more()}
-        header={<ReplyRow comment={root} root onPress={() => reply(status, root)} />}
+        header={<ReplyRow comment={root} root onPress={() => reply(status, root)} onRepost={() => openRepost(status, root)} />}
         footer={
           <FeedFooter
             loading={feed.loading()}
@@ -70,7 +77,14 @@ export function Replies(props: { postId: string; commentId: string }) {
         }
         class="flex-1"
       >
-        {(c) => <ReplyRow comment={c()} parent={root} onPress={() => reply(status, c())} />}
+        {(c) => (
+          <ReplyRow
+            comment={c()}
+            parent={root}
+            onPress={() => reply(status, c())}
+            onRepost={() => openRepost(status, c(), root)}
+          />
+        )}
       </List>
     </NavPage>
   );

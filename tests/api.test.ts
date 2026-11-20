@@ -16,6 +16,7 @@ import {
   parseTimeline,
   parseUserPosts,
   postIdOf,
+  repostText,
   verifiedKind,
 } from "../api";
 import { diff } from "../diff";
@@ -204,6 +205,11 @@ test("comments: pictures, previewed replies without their parent's links", () =>
   expect(first.preview.map((r) => r.text)).toEqual(["同感"]);
   expect(first.preview[0].pics).toEqual([]);
   expect(second.preview).toEqual([]);
+  // "来自广东": where it was sent from, without the "来自".
+  expect(first.region).toBe("广东");
+  expect(second.region).toBeUndefined();
+  expect(first.liked).toBe(true);
+  expect(second.liked).toBe(false);
 });
 
 test("replies: whom each answers; the last page", () => {
@@ -362,4 +368,14 @@ test("reply: the comment Weibo answers with, at the top or under data; none with
   expect(parseReply(c)?.text).toBe("回复@路人乙:好");
   expect(parseReply({ ok: 1, data: c })?.user.name).toBe("路人甲");
   expect(parseReply({ ok: 1 })).toBe(null);
+});
+
+test("repost text: the comment quoted, then the one it replies to, then the post when it is a repost", () => {
+  const [first] = parseComments(buildComments).items;
+  const reply = first.preview[0];
+  const post = parseStatus(statusShow);
+  expect(repostText(post, first)).toBe(`//@${first.user.name}:${first.text.trim()}`);
+  expect(repostText(post, reply, first)).toBe(`//@${reply.user.name}:${reply.text} //@${first.user.name}:${first.text.trim()}`);
+  const repost = { ...post, retweeted: post };
+  expect(repostText(repost, first)).toBe(`//@${first.user.name}:${first.text.trim()} //@${post.user.name}:${post.text.trim()}`);
 });

@@ -33,6 +33,7 @@ post:
   edited: "已编辑"
   edit_history: "已编辑 · 查看记录"
   region: "发布于 %{region}"
+  comment_region: "来自 %{region}"
 replies:
   title: "%{n} 条回复"
 reply:
@@ -41,6 +42,14 @@ reply:
   send: "发送"
   sending: "发送中…"
   failed: "发送失败：%{error}"
+repost:
+  title: "转发 @%{name} 的评论"
+  placeholder: "说说分享心得…"
+  failed: "转发失败：%{error}"
+  action: "转发"
+comment:
+  like: "赞"
+  unlike: "取消赞"
 edits:
   title: "编辑记录"
   current: "当前版本"

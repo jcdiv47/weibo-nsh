@@ -14,7 +14,9 @@ What it does now:
   it opens on) and who liked it (`/ajax/statuses/likeShow`); a tab loads its list when first
   opened. A press on a comment opens a reply box over the keyboard
   (`/ajax/comments/reply`); a press on its replies opens its thread, "N replies", where a press on
-  the comment or any reply answers it.
+  the comment or any reply answers it. Under each comment, a like (`/ajax/statuses/updateLike`,
+  `destroyLike`, with `object_type=comment`) and a repost (`/ajax/statuses/normal_repost` with its
+  `cid`, the box starting with "//@author:text" as weibo.com's does).
 - **Edit history**: an edited post (`edit_count`) says so; on its page, "Edited · history" lists its
   versions (`/ajax/statuses/editHistory`), newest first, each with what changed from the one before.
 - **Profile** (`/ajax/profile/info`, `/ajax/statuses/mymblog`): following / follows you and the

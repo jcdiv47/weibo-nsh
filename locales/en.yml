@@ -33,6 +33,7 @@ post:
   edited: "Edited"
   edit_history: "Edited · history"
   region: "Posted from %{region}"
+  comment_region: "From %{region}"
 replies:
   title: "%{n} replies"
 reply:
@@ -41,6 +42,14 @@ reply:
   send: "Send"
   sending: "Sending…"
   failed: "Couldn't send: %{error}"
+repost:
+  title: "Repost @%{name}'s comment"
+  placeholder: "Say something…"
+  failed: "Repost failed: %{error}"
+  action: "Repost"
+comment:
+  like: "Like"
+  unlike: "Unlike"
 edits:
   title: "Edit history"
   current: "Current version"

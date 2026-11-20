@@ -22,6 +22,7 @@ import refresh from "../icons/refresh.svg";
 import repeat from "../icons/repeat.svg";
 import send from "../icons/send.svg";
 import thumbUp from "../icons/thumb-up.svg";
+import thumbUpFilled from "../icons/thumb-up-filled.svg";
 import userCheck from "../icons/user-check.svg";
 import userMinus from "../icons/user-minus.svg";
 import userPlus from "../icons/user-plus.svg";
@@ -48,6 +49,7 @@ const ICONS = {
   repeat,
   send,
   "thumb-up": thumbUp,
+  "thumb-up-filled": thumbUpFilled,
   "user-check": userCheck,
   "user-minus": userMinus,
   "user-plus": userPlus,

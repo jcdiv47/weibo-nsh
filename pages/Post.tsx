@@ -6,12 +6,12 @@ import { Button, NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
 import { type Comment, comments, likes, longText, reposts, type Status, status as loadStatus, type User } from "../api";
-import { CommentBody } from "../components/CommentBody";
+import { CommentBody, CommentFooter, InlineReply } from "../components/CommentBody";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
 import { Icon } from "../components/Icon";
 import { Header } from "../components/Header";
 import { Spinner } from "../components/Spinner";
-import { openReply } from "../components/ReplySheet";
+import { openReply, openRepost } from "../components/ReplySheet";
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
@@ -171,6 +171,7 @@ function PostBody(props: { status: Status }) {
             <CommentRow
               comment={c()}
               onReply={() => openReply(full(), c(), sent(c()))}
+              onRepost={() => openRepost(full(), c())}
               onReplies={() => openReplies(full(), c())}
             />
           )}
@@ -249,7 +250,7 @@ function RepostRow(props: { repost: Status }) {
   );
 }
 
-function CommentRow(props: { comment: Comment; onReply: () => void; onReplies: () => void }) {
+function CommentRow(props: { comment: Comment; onReply: () => void; onRepost: () => void; onReplies: () => void }) {
   const c = () => props.comment;
   return (
     <View
@@ -266,10 +267,10 @@ function CommentRow(props: { comment: Comment; onReply: () => void; onReplies: (
             role="button"
             accessibilityLabel={t("replies.title", { n: count(c().replyCount) })}
             onPress={props.onReplies}
-            class="gap-2 rounded-lg bg-muted px-3 py-2 active:opacity-60"
+            class="gap-1 rounded-lg bg-muted px-3 py-2 active:opacity-60"
           >
             <Each of={c().preview} key={(r) => r.id}>
-              {(r) => <CommentBody comment={r()} small parent={c()} />}
+              {(r) => <InlineReply comment={r()} parent={c()} />}
             </Each>
             <If when={c().replyCount > c().preview.length}>
               <View class="flex-row items-center gap-1">
@@ -279,6 +280,7 @@ function CommentRow(props: { comment: Comment; onReply: () => void; onReplies: (
             </If>
           </View>
         </If>
+        <CommentFooter comment={c()} onReply={props.onReply} onRepost={props.onRepost} />
       </View>
     </View>
   );
