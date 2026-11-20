@@ -1,0 +1,27 @@
+{
+  "ok": 1,
+  "data": [
+    {
+      "id": 5200000000000011,
+      "idstr": "5200000000000011",
+      "created_at": "Thu Nov 19 21:12:00 +0800 2026",
+      "text_raw": "同感",
+      "like_counts": 1,
+      "user": { "id": 4000000002, "idstr": "4000000002", "screen_name": "路人乙", "avatar_large": "https://tvax1.sinaimg.cn/e.jpg" }
+    },
+    {
+      "id": 5200000000000012,
+      "idstr": "5200000000000012",
+      "created_at": "Thu Nov 19 21:15:00 +0800 2026",
+      "text_raw": "回复@路人乙:你也在吗",
+      "like_counts": 0,
+      "reply_comment": {
+        "idstr": "5200000000000011",
+        "user": { "id": 4000000002, "idstr": "4000000002", "screen_name": "路人乙" }
+      },
+      "user": { "id": 4000000001, "idstr": "4000000001", "screen_name": "路人甲", "avatar_large": "https://tvax1.sinaimg.cn/d.jpg" }
+    }
+  ],
+  "total_number": 2,
+  "max_id": 0
+}

@@ -1,0 +1,27 @@
+{
+  "ok": 1,
+  "users": [
+    {
+      "id": 2000000001,
+      "idstr": "2000000001",
+      "screen_name": "晚霞观察员",
+      "avatar_large": "https://tvax1.sinaimg.cn/aaaa.jpg",
+      "description": "拍天空",
+      "followers_count": 123456,
+      "following": true,
+      "follow_me": true
+    },
+    {
+      "id": 2000000002,
+      "idstr": "2000000002",
+      "screen_name": "转发达人",
+      "avatar_large": "https://tvax2.sinaimg.cn/b.jpg",
+      "followers_count": 88,
+      "following": true,
+      "follow_me": false
+    }
+  ],
+  "next_cursor": 2,
+  "previous_cursor": 0,
+  "total_number": 321
+}

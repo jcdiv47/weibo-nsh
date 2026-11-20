@@ -5,6 +5,7 @@ import { t } from "nsh/i18n";
 import { people, type User } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
+import { SavedNotice } from "../components/SavedNotice";
 import { Avatar } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
@@ -40,7 +41,9 @@ function PersonRow(props: { user: User }) {
 }
 
 export function People(props: { uid: string; kind: "following" | "followers" }) {
-  const feed = createFeed<User, number>((page) => people(props.uid, props.kind, page ?? 1));
+  const feed = createFeed<User, number>((page) => people(props.uid, props.kind, page ?? 1), {
+    saveAs: () => `people:${props.kind}:${props.uid}`,
+  });
   feed.more();
   const title = t(props.kind === "followers" ? "people.followers" : "people.following");
   return (
@@ -52,6 +55,7 @@ export function People(props: { uid: string; kind: "following" | "followers" }) 
         refreshing={feed.refreshing()}
         onRefresh={() => feed.refresh()}
         onLoadMore={() => feed.more()}
+        header={<SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />}
         footer={
           <FeedFooter
             loading={feed.loading()}

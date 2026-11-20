@@ -1,0 +1,57 @@
+{
+  "ok": 1,
+  "data": [
+    {
+      "id": 5200000000000001,
+      "idstr": "5200000000000001",
+      "created_at": "Thu Nov 19 21:10:00 +0800 2026",
+      "text": "好美 <a href=\"https://t.cn/A6pic1\">查看图片</a>",
+      "text_raw": "好美 http://t.cn/A6pic1",
+      "like_counts": 25,
+      "total_number": 3,
+      "url_struct": [
+        {
+          "url_title": "查看图片",
+          "short_url": "http://t.cn/A6pic1",
+          "ori_url": "https://photo.weibo.com/h5/comment/1",
+          "url_type": 39,
+          "pic_ids": ["008cmt01ly1hcmt0001"],
+          "pic_infos": { "008cmt01ly1hcmt0001": { "large": { "url": "https://wx2.sinaimg.cn/large/008cmt01ly1hcmt0001.jpg" } } }
+        }
+      ],
+      "user": { "id": 4000000001, "idstr": "4000000001", "screen_name": "路人甲", "avatar_large": "https://tvax1.sinaimg.cn/d.jpg" },
+      "comments": [
+        {
+          "id": 5200000000000011,
+          "idstr": "5200000000000011",
+          "created_at": "Thu Nov 19 21:12:00 +0800 2026",
+          "text_raw": "同感",
+          "like_counts": 1,
+          "url_struct": [
+            {
+              "url_title": "查看图片",
+              "short_url": "http://t.cn/A6pic1",
+              "url_type": 39,
+              "pic_ids": ["008cmt01ly1hcmt0001"]
+            }
+          ],
+          "user": { "id": 4000000002, "idstr": "4000000002", "screen_name": "路人乙", "avatar_large": "https://tvax1.sinaimg.cn/e.jpg" }
+        }
+      ]
+    },
+    {
+      "id": 5200000000000002,
+      "idstr": "5200000000000002",
+      "created_at": "Thu Nov 19 21:20:00 +0800 2026",
+      "text_raw": "在哪拍的？",
+      "like_counts": 0,
+      "total_number": 0,
+      "comments": [],
+      "user": { "id": 4000000003, "idstr": "4000000003", "screen_name": "路人丙", "avatar_large": "https://tvax1.sinaimg.cn/f.jpg" }
+    }
+  ],
+  "rootComment": [],
+  "total_number": 12,
+  "max_id": 139000000000000,
+  "trendsText": "已加载全部评论"
+}

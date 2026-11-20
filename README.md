@@ -46,6 +46,15 @@ device. Differences handled already:
 ## Notes
 
 - The endpoints are weibo.com's web client's, undocumented and liable to change; they all live
-  in `api.ts`.
+  in `api.ts`, each answer read by a `parse...` function. `drift.ts` checks the fields a screen
+  needs: an item missing them is dropped, an answer whose list or user is gone throws
+  `WeiboChanged` (shown as "Weibo changed how it answers"), and either logs
+  `[weibo drift] <endpoint>: missing <fields>` once, with a sample of the answer.
+- `nsh test` runs the parsers against `tests/fixtures/` (answers in weibo.com's shapes) and the
+  saved-page logic. When Weibo changes an endpoint, put its new answer (the drift log's sample)
+  in the fixture, see which test fails, fix the parser.
+- The first page of each list and each profile are saved on the device (`saved.ts`, the newest
+  40): a page opens on its saved copy while it loads and keeps it, marked as saved, when the load
+  fails. Signing out clears them.
 - Images load straight from `*.sinaimg.cn` with no `Referer`, which its hot-link guard allows.
 - Keep request rates gentle; this is against Weibo's terms of service and for personal use only.

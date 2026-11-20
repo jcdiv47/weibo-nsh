@@ -17,7 +17,11 @@ export function parseWeiboDate(s: string): number | null {
 
 export function relativeTime(s: string, now = Date.now()): string {
   const time = parseWeiboDate(s);
-  if (time === null) return s;
+  return time === null ? s : timeAgo(time, now);
+}
+
+/** A moment (ms since the epoch) as a short relative time: "5m", "3h", "Nov 19". */
+export function timeAgo(time: number, now = Date.now()): string {
   const minutes = Math.floor((now - time) / 60_000);
   if (minutes < 1) return t("time.just_now");
   if (minutes < 60) return t("time.minutes", { n: minutes });

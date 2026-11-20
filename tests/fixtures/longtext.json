@@ -1,0 +1,10 @@
+{
+  "ok": 1,
+  "http_code": 200,
+  "data": {
+    "longTextContent": "我自己发的，这是全文。详情见 http://t.cn/A6long1",
+    "url_struct": [
+      { "url_title": "网页链接", "short_url": "http://t.cn/A6long1", "long_url": "https://example.com/long", "url_type": 0 }
+    ]
+  }
+}

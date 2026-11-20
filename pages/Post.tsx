@@ -6,6 +6,7 @@ import { type Comment, comments, longText, replies, type Status } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
 import { RichText } from "../components/RichText";
+import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, Pictures, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
@@ -34,7 +35,7 @@ export function Post(props: { id: string }) {
       () => {},
     );
   }
-  const feed = createFeed((cursor?: string) => comments(status, cursor));
+  const feed = createFeed((cursor?: string) => comments(status, cursor), { saveAs: () => `comments:${status.id}` });
   feed.more();
 
   // Opened threads by comment id: rows are recycled, so their state lives in the page.
@@ -65,6 +66,7 @@ export function Post(props: { id: string }) {
             <Text class="px-4 pt-3 pb-1 text-sm font-semibold text-muted-foreground">
               {t("post.comments", { n: count(status.comments) })}
             </Text>
+            <SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />
           </View>
         }
         footer={

@@ -1,8 +1,12 @@
 // weibo.com's web API (the endpoints weibo.com's own client calls), mapped to the few fields the
 // app shows. Undocumented and subject to change: every endpoint lives here, and mapping reads
-// fields defensively so a renamed field degrades one value instead of a screen.
+// fields defensively so a renamed field degrades one value instead of a screen. Each endpoint's
+// answer goes through a `parse...` function (tested against `tests/fixtures/`), which checks it
+// with `drift.ts`: an answer that no longer fits throws `WeiboChanged` instead of showing nothing.
 import { t } from "nsh/i18n";
-import { get, getSearchPage, post } from "./bridge";
+import { get, getSearchPage, NotSignedIn, post } from "./bridge";
+import { items, list, one, reportDrift, shapes, WeiboChanged } from "./drift";
+import { clearSaved, loadSaved, save } from "./saved";
 
 export interface User {
   id: string;
@@ -227,18 +231,34 @@ let groupList: Promise<{ latestGid: string; uid: string }> | undefined;
 
 function groupInfo(): Promise<{ latestGid: string; uid: string }> {
   groupList ??= get(`/ajax/feed/allGroups?is_new_segment=1&fetch_hot=1`)
-    .then((json) => {
-      const groups: any[] = (json.groups ?? []).flatMap((g: any) => g?.group ?? []);
-      const uid = str(groups.find((g) => g?.uid)?.uid);
-      const latest = groups.find((g) => g?.title === "最新微博");
-      if (!latest?.gid && !uid) throw new Error("Weibo's group list has no 最新微博 group");
-      return { latestGid: latest?.gid ? str(latest.gid) : `11000${uid}`, uid };
-    })
-    .catch((e) => {
-      groupList = undefined; // Ask again next time.
-      throw e;
-    });
+    .then(parseGroups)
+    .then(
+      (groups) => {
+        save("groups", groups);
+        return groups;
+      },
+      async (e) => {
+        // Out of reach, or a list in a new shape: the account's group and uid have not changed.
+        const saved = e instanceof NotSignedIn ? null : await loadSaved<{ latestGid: string; uid: string }>("groups");
+        if (saved?.data.latestGid) return saved.data;
+        groupList = undefined; // Ask again next time.
+        throw e;
+      },
+    );
   return groupList;
+}
+
+export function parseGroups(json: any): { latestGid: string; uid: string } {
+  const EP = "/ajax/feed/allGroups";
+  const groups: any[] = list(EP, json, "groups").flatMap((g: any) => g?.group ?? []);
+  const uid = str(groups.find((g) => g?.uid)?.uid);
+  const latest = groups.find((g) => g?.title === "最新微博");
+  if (!latest?.gid && !uid) {
+    reportDrift(EP, ["groups[].group[].uid", "groups[].group[].gid"], json);
+    throw new WeiboChanged(EP, ["groups[].group[].uid"]);
+  }
+  if (!latest?.gid) reportDrift(EP, ["最新微博 group"], json);
+  return { latestGid: latest?.gid ? str(latest.gid) : `11000${uid}`, uid };
 }
 
 const latestGroup = () => groupInfo().then((g) => g.latestGid);
@@ -266,22 +286,35 @@ export async function friendsTimeline(maxId?: string): Promise<Page<Status>> {
   // load-more): read on, a few pages at most.
   for (let tries = 0; tries < 3; tries++) {
     const q = `list_id=${gid}&refresh=4&since_id=0&count=20&fid=${gid}${next ? `&max_id=${encodeURIComponent(next)}` : ""}`;
-    const json = await get(`/ajax/feed/friendstimeline?${q}`);
-    const raw: any[] = json.statuses ?? [];
-    next = raw.length ? cursor(json.max_id_str ?? json.max_id) : null;
-    const items = raw.filter((s) => isFromFollowed(s, gid)).map(toStatus);
-    if (items.length || !next) return { items, next };
+    const page = parseTimeline(await get(`/ajax/feed/friendstimeline?${q}`), gid);
+    next = page.next;
+    if (page.items.length || !next) return page;
   }
   return { items: [], next };
 }
 
+/** A page of the latest group's timeline, ads and accounts I don't follow left out. */
+export function parseTimeline(json: any, gid: string): Page<Status> {
+  const EP = "/ajax/feed/friendstimeline";
+  const raw = list(EP, json, "statuses");
+  if (raw.length && json.max_id_str === undefined && json.max_id === undefined) reportDrift(EP, ["max_id_str|max_id"], json);
+  const next = raw.length ? cursor(json.max_id_str ?? json.max_id) : null;
+  return { items: items(EP, raw.filter((s) => isFromFollowed(s, gid)), shapes.status).map(toStatus), next };
+}
+
 /** A post's full text and its links, for `isLongText` posts whose `text` is cut. */
 export async function longText(mblogid: string): Promise<{ text: string; links: Record<string, Link> } | null> {
-  const json = await get(`/ajax/statuses/longtext?id=${encodeURIComponent(mblogid)}`);
+  return parseLongText(await get(`/ajax/statuses/longtext?id=${encodeURIComponent(mblogid)}`));
+}
+
+export function parseLongText(json: any): { text: string; links: Record<string, Link> } | null {
+  // Asked only of long posts: no text is a change of shape, but the cut text still reads.
+  if (!json?.data?.longTextContent) {
+    reportDrift("/ajax/statuses/longtext", ["data.longTextContent"], json);
+    return null;
+  }
   // The full text has links the cut one does not: they come with it.
-  return json.data?.longTextContent
-    ? { text: str(json.data.longTextContent), links: toLinks(json.data.url_struct) }
-    : null;
+  return { text: str(json.data.longTextContent), links: toLinks(json.data.url_struct) };
 }
 
 /** A post's comments, hottest first; `maxId` continues an earlier page. */
@@ -289,8 +322,13 @@ export async function comments(status: Status, maxId?: string): Promise<Page<Com
   const q =
     `is_reload=1&id=${status.id}&is_show_bulletin=2&is_mix=0&count=20&uid=${status.user.id}&fetch_level=0&locale=zh-CN` +
     (maxId ? `&flow=0&max_id=${encodeURIComponent(maxId)}` : "");
-  const json = await get(`/ajax/statuses/buildComments?${q}`);
-  return { items: (json.data ?? []).map(toComment), next: cursor(json.max_id) };
+  return parseComments(await get(`/ajax/statuses/buildComments?${q}`));
+}
+
+/** A page of comments, or of a comment's replies. */
+export function parseComments(json: any): Page<Comment> {
+  const EP = "/ajax/statuses/buildComments";
+  return { items: items(EP, list(EP, json, "data"), shapes.comment).map(toComment), next: cursor(json.max_id) };
 }
 
 /** The replies to one comment (its thread), oldest first. */
@@ -298,8 +336,7 @@ export async function replies(comment: Comment, statusUid: string, maxId?: strin
   const q =
     `is_reload=1&id=${comment.id}&is_show_bulletin=2&is_mix=1&fetch_level=1&count=20&uid=${statusUid}&locale=zh-CN` +
     `&max_id=${maxId ? encodeURIComponent(maxId) : "0"}`;
-  const json = await get(`/ajax/statuses/buildComments?${q}`);
-  return { items: (json.data ?? []).map(toComment), next: cursor(json.max_id) };
+  return parseComments(await get(`/ajax/statuses/buildComments?${q}`));
 }
 
 /** Whether I block an account, as far as the profile answer tells. */
@@ -346,8 +383,12 @@ function findBlock(root: unknown): BlockState {
 }
 
 export async function profile(uid: string): Promise<Profile> {
-  const json = await get(`/ajax/profile/info?uid=${encodeURIComponent(uid)}`);
-  return { user: toUser(json.data?.user), block: findBlock(json.data), raw: json.data };
+  return parseProfile(await get(`/ajax/profile/info?uid=${encodeURIComponent(uid)}`));
+}
+
+export function parseProfile(json: any): Profile {
+  const user = one("/ajax/profile/info", json, "data.user", shapes.user);
+  return { user: toUser(user), block: findBlock(json.data), raw: json.data };
 }
 
 // Names to uids, as `@name` mentions in posts carry only the name.
@@ -357,11 +398,20 @@ const uids = new Map<string, Promise<string>>();
 export function uidByName(name: string): Promise<string> {
   let uid = uids.get(name);
   if (!uid) {
-    uid = get(`/ajax/profile/info?screen_name=${encodeURIComponent(name)}`).then((json) => {
-      const id = str(json.data?.user?.idstr ?? json.data?.user?.id);
-      if (!id) throw new Error(json.msg ? `@${name}: ${json.msg}` : t("profile.no_such_name", { name }));
-      return id;
-    });
+    uid = get(`/ajax/profile/info?screen_name=${encodeURIComponent(name)}`).then(
+      (json) => {
+        const id = str(json.data?.user?.idstr ?? json.data?.user?.id);
+        if (!id) throw new Error(json.msg ? `@${name}: ${json.msg}` : t("profile.no_such_name", { name }));
+        save(`uid:${name}`, id);
+        return id;
+      },
+      // Out of reach: the uid this name had last time.
+      async (e) => {
+        const saved = e instanceof NotSignedIn ? null : await loadSaved<string>(`uid:${name}`);
+        if (typeof saved?.data === "string") return saved.data;
+        throw e;
+      },
+    );
     uid.catch(() => uids.delete(name)); // Ask again next time.
     uids.set(name, uid);
   }
@@ -370,15 +420,21 @@ export function uidByName(name: string): Promise<string> {
 
 /** An account's own posts, newest first; pages count from 1. */
 export async function userPosts(uid: string, page = 1): Promise<Page<Status, number>> {
-  const json = await get(`/ajax/statuses/mymblog?uid=${encodeURIComponent(uid)}&page=${page}&feature=0`);
-  const list = json.data?.list ?? [];
-  return { items: list.map(toStatus), next: list.length ? page + 1 : null };
+  return parseUserPosts(await get(`/ajax/statuses/mymblog?uid=${encodeURIComponent(uid)}&page=${page}&feature=0`), page);
+}
+
+export function parseUserPosts(json: any, page: number): Page<Status, number> {
+  const EP = "/ajax/statuses/mymblog";
+  const raw = list(EP, json, "data.list");
+  return { items: items(EP, raw, shapes.status).map(toStatus), next: raw.length ? page + 1 : null };
 }
 
 /** One post by id (`mid`). */
 export async function status(id: string): Promise<Status> {
-  return toStatus(await get(`/ajax/statuses/show?id=${encodeURIComponent(id)}&locale=zh-CN`));
+  return parseStatus(await get(`/ajax/statuses/show?id=${encodeURIComponent(id)}&locale=zh-CN`));
 }
+
+export const parseStatus = (json: any): Status => toStatus(one("/ajax/statuses/show", json, "", shapes.status));
 
 // Runs `f` over `items`, `limit` at a time, keeping their order.
 async function mapLimit<T, R>(items: T[], limit: number, f: (t: T) => Promise<R>): Promise<R[]> {
@@ -403,7 +459,15 @@ export async function topicPosts(topic: string, page = 1): Promise<Page<Status, 
   const q = `#${topic.replace(/^#|#$/g, "")}#`;
   const html = await getSearchPage(`/weibo?q=${encodeURIComponent(q)}${page > 1 ? `&page=${page}` : ""}`);
   const ids = [...new Set([...html.matchAll(/\bmid="(\d{10,})"/g)].map((m) => m[1]))];
-  const posts = await mapLimit(ids, 4, (id) => status(id).catch(() => null));
+  // A post that is gone fails alone; a change of shape fails them all, and says so.
+  let changed: unknown;
+  const posts = await mapLimit(ids, 4, (id) =>
+    status(id).catch((e) => {
+      if (e instanceof WeiboChanged) changed = e;
+      return null;
+    }),
+  );
+  if (changed && !posts.some(Boolean)) throw changed;
   const pages = [...html.matchAll(/[?&]page=(\d+)/g)].map((m) => Number(m[1]));
   const last = Math.max(page, ...pages);
   return { items: posts.filter((p): p is Status => !!p), next: ids.length && page < last ? page + 1 : null };
@@ -442,8 +506,19 @@ export async function people(uid: string, kind: "following" | "followers", page 
     kind === "followers"
       ? `relate=fans&page=${page}&uid=${encodeURIComponent(uid)}&type=fans&newFollowerCount=0`
       : `uid=${encodeURIComponent(uid)}&page=${page}`;
-  const json = await get(`/ajax/friendships/friends?${q}`);
-  const users: any[] = Array.isArray(json.users) ? json.users : [];
+  return parsePeople(await get(`/ajax/friendships/friends?${q}`), page);
+}
+
+export function parsePeople(json: any, page: number): Page<User, number> {
+  const EP = "/ajax/friendships/friends";
+  const raw = list(EP, json, "users");
   // `next_cursor` is 0 on the last page.
-  return { items: users.map(toUser), next: users.length && num(json.next_cursor) ? page + 1 : null };
+  return { items: items(EP, raw, shapes.user).map(toUser), next: raw.length && num(json.next_cursor) ? page + 1 : null };
+}
+
+/** Forgets the signed-in account (signing out): what was read of it, and all that was saved. */
+export function forgetAccount(): Promise<void> {
+  groupList = undefined;
+  uids.clear();
+  return clearSaved();
 }

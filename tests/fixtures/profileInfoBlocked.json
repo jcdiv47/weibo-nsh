@@ -1,0 +1,18 @@
+{
+  "ok": 1,
+  "data": {
+    "user": {
+      "id": 3000000009,
+      "idstr": "3000000009",
+      "screen_name": "被拉黑的人",
+      "avatar_large": "https://tvax1.sinaimg.cn/blocked.jpg",
+      "followers_count": 10,
+      "friends_count": 20,
+      "statuses_count": 30,
+      "following": false,
+      "follow_me": false
+    },
+    "block": true,
+    "blockText": "你已将对方拉黑，无法查看其微博"
+  }
+}

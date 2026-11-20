@@ -5,6 +5,7 @@ import { t } from "nsh/i18n";
 import { friendsTimeline, myUid, profile, type User } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
+import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { openMe } from "../nav";
@@ -25,7 +26,7 @@ function MeButton() {
 }
 
 export function Timeline() {
-  const feed = createFeed(friendsTimeline);
+  const feed = createFeed(friendsTimeline, { saveAs: () => "timeline" });
   feed.more();
   return (
     <NavPage
@@ -41,6 +42,7 @@ export function Timeline() {
         refreshing={feed.refreshing()}
         onRefresh={() => feed.refresh()}
         onLoadMore={() => feed.more()}
+        header={<SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />}
         footer={
           <FeedFooter
             loading={feed.loading()}

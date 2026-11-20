@@ -18,10 +18,12 @@ import { NotSignedIn } from "../bridge";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
 import { RichText } from "../components/RichText";
+import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
 import { openPeople } from "../nav";
+import { loadSaved, save } from "../saved";
 
 function Badge(props: { label: string; tone?: "primary" | "danger" | "muted" }) {
   const tone = () =>
@@ -208,7 +210,13 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
     uid.catch(() => (uid = undefined));
     return uid;
   };
-  const posts = createFeed<Status, number>(async (page) => userPosts(await resolveUid(), page ?? 1));
+  // The uid, once resolved: the key the profile and its first page of posts are saved under.
+  let knownUid: string | undefined;
+  const posts = createFeed<Status, number>(async (page) => userPosts(await resolveUid(), page ?? 1), {
+    saveAs: () => (knownUid ? `posts:${knownUid}` : null),
+  });
+  /** The profile shown is the saved one, saved then: it has not loaded since. */
+  const savedAt = signal<number | null>(null);
   // weibo.com shows no posts of an account I block (the posts API still returns them): load them
   // once the profile says it is not blocked, and again after an unblock.
   const blocked = () => data()?.block.blocked === true;
@@ -216,24 +224,45 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
   const mine = signal("me" in props);
   if (!("me" in props)) myUid().then((me) => resolveUid().then((id) => mine.set(id === me)), () => {});
   let postsStarted = false;
+  const show = (p: ProfileData) => {
+    const wasBlocked = blocked();
+    data.set(p);
+    if (p.block.blocked === true) return;
+    if (!postsStarted) {
+      postsStarted = true;
+      posts.more();
+    } else if (wasBlocked) posts.refresh();
+  };
   const loadProfile = () => {
     error.set(null);
     return resolveUid()
-      .then(profile)
-      .then(
-        (p) => {
-          const wasBlocked = blocked();
-          data.set(p);
-          if (p.block.blocked === true) return;
-          if (!postsStarted) {
-            postsStarted = true;
-            posts.more();
-          } else if (wasBlocked) posts.refresh();
-        },
-        (e) => {
-          if (!(e instanceof NotSignedIn)) error.set(String(e?.message ?? e));
-        },
-      );
+      .then((uid) => {
+        knownUid = uid;
+        // Nothing shown yet: show the saved profile while this loads, or instead of it if it fails.
+        let loaded = false;
+        const saved = data()
+          ? undefined
+          : loadSaved<ProfileData>(`profile:${uid}`).then((s) => {
+              if (!s || loaded || data() || !s.data.user?.id) return;
+              savedAt.set(s.at);
+              show(s.data);
+            });
+        return profile(uid).then(
+          (p) => {
+            loaded = true;
+            savedAt.set(null);
+            show(p);
+            save(`profile:${uid}`, { ...p, raw: null }); // The raw answer is for debugging only.
+          },
+          async (e) => {
+            await saved;
+            throw e;
+          },
+        );
+      })
+      .catch((e) => {
+        if (!(e instanceof NotSignedIn)) error.set(String(e?.message ?? e));
+      });
   };
   loadProfile();
   const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : "me" in props ? t("profile.me") : t("profile.title"));
@@ -259,7 +288,12 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
               </View>
             }
           >
-            {(d) => <ProfileHeader data={d()} reload={loadProfile} mine={mine()} />}
+            {(d) => (
+              <View>
+                <SavedNotice at={savedAt()} failed={!!error()} onRetry={loadProfile} />
+                <ProfileHeader data={d()} reload={loadProfile} mine={mine()} />
+              </View>
+            )}
           </If>
         }
         footer={

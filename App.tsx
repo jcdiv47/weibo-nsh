@@ -3,6 +3,7 @@
 import { effect, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { NavStack } from "nsh/base";
 import { t } from "nsh/i18n";
+import { forgetAccount } from "./api";
 import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from "./bridge";
 import { ImageViewer } from "./components/ImageViewer";
 import { VideoPlayer } from "./components/VideoPlayer";
@@ -41,9 +42,13 @@ function Bridge() {
     }
   }
 
-  // Any request that finds the session gone asks for a sign-in again.
+  // Any request that finds the session gone asks for a sign-in again, and forgets the account:
+  // whoever signs in next must not see its saved posts.
   effect(() => {
-    if (session() === "login") web?.load({ src: LOGIN_URL });
+    if (session() === "login") {
+      web?.load({ src: LOGIN_URL });
+      forgetAccount();
+    }
   });
 
   const visible = () => session() === "login";

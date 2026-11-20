@@ -4,11 +4,14 @@ import { NavPage } from "nsh/base";
 import { type Status, topicPosts } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
+import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 
 export function Topic(props: { topic: string }) {
-  const feed = createFeed<Status, number>((page) => topicPosts(props.topic, page ?? 1));
+  const feed = createFeed<Status, number>((page) => topicPosts(props.topic, page ?? 1), {
+    saveAs: () => `topic:${props.topic}`,
+  });
   feed.more();
   const title = `#${props.topic}#`;
   return (
@@ -20,6 +23,7 @@ export function Topic(props: { topic: string }) {
         refreshing={feed.refreshing()}
         onRefresh={() => feed.refresh()}
         onLoadMore={() => feed.more()}
+        header={<SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />}
         footer={
           <FeedFooter
             loading={feed.loading()}

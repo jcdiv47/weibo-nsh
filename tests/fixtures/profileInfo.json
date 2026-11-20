@@ -1,0 +1,24 @@
+{
+  "ok": 1,
+  "data": {
+    "user": {
+      "id": 2000000001,
+      "idstr": "2000000001",
+      "screen_name": "晚霞观察员",
+      "profile_image_url": "https://tvax1.sinaimg.cn/crop.0.0.180.180.50/aaaa.jpg",
+      "avatar_large": "https://tvax1.sinaimg.cn/crop.0.0.180.180.180/aaaa.jpg",
+      "avatar_hd": "https://tvax1.sinaimg.cn/crop.0.0.180.180.1024/aaaa.jpg",
+      "description": "拍天空 #晚霞#",
+      "location": "上海",
+      "verified": true,
+      "verified_reason": "摄影博主",
+      "followers_count": 123456,
+      "friends_count": 321,
+      "statuses_count": 4567,
+      "following": true,
+      "follow_me": true
+    },
+    "tabList": [{ "name": "home", "tabName": "精选" }],
+    "blockText": ""
+  }
+}
