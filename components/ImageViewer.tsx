@@ -1,6 +1,6 @@
 // A post's pictures full screen: swipe between them, pinch or double tap to zoom, drag to pan
 // when zoomed, tap to close. One viewer for the app, opened with `openViewer`.
-import { Image, Scroll, type ScrollRef, signal, Text, View, windowSize } from "nsh";
+import { Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
 import { Dialog } from "nsh/base";
 import type { Status } from "../api";
 
@@ -85,7 +85,7 @@ export function ImageViewer() {
               </Each>
             </Scroll>
             <If when={v().pics.length > 1}>
-              <View class="pointer-events-none absolute inset-x-0 top-[env(safe-area-inset-top)] items-center pt-3">
+              <View class="pointer-events-none absolute inset-x-0 items-center" style={{ top: safeArea().top + 12 }}>
                 <Text class="rounded-full bg-black/50 px-3 py-1 text-sm text-white">
                   {`${Math.min(page(), v().pics.length - 1) + 1} / ${v().pics.length}`}
                 </Text>

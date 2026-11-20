@@ -1,7 +1,9 @@
-// Post and comment text, as weibo.com shows it: `@name` mentions link to their profiles, URLs
-// open in the browser, `#topics#` are colored.
+// Post and comment text, as weibo.com shows it: `@name` mentions link to their profiles,
+// `#topics#` to their posts, short links show what they stand for ("网页链接", "xxx的微博视频")
+// and open it: the post's video in the player, anything else in the browser.
 import { openUrl, Text } from "nsh";
-import { openProfileByName } from "../nav";
+import type { Link } from "../api";
+import { openProfileByName, openTopic } from "../nav";
 
 /** Weibo's link orange, for mentions and links. */
 export const LINK_CLASS = "text-[#eb7350]";
@@ -30,23 +32,45 @@ export function segments(text: string): Segment[] {
   return out;
 }
 
-export function RichText(props: { text: string; class?: string }) {
+function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
+  const video = () => !!props.link?.video && !!props.onVideo;
+  const label = () => (props.link ? `${video() ? "▶︎" : "↗"} ${props.link.title}` : props.url);
+  return (
+    <Text
+      role="link"
+      accessibilityLabel={props.link?.title ?? props.url}
+      onPress={() => (video() ? props.onVideo!() : openUrl(props.link?.url ?? props.url).catch(() => {}))}
+      class={`${LINK_CLASS} active:opacity-60`}
+    >
+      {label()}
+    </Text>
+  );
+}
+
+export function RichText(props: {
+  text: string;
+  class?: string;
+  /** The post's short links (`Status.links`). */
+  links?: Record<string, Link>;
+  /** Plays the post's video, for its video link. */
+  onVideo?: () => void;
+}) {
   return (
     <Text class={props.class}>
       {segments(props.text).map((s) =>
         typeof s === "string" ? (
           s
         ) : "url" in s ? (
+          <UrlLink url={s.url} link={props.links?.[s.url]} onVideo={props.onVideo} />
+        ) : "topic" in s ? (
           <Text
             role="link"
-            accessibilityLabel={s.url}
-            onPress={() => openUrl(s.url).catch(() => {})}
+            accessibilityLabel={`Topic ${s.topic}`}
+            onPress={() => openTopic(s.topic)}
             class={`${LINK_CLASS} active:opacity-60`}
           >
-            {s.url}
+            {s.topic}
           </Text>
-        ) : "topic" in s ? (
-          <Text class={LINK_CLASS}>{s.topic}</Text>
         ) : (
           <Text
             role="link"

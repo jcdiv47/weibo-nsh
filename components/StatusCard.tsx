@@ -1,11 +1,13 @@
 // One post: author, text, pictures, the post it reposts, counts. Pressing the author opens
-// their profile, a picture the viewer, the reposted post that post, elsewhere the post's comments.
+// their profile, a picture the viewer, a video the player, the reposted post that post, elsewhere
+// the post's comments.
 import { Image, Text, View } from "nsh";
-import type { Status, User } from "../api";
+import type { Status, User, Video } from "../api";
 import { count, relativeTime } from "../format";
 import { openPost, openProfile } from "../nav";
 import { openViewer } from "./ImageViewer";
 import { RichText } from "./RichText";
+import { openVideo } from "./VideoPlayer";
 
 export function Avatar(props: { user: User; size?: "sm" | "md" | "lg" }) {
   const size = () => (props.size === "lg" ? "size-16" : props.size === "sm" ? "size-8" : "size-10");
@@ -45,6 +47,34 @@ function Pictures(props: { pics: Status["pics"] }) {
   );
 }
 
+function VideoCard(props: { video: Video }) {
+  const v = () => props.video;
+  const length = () => {
+    const d = Math.round(v().duration);
+    return d ? `${Math.floor(d / 60)}:${String(d % 60).padStart(2, "0")}` : "";
+  };
+  return (
+    <View
+      role="button"
+      accessibilityLabel={`Play video: ${v().title}`}
+      onPress={() => openVideo(v())}
+      class={`${v().portrait ? "h-72 w-52" : "aspect-video w-full"} overflow-hidden rounded-md bg-black active:opacity-80`}
+    >
+      <If when={v().poster}>
+        <Image src={v().poster} class="size-full object-cover" />
+      </If>
+      <View class="absolute inset-0 items-center justify-center">
+        <View class="size-12 items-center justify-center rounded-full bg-black/55">
+          <Text class="pl-1 text-xl text-white">▶︎</Text>
+        </View>
+      </View>
+      <If when={length()}>
+        <Text class="absolute bottom-2 right-2 rounded bg-black/55 px-1.5 py-0.5 text-xs text-white">{length()}</Text>
+      </If>
+    </View>
+  );
+}
+
 // `selectable`: long-press selects the text. Not inside a pressable box: on iOS the text's
 // selection gestures take the taps the box should get.
 function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
@@ -52,9 +82,12 @@ function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
     <>
       <RichText
         text={props.status.text}
+        links={props.status.links}
+        onVideo={props.status.video ? () => openVideo(props.status.video!) : undefined}
         class={`${props.selectable ? "select-text " : ""}text-[15px] leading-6 text-foreground ${props.lines === 8 ? "line-clamp-8" : props.lines === 6 ? "line-clamp-6" : ""}`}
       />
       <Pictures pics={props.status.pics} />
+      <If when={props.status.video}>{(v) => <VideoCard video={v()} />}</If>
     </>
   );
 }

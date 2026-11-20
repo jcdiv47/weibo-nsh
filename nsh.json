@@ -26,7 +26,8 @@
     },
     "network": {
       "hosts": [
-        "*.sinaimg.cn"
+        "*.sinaimg.cn",
+        "*.weibocdn.com"
       ]
     },
     "statusBar": true,

@@ -2,26 +2,18 @@
 // and the navigation stack of native pages.
 import { effect, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { NavStack } from "nsh/base";
-import {
-  abortPending,
-  attach,
-  DESKTOP_UA,
-  get,
-  LOGIN_URL,
-  NotSignedIn,
-  onBridgeMessage,
-  session,
-  WEIBO_ORIGIN,
-} from "./bridge";
+import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from "./bridge";
 import { ImageViewer } from "./components/ImageViewer";
+import { VideoPlayer } from "./components/VideoPlayer";
 import { nav } from "./nav";
 import { Post } from "./pages/Post";
 import { Profile } from "./pages/Profile";
 import { Timeline } from "./pages/Timeline";
+import { Topic } from "./pages/Topic";
 
 // The page the bridge idles on once signed in: same origin as the API, but a plain text file, so
 // the hidden web view runs none of weibo.com's own app.
-const BRIDGE_URL = `${WEIBO_ORIGIN}/robots.txt`;
+const BRIDGE_URL = weibo.idleUrl;
 const onWeibo = (url: string) => /^https:\/\/(www\.)?weibo\.com\//.test(url);
 
 function Bridge() {
@@ -72,15 +64,35 @@ function Bridge() {
       <WebView
         ref={(r) => {
           web = r;
-          attach(r);
+          weibo.attach(r);
         }}
         src={BRIDGE_URL}
         userAgent={DESKTOP_UA}
         class="flex-1"
-        onLoadStart={() => abortPending("The bridge page navigated")}
-        onLoad={(e) => probe(e.url)}
-        onMessage={(e) => onBridgeMessage(e.data)}
+        onLoadStart={() => weibo.onLoadStart()}
+        onLoad={(e) => {
+          weibo.onLoad(e.url);
+          probe(e.url);
+        }}
+        onMessage={(e) => weibo.onMessage(e.data)}
         onError={(e) => problem.set(e.message)}
+      />
+    </View>
+  );
+}
+
+// The second bridge, for s.weibo.com's search pages (topics); hidden always, mounted once signed in.
+function SearchBridge() {
+  return (
+    <View class="pointer-events-none absolute left-0 top-0 h-px w-px opacity-0">
+      <WebView
+        ref={(r) => search.attach(r)}
+        src={search.idleUrl}
+        userAgent={DESKTOP_UA}
+        class="flex-1"
+        onLoadStart={() => search.onLoadStart()}
+        onLoad={(e) => search.onLoad(e.url)}
+        onMessage={(e) => search.onMessage(e.data)}
       />
     </View>
   );
@@ -109,6 +121,8 @@ function App() {
                 return <Timeline />;
               case "post":
                 return <Post id={route.id} />;
+              case "topic":
+                return <Topic topic={route.topic} />;
               case "profile":
                 return "uid" in route ? <Profile uid={route.uid} /> : <Profile screenName={route.screenName} />;
             }
@@ -116,7 +130,11 @@ function App() {
         </NavStack>
       </If>
       <ImageViewer />
+      <VideoPlayer />
       <Bridge />
+      <If when={started()}>
+        <SearchBridge />
+      </If>
     </View>
   );
 }

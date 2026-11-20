@@ -1,7 +1,7 @@
 // weibo.com's web API (the endpoints weibo.com's own client calls), mapped to the few fields the
 // app shows. Undocumented and subject to change: every endpoint lives here, and mapping reads
 // fields defensively so a renamed field degrades one value instead of a screen.
-import { get } from "./bridge";
+import { get, getSearchPage } from "./bridge";
 
 export interface User {
   id: string;
@@ -32,7 +32,29 @@ export interface Status {
   comments: number;
   likes: number;
   pics: { thumb: string; large: string }[];
+  video?: Video;
+  /** What the post's short links (`http://t.cn/...`) stand for, by short link. */
+  links: Record<string, Link>;
   retweeted?: Status;
+}
+
+export interface Video {
+  /** An mp4 to play. */
+  src: string;
+  poster: string;
+  title: string;
+  /** Seconds. */
+  duration: number;
+  portrait: boolean;
+}
+
+export interface Link {
+  /** What Weibo shows in place of the short link: "网页链接", "xxx的微博视频", "查看图片". */
+  title: string;
+  /** Where it goes, for a browser. */
+  url: string;
+  /** The link is the post's own video. */
+  video: boolean;
 }
 
 export interface Comment {
@@ -83,9 +105,56 @@ export function toUser(u: any): User {
   };
 }
 
+const https = (url: string) => url.replace(/^http:\/\//, "https://");
+
+/** A post's video (`page_info` of type video), at 720p or below where Weibo lists qualities. */
+function toVideo(info: any): Video | undefined {
+  const media = info?.media_info;
+  if (!media || (info?.object_type && info.object_type !== "video")) return undefined;
+  const plays: any[] = (Array.isArray(media.playback_list) ? media.playback_list : [])
+    .map((p: any) => p?.play_info)
+    .filter((p: any) => p?.url && (p.mime === "video/mp4" || /\.mp4/.test(p.url)));
+  const best = plays.filter((p) => num(p.height) && Math.min(num(p.width), num(p.height)) <= 720).sort(
+    (a, b) => Math.min(num(b.width), num(b.height)) - Math.min(num(a.width), num(a.height)),
+  )[0] ?? plays[0];
+  const src = str(best?.url || media.mp4_720p_mp4 || media.mp4_hd_url || media.stream_url_hd || media.mp4_sd_url || media.stream_url);
+  if (!src) return undefined;
+  const w = num(best?.width), h = num(best?.height);
+  return {
+    src: https(src),
+    poster: https(str(info.page_pic?.url ?? info.page_pic)),
+    title: str(media.kol_title || media.name || info.page_title || info.content1),
+    duration: num(media.duration),
+    portrait: w && h ? h > w : media.video_orientation === "vertical",
+  };
+}
+
+function toLinks(structs: unknown): Record<string, Link> {
+  const links: Record<string, Link> = {};
+  for (const u of Array.isArray(structs) ? structs : []) {
+    const short = str(u?.short_url);
+    if (!short) continue;
+    // A browser can't open `sinaweibo://` (the Weibo app's own links): use the web address.
+    const url = [u?.long_url, u?.h5_target_url, u?.ori_url].map(str).find((v) => /^https?:/.test(v)) ?? short;
+    links[short] = { title: str(u?.url_title) || "网页链接", url, video: num(u?.url_type) === 39 || /video/.test(str(u?.ori_url)) };
+  }
+  return links;
+}
+
+const pic = (id: string, info: any) => ({
+  thumb: str(info?.bmiddle?.url || info?.thumbnail?.url) || `https://wx1.sinaimg.cn/orj360/${id}.jpg`,
+  large: str(info?.largest?.url || info?.large?.url) || `https://wx1.sinaimg.cn/large/${id}.jpg`,
+});
+
 function toStatus(s: any): Status {
   const ids: string[] = Array.isArray(s?.pic_ids) ? s.pic_ids : [];
   const infos = s?.pic_infos ?? {};
+  // Posts of pictures and videos together list both in `mix_media_info`.
+  const mix: any[] = Array.isArray(s?.mix_media_info?.items) ? s.mix_media_info.items : [];
+  const pics = ids.length
+    ? ids.map((id) => pic(id, infos[id]))
+    : mix.filter((m) => m?.type === "pic").map((m) => pic(str(m.id), m.data));
+  const video = toVideo(s?.page_info) ?? toVideo(mix.find((m) => m?.type === "video")?.data);
   return {
     id: str(s?.idstr ?? s?.id),
     mblogid: str(s?.mblogid),
@@ -98,10 +167,9 @@ function toStatus(s: any): Status {
     reposts: num(s?.reposts_count),
     comments: num(s?.comments_count),
     likes: num(s?.attitudes_count),
-    pics: ids.map((id) => ({
-      thumb: str(infos[id]?.bmiddle?.url || infos[id]?.thumbnail?.url) || `https://wx1.sinaimg.cn/orj360/${id}.jpg`,
-      large: str(infos[id]?.largest?.url || infos[id]?.large?.url) || `https://wx1.sinaimg.cn/large/${id}.jpg`,
-    })),
+    pics,
+    video,
+    links: toLinks(s?.url_struct),
     retweeted: s?.retweeted_status ? toStatus(s.retweeted_status) : undefined,
   };
 }
@@ -259,4 +327,38 @@ export async function userPosts(uid: string, page = 1): Promise<Page<Status, num
   const json = await get(`/ajax/statuses/mymblog?uid=${encodeURIComponent(uid)}&page=${page}&feature=0`);
   const list = json.data?.list ?? [];
   return { items: list.map(toStatus), next: list.length ? page + 1 : null };
+}
+
+/** One post by id (`mid`). */
+export async function status(id: string): Promise<Status> {
+  return toStatus(await get(`/ajax/statuses/show?id=${encodeURIComponent(id)}&locale=zh-CN`));
+}
+
+// Runs `f` over `items`, `limit` at a time, keeping their order.
+async function mapLimit<T, R>(items: T[], limit: number, f: (t: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await f(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/**
+ * The posts of a topic (`#name#`), as s.weibo.com's search lists them (its default order, real
+ * time first); pages count from 1. weibo.com has no JSON for topics: read the posts' ids from the
+ * search page, then each post from weibo.com's API, a few at a time.
+ */
+export async function topicPosts(topic: string, page = 1): Promise<Page<Status, number>> {
+  const q = `#${topic.replace(/^#|#$/g, "")}#`;
+  const html = await getSearchPage(`/weibo?q=${encodeURIComponent(q)}${page > 1 ? `&page=${page}` : ""}`);
+  const ids = [...new Set([...html.matchAll(/\bmid="(\d{10,})"/g)].map((m) => m[1]))];
+  const posts = await mapLimit(ids, 4, (id) => status(id).catch(() => null));
+  const pages = [...html.matchAll(/[?&]page=(\d+)/g)].map((m) => Number(m[1]));
+  const last = Math.max(page, ...pages);
+  return { items: posts.filter((p): p is Status => !!p), next: ids.length && page < last ? page + 1 : null };
 }
