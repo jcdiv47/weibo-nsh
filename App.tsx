@@ -13,6 +13,7 @@ import {
   session,
   WEIBO_ORIGIN,
 } from "./bridge";
+import { ImageViewer } from "./components/ImageViewer";
 import { nav } from "./nav";
 import { Post } from "./pages/Post";
 import { Profile } from "./pages/Profile";
@@ -114,6 +115,7 @@ function App() {
           }}
         </NavStack>
       </If>
+      <ImageViewer />
       <Bridge />
     </View>
   );

@@ -82,8 +82,9 @@ export function Post(props: { id: string }) {
 }
 
 function CommentBody(props: { comment: Comment; small?: boolean }) {
+  // No `flex-1`: in a column it sets a zero basis, and the replies' bodies collapsed onto each other.
   return (
-    <View class="flex-1 gap-1">
+    <View class="gap-1">
       <View class="flex-row items-center gap-2">
         <Text
           role="button"

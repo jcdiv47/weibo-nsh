@@ -1,9 +1,10 @@
 // One post: author, text, pictures, the post it reposts, counts. Pressing the author opens
-// their profile, pressing elsewhere the post's comments.
+// their profile, a picture the viewer, the reposted post that post, elsewhere the post's comments.
 import { Image, Text, View } from "nsh";
 import type { Status, User } from "../api";
 import { count, relativeTime } from "../format";
 import { openPost, openProfile } from "../nav";
+import { openViewer } from "./ImageViewer";
 
 export function Avatar(props: { user: User; size?: "sm" | "md" | "lg" }) {
   const size = () => (props.size === "lg" ? "size-16" : props.size === "sm" ? "size-8" : "size-10");
@@ -27,11 +28,15 @@ function Pictures(props: { pics: Status["pics"] }) {
     <If when={props.pics.length}>
       <View class="flex-row flex-wrap gap-1">
         <Each of={props.pics.slice(0, 9)}>
-          {(pic) => (
-            <Image
-              src={pic().thumb}
-              class={`${props.pics.length === 1 ? "h-56 w-56" : "size-24"} rounded-md bg-muted object-cover`}
-            />
+          {(pic, i) => (
+            <View
+              role="button"
+              accessibilityLabel={`Picture ${i() + 1} of ${props.pics.length}`}
+              onPress={() => openViewer(props.pics, i())}
+              class={`${props.pics.length === 1 ? "h-56 w-56" : "size-24"} overflow-hidden rounded-md bg-muted active:opacity-80`}
+            >
+              <Image src={pic().thumb} class="size-full object-cover" />
+            </View>
           )}
         </Each>
       </View>
@@ -39,10 +44,12 @@ function Pictures(props: { pics: Status["pics"] }) {
   );
 }
 
-function Body(props: { status: Status; lines?: number }) {
+// `selectable`: long-press selects the text. Not inside a pressable box: on iOS the text's
+// selection gestures take the taps the box should get.
+function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
   return (
     <>
-      <Text class={`${props.lines === undefined ? "select-text " : ""}text-[15px] leading-6 text-foreground ${props.lines === 8 ? "line-clamp-8" : props.lines === 6 ? "line-clamp-6" : ""}`}>
+      <Text class={`${props.selectable ? "select-text " : ""}text-[15px] leading-6 text-foreground ${props.lines === 8 ? "line-clamp-8" : props.lines === 6 ? "line-clamp-6" : ""}`}>
         {props.status.text}
       </Text>
       <Pictures pics={props.status.pics} />
@@ -72,13 +79,14 @@ export function StatusCard(props: { status: Status; full?: boolean; text?: strin
           <Text class="text-xs text-muted-foreground line-clamp-1">{meta()}</Text>
         </View>
       </View>
-      <Body status={props.text ? { ...s(), text: props.text } : s()} lines={props.full ? undefined : 8} />
+      <Body status={props.text ? { ...s(), text: props.text } : s()} lines={props.full ? undefined : 8} selectable={props.full} />
       <If when={s().retweeted}>
         {(rt) => (
           <View
-            role={props.full ? "button" : undefined}
-            onPress={props.full ? () => openPost(rt()) : undefined}
-            class="gap-2 rounded-lg bg-muted px-3 py-2"
+            role="button"
+            accessibilityLabel={`Reposted post by ${rt().user.name}`}
+            onPress={() => openPost(rt())}
+            class="gap-2 rounded-lg bg-muted px-3 py-2 active:opacity-70"
           >
             <Text
               role="button"
