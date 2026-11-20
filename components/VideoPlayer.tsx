@@ -1,12 +1,13 @@
 // A post's video full screen, playing with the platform's controls. One player for the app,
 // opened with `openVideo`.
-import { safeArea, signal, Text, Video, View } from "nsh";
+import { signal, Text, Video, View } from "nsh";
 import { Dialog } from "nsh/base";
 import type { Video as VideoData } from "../api";
 
 const shown = signal<VideoData | null>(null);
 
-export const openVideo = (video: VideoData) => shown.set(video);
+// A copy: opening the same video again must change the signal, or it would not open.
+export const openVideo = (video: VideoData) => shown.set({ ...video });
 const close = () => shown.set(null);
 
 export function VideoPlayer() {
@@ -18,7 +19,12 @@ export function VideoPlayer() {
       presentation="fullScreen"
       statusBar={{ hidden: true, animated: true }}
       onOpenChange={(e) => !e.open && close()}
-      onClose={() => error.set(null)}
+      // The player's own close button (the system controls') dismisses the dialog natively, with no
+      // `onOpenChange`: `onClose` hears every way it goes, so the state follows.
+      onClose={() => {
+        error.set(null);
+        close();
+      }}
       class="flex-1 bg-black"
     >
       <If when={shown()}>
@@ -36,15 +42,6 @@ export function VideoPlayer() {
                 <Text class="text-center text-sm text-white">Can't play this video: {error()}</Text>
               </View>
             </If>
-            <View
-              role="button"
-              accessibilityLabel="Close"
-              onPress={close}
-              style={{ top: safeArea().top + 8 }}
-              class="absolute left-4 size-9 items-center justify-center rounded-full bg-black/50 active:opacity-60"
-            >
-              <Text class="text-lg text-white">✕</Text>
-            </View>
           </View>
         )}
       </If>
