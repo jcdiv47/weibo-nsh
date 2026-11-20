@@ -110,7 +110,7 @@ function App() {
               case "post":
                 return <Post id={route.id} />;
               case "profile":
-                return <Profile uid={route.uid} />;
+                return "uid" in route ? <Profile uid={route.uid} /> : <Profile screenName={route.screenName} />;
             }
           }}
         </NavStack>

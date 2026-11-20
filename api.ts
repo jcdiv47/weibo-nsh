@@ -44,8 +44,9 @@ export interface Comment {
   /** Replies to this comment, of which `preview` is the first few. */
   replyCount: number;
   preview: Comment[];
-  /** The comment this replies to (in a thread of replies). */
+  /** The author of the comment this replies to (in a thread of replies): name and uid. */
   replyTo?: string;
+  replyToUid?: string;
 }
 
 /** A page of items and the cursor of the next, `null` at the end. */
@@ -115,6 +116,7 @@ function toComment(c: any): Comment {
     replyCount: num(c?.total_number),
     preview: Array.isArray(c?.comments) ? c.comments.map(toComment) : [],
     replyTo: c?.reply_comment?.user?.screen_name ? str(c.reply_comment.user.screen_name) : undefined,
+    replyToUid: str(c?.reply_comment?.user?.idstr ?? c?.reply_comment?.user?.id) || undefined,
   };
 }
 
@@ -232,6 +234,24 @@ function findBlock(root: unknown): BlockState {
 export async function profile(uid: string): Promise<Profile> {
   const json = await get(`/ajax/profile/info?uid=${encodeURIComponent(uid)}`);
   return { user: toUser(json.data?.user), block: findBlock(json.data), raw: json.data };
+}
+
+// Names to uids, as `@name` mentions in posts carry only the name.
+const uids = new Map<string, Promise<string>>();
+
+/** The uid of the account with this screen name; rejects when no account has it. */
+export function uidByName(name: string): Promise<string> {
+  let uid = uids.get(name);
+  if (!uid) {
+    uid = get(`/ajax/profile/info?screen_name=${encodeURIComponent(name)}`).then((json) => {
+      const id = str(json.data?.user?.idstr ?? json.data?.user?.id);
+      if (!id) throw new Error(json.msg ? `@${name}: ${json.msg}` : `No account is named @${name}`);
+      return id;
+    });
+    uid.catch(() => uids.delete(name)); // Ask again next time.
+    uids.set(name, uid);
+  }
+  return uid;
 }
 
 /** An account's own posts, newest first; pages count from 1. */

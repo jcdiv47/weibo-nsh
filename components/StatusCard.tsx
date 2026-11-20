@@ -5,6 +5,7 @@ import type { Status, User } from "../api";
 import { count, relativeTime } from "../format";
 import { openPost, openProfile } from "../nav";
 import { openViewer } from "./ImageViewer";
+import { RichText } from "./RichText";
 
 export function Avatar(props: { user: User; size?: "sm" | "md" | "lg" }) {
   const size = () => (props.size === "lg" ? "size-16" : props.size === "sm" ? "size-8" : "size-10");
@@ -49,9 +50,10 @@ function Pictures(props: { pics: Status["pics"] }) {
 function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
   return (
     <>
-      <Text class={`${props.selectable ? "select-text " : ""}text-[15px] leading-6 text-foreground ${props.lines === 8 ? "line-clamp-8" : props.lines === 6 ? "line-clamp-6" : ""}`}>
-        {props.status.text}
-      </Text>
+      <RichText
+        text={props.status.text}
+        class={`${props.selectable ? "select-text " : ""}text-[15px] leading-6 text-foreground ${props.lines === 8 ? "line-clamp-8" : props.lines === 6 ? "line-clamp-6" : ""}`}
+      />
       <Pictures pics={props.status.pics} />
     </>
   );

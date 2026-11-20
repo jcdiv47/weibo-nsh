@@ -1,10 +1,11 @@
 // An account: who they are, how we relate (following, follows me, blocked), and their posts.
 import { List, signal, Text, View } from "nsh";
 import { Button, NavPage } from "nsh/base";
-import { type Profile as ProfileData, profile, type Status, userPosts } from "../api";
+import { type Profile as ProfileData, profile, type Status, uidByName, userPosts } from "../api";
 import { NotSignedIn } from "../bridge";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
+import { RichText } from "../components/RichText";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
@@ -60,7 +61,7 @@ function ProfileHeader(props: { data: ProfileData }) {
         </View>
       </View>
       <If when={u().description}>
-        <Text class="select-text text-sm text-foreground">{u().description}</Text>
+        <RichText text={u().description!} class="select-text text-sm text-foreground" />
       </If>
       <View class="flex-row gap-5">
         <Text class="text-sm text-muted-foreground">{count(u().followingCount ?? 0)} following</Text>
@@ -80,20 +81,27 @@ function ProfileHeader(props: { data: ProfileData }) {
   );
 }
 
-export function Profile(props: { uid: string }) {
+export function Profile(props: { uid: string } | { screenName: string }) {
   const data = signal<ProfileData | null>(null);
   const error = signal<string | null>(null);
+  // An `@name` mention opens the page by name: find the uid first (again on a retry, if it failed).
+  let uid: Promise<string> | undefined;
+  const resolveUid = () => {
+    uid ??= "uid" in props ? Promise.resolve(props.uid) : uidByName(props.screenName);
+    uid.catch(() => (uid = undefined));
+    return uid;
+  };
   const loadProfile = () => {
     error.set(null);
-    profile(props.uid).then(
+    resolveUid().then(profile).then(
       (p) => data.set(p),
       (e) => !(e instanceof NotSignedIn) && error.set(String(e?.message ?? e)),
     );
   };
   loadProfile();
-  const posts = createFeed<Status, number>((page) => userPosts(props.uid, page ?? 1));
+  const posts = createFeed<Status, number>(async (page) => userPosts(await resolveUid(), page ?? 1));
   posts.more();
-  const title = () => data()?.user.name ?? "Profile";
+  const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : "Profile");
 
   return (
     <NavPage title={title()} header={<Header title={title()} />}>

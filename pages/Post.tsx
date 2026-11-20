@@ -4,10 +4,11 @@ import { Button, NavPage } from "nsh/base";
 import { type Comment, comments, longText, replies, type Status } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
+import { LINK_CLASS, RichText } from "../components/RichText";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
-import { openProfile, postById } from "../nav";
+import { openProfile, openProfileByName, postById } from "../nav";
 
 interface Thread {
   items: Comment[];
@@ -94,7 +95,17 @@ function CommentBody(props: { comment: Comment; small?: boolean }) {
           {props.comment.user.name}
         </Text>
         <If when={props.comment.replyTo}>
-          <Text class="text-xs text-muted-foreground">→ {props.comment.replyTo}</Text>
+          <Text
+            role="link"
+            onPress={() => {
+              const c = props.comment;
+              if (c.replyToUid) openProfile(c.replyToUid);
+              else if (c.replyTo) openProfileByName(c.replyTo);
+            }}
+            class="text-xs text-muted-foreground active:opacity-60"
+          >
+            → <Text class={LINK_CLASS}>{props.comment.replyTo}</Text>
+          </Text>
         </If>
         <Text class="text-xs text-muted-foreground">{relativeTime(props.comment.createdAt)}</Text>
         <View class="flex-1" />
@@ -102,9 +113,10 @@ function CommentBody(props: { comment: Comment; small?: boolean }) {
           <Text class="text-xs text-muted-foreground">♥ {count(props.comment.likes)}</Text>
         </If>
       </View>
-      <Text class={`select-text ${props.small ? "text-sm" : "text-[15px]"} leading-6 text-foreground`}>
-        {props.comment.text}
-      </Text>
+      <RichText
+        text={props.comment.text}
+        class={`select-text ${props.small ? "text-sm" : "text-[15px]"} leading-6 text-foreground`}
+      />
     </View>
   );
 }
