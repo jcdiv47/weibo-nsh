@@ -210,7 +210,7 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
               <Text
                 role="button"
                 onPress={() => openProfile(rt().user.id)}
-                class="self-start text-sm leading-5 font-semibold text-link"
+                class="self-start text-body leading-5 font-semibold text-link"
               >
                 @{rt().user.name}
               </Text>
