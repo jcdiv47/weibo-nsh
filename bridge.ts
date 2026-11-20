@@ -36,12 +36,20 @@ interface PageAnswer {
 }
 
 // The script the page runs: a same-origin fetch with the headers weibo.com's own client sends.
-const pageFetch = (path: string, asText: boolean) => `(async () => {
+// A `form` makes it a POST of that form, as the client sends its writes (follow, block).
+const pageFetch = (path: string, asText: boolean, form?: Record<string, string>) => `(async () => {
   const m = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/);
   const headers = { accept: ${asText ? '"text/html,*/*"' : '"application/json, text/plain, */*"'} };
   if (${!asText}) headers["x-requested-with"] = "XMLHttpRequest";
   if (m) headers["x-xsrf-token"] = decodeURIComponent(m[1]);
-  const r = await fetch(${JSON.stringify(path)}, { credentials: "include", headers });
+  const form = ${JSON.stringify(form ?? null)};
+  const init = { credentials: "include", headers };
+  if (form) {
+    init.method = "POST";
+    headers["content-type"] = "application/x-www-form-urlencoded";
+    init.body = new URLSearchParams(form).toString();
+  }
+  const r = await fetch(${JSON.stringify(path)}, init);
   const text = await r.text();
   let json = null;
   if (${!asText}) { try { json = JSON.parse(text); } catch (e) {} }
@@ -121,12 +129,13 @@ export class Channel {
    * channel's pages only start once it is up). A request the page's navigation cut off (a reload)
    * runs again once, when the page is back.
    */
-  async run(path: string, asText = false, waitForPage = false): Promise<PageAnswer> {
+  async run(path: string, asText = false, waitForPage = false, form?: Record<string, string>): Promise<PageAnswer> {
     if (waitForPage) await this.waitLoaded();
     try {
-      return await this.runOnce(path, asText);
+      return await this.runOnce(path, asText, form);
     } catch (e) {
-      if (!/navigated/i.test(String((e as Error)?.message ?? e))) throw e;
+      // A cut-off GET runs again; a POST might have gone through, so it reports the failure.
+      if (form || !/navigated/i.test(String((e as Error)?.message ?? e))) throw e;
       await this.waitLoaded();
       return this.runOnce(path, asText);
     }
@@ -140,11 +149,11 @@ export class Channel {
     ]).finally(() => clearTimeout(timer));
   }
 
-  private async runOnce(path: string, asText: boolean): Promise<PageAnswer> {
+  private async runOnce(path: string, asText: boolean, form?: Record<string, string>): Promise<PageAnswer> {
     const web = this.web;
     if (!web) throw new Error("The session bridge is not mounted");
     if (await this.useEvaluate) {
-      const { value } = await web.evaluate(pageFetch(path, asText), { timeout: TIMEOUT_MS });
+      const { value } = await web.evaluate(pageFetch(path, asText, form), { timeout: TIMEOUT_MS });
       return value as unknown as PageAnswer;
     }
     const id = this.nextId++;
@@ -155,7 +164,7 @@ export class Channel {
       }, TIMEOUT_MS);
       this.waiting.set(id, { resolve, reject, timer });
       web.injectJavaScript(
-        `${pageFetch(path, asText)}.then(v => window.nsh.postMessage(JSON.stringify({ id: ${id}, v })),` +
+        `${pageFetch(path, asText, form)}.then(v => window.nsh.postMessage(JSON.stringify({ id: ${id}, v })),` +
           ` e => window.nsh.postMessage(JSON.stringify({ id: ${id}, error: String(e) })));`,
       );
     });
@@ -182,6 +191,23 @@ export async function get<T = any>(path: string): Promise<T> {
     throw new NotSignedIn();
   }
   if (json.ok !== 1) throw new Error(`Weibo answered ok=${json.ok} for ${path}`);
+  return json as T;
+}
+
+/**
+ * POSTs a form to a weibo.com path, as weibo.com's client sends its writes, and returns the JSON.
+ * Throws unless Weibo answers `ok > 0` (`result: "true"` for some).
+ */
+export async function post<T = any>(path: string, form: Record<string, string>): Promise<T> {
+  const answer = await weibo.run(path, false, false, form);
+  const json = answer.json as { ok?: number; result?: unknown; msg?: string; message?: string } | null;
+  if (signedOut(answer) || !json || json.ok === -100) {
+    session.set("login");
+    throw new NotSignedIn();
+  }
+  if (!((json.ok ?? 0) > 0 || json.result === true || json.result === "true")) {
+    throw new Error(json.msg || json.message || `Weibo answered ok=${json.ok} for ${path}`);
+  }
   return json as T;
 }
 

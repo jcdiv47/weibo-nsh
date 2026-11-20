@@ -1,7 +1,7 @@
 // weibo.com's web API (the endpoints weibo.com's own client calls), mapped to the few fields the
 // app shows. Undocumented and subject to change: every endpoint lives here, and mapping reads
 // fields defensively so a renamed field degrades one value instead of a screen.
-import { get, getSearchPage } from "./bridge";
+import { get, getSearchPage, post } from "./bridge";
 
 export interface User {
   id: string;
@@ -298,6 +298,8 @@ export interface BlockState {
   blocked: boolean | null;
   /** The fields it was read from, `path=value`. */
   evidence: string[];
+  /** What weibo.com shows in place of the posts while I block them ("你已将对方拉黑…"). */
+  message?: string;
 }
 
 export interface Profile {
@@ -325,7 +327,12 @@ function findBlock(root: unknown): BlockState {
     }
   };
   walk(root, "", 0);
-  return { blocked, evidence };
+  // The profile answer says it outright: `block: true` and a `blockText` ("你已将对方拉黑…") while
+  // I block them; neither (an empty `blockText`) otherwise.
+  const data = root as { block?: unknown; blockText?: unknown } | null;
+  if (data && "blockText" in data) blocked = data.block === true || !!data.blockText;
+  const message = typeof data?.blockText === "string" && data.blockText ? data.blockText : undefined;
+  return { blocked, evidence, message };
 }
 
 export async function profile(uid: string): Promise<Profile> {
@@ -390,4 +397,31 @@ export async function topicPosts(topic: string, page = 1): Promise<Page<Status, 
   const pages = [...html.matchAll(/[?&]page=(\d+)/g)].map((m) => Number(m[1]));
   const last = Math.max(page, ...pages);
   return { items: posts.filter((p): p is Status => !!p), next: ids.length && page < last ? page + 1 : null };
+}
+
+// Writes, as weibo.com's own client sends them (its profile page's buttons). Their answers do not
+// say the new state reliably (`friendships/create` answers `following: false`): read the profile
+// again after one.
+
+/** Follows an account. */
+export async function follow(uid: string): Promise<void> {
+  await post("/ajax/friendships/create", { friend_uid: uid, page: "profile", lpage: "profile" });
+}
+
+/** Unfollows an account. (`destory`: Weibo's spelling.) */
+export async function unfollow(uid: string): Promise<void> {
+  await post("/ajax/friendships/destory", { uid });
+}
+
+/**
+ * Blocks an account (拉黑): hides their posts, stops their interactions with me and their
+ * following me, as weibo.com's "加入黑名单" with every box ticked. It ends my following them too.
+ */
+export async function block(uid: string): Promise<void> {
+  await post("/ajax/statuses/filterUser", { uid, status: "1", interact: "1", follow: "1" });
+}
+
+/** Unblocks an account (解除黑名单). Following them again is a separate `follow`. */
+export async function unblock(uid: string): Promise<void> {
+  await post("/ajax/statuses/deleteFilters", { uid });
 }

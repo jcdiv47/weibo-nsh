@@ -11,11 +11,14 @@ What it does now:
   filtered out. Pull to refresh, more on scroll.
 - **Post page** with its full text (`/ajax/statuses/longtext`) and comments
   (`/ajax/statuses/buildComments`), with a comment's replies opening in place.
-- **Profile** (`/ajax/profile/info`, `/ajax/statuses/mymblog`): following / follows you,
-  and the **block status**. No public source documents weibo.com's block field, so `findBlock`
-  in `api.ts` collects every `*block*` / `*black*` field of the answer and the profile shows which
-  it read. If it says "unknown", press **Show raw answer** on an account you know you block, find
-  the field, and read it in `findBlock`.
+- **Profile** (`/ajax/profile/info`, `/ajax/statuses/mymblog`): following / follows you and the
+  block status (`block` / `blockText` of the profile answer), with **Follow / Unfollow**
+  (`/ajax/friendships/create`, `/ajax/friendships/destory`) and **Block / Unblock**
+  (`/ajax/statuses/filterUser` with every box of weibo.com's dialog ticked,
+  `/ajax/statuses/deleteFilters`). Blocking ends the follow; unblocking does not restore it.
+- **Pictures** full screen (swipe, pinch, double tap), **videos** in the system player, `@mentions`
+  to profiles, `#topics#` to their posts (read from s.weibo.com's search page through a second
+  hidden web view), short links labelled as Weibo labels them.
 
 ## Run on Linux
 

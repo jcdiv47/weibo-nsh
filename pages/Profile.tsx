@@ -1,7 +1,17 @@
 // An account: who they are, how we relate (following, follows me, blocked), and their posts.
 import { List, signal, Text, View } from "nsh";
-import { Button, NavPage } from "nsh/base";
-import { type Profile as ProfileData, profile, type Status, uidByName, userPosts } from "../api";
+import { AlertDialog, Button, NavPage } from "nsh/base";
+import {
+  block,
+  follow,
+  type Profile as ProfileData,
+  profile,
+  type Status,
+  uidByName,
+  unblock,
+  unfollow,
+  userPosts,
+} from "../api";
 import { NotSignedIn } from "../bridge";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
@@ -20,33 +30,107 @@ function Badge(props: { label: string; tone?: "primary" | "danger" | "muted" }) 
   return <Text class={`rounded-full border px-2 py-0.5 text-xs ${tone()}`}>{props.label}</Text>;
 }
 
+// What the buttons above don't say: whether they follow me, and a block state the answer left
+// unknown (with the fields it was read from).
 function Relationship(props: { data: ProfileData }) {
-  const u = () => props.data.user;
   const block = () => props.data.block;
   return (
-    <View class="gap-2">
-      <View class="flex-row flex-wrap gap-2">
-        <If when={u().following !== undefined}>
-          <Badge label={u().following ? "Following" : "Not following"} tone={u().following ? "primary" : "muted"} />
-        </If>
-        <If when={u().followsMe}>
+    <>
+      <If when={props.data.user.followsMe}>
+        <View class="flex-row">
           <Badge label="Follows you" tone="primary" />
+        </View>
+      </If>
+      <If when={block().blocked === null}>
+        <Text class="text-xs text-muted-foreground">
+          {block().evidence.length
+            ? `Block status unknown; read from ${block().evidence.join(", ")}`
+            : "Block status unknown: the profile answer has no block field; open the raw answer to find it."}
+        </Text>
+      </If>
+    </>
+  );
+}
+
+type Action = "follow" | "unfollow" | "block" | "unblock";
+
+const confirmations: Partial<Record<Action, (name: string) => { title: string; description: string; label: string }>> = {
+  unfollow: (name) => ({ title: `Unfollow ${name}?`, description: "Their posts leave your timeline.", label: "Unfollow" }),
+  block: (name) => ({
+    title: `Block ${name}?`,
+    description:
+      "You won't see their posts, they can't interact with you or follow you, and you stop following them. Unblocking does not follow them again.",
+    label: "Block",
+  }),
+};
+
+/** Follow / unfollow and block / unblock; the profile is read again after each. */
+function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
+  const u = () => props.data.user;
+  const blocked = () => props.data.block.blocked === true;
+  const busy = signal<Action | null>(null);
+  const error = signal<string | null>(null);
+
+  async function run(action: Action) {
+    if (busy()) return;
+    const ask = confirmations[action]?.(u().name);
+    if (ask) {
+      const { action: chosen } = await AlertDialog.show({
+        title: ask.title,
+        description: ask.description,
+        actions: [
+          { id: "cancel", label: "Cancel", role: "cancel" },
+          { id: "ok", label: ask.label, role: "destructive" },
+        ],
+      });
+      if (chosen !== "ok") return;
+    }
+    busy.set(action);
+    error.set(null);
+    try {
+      const uid = u().id;
+      await { follow, unfollow, block, unblock }[action](uid);
+      await props.reload();
+    } catch (e) {
+      error.set(String((e as Error)?.message ?? e));
+    } finally {
+      busy.set(null);
+    }
+  }
+
+  const button = "rounded-full border px-4 py-1.5 active:opacity-60";
+  return (
+    <View class="gap-2">
+      <View class="flex-row gap-2">
+        <If when={!blocked()}>
+          <Button
+            onPress={() => run(u().following ? "unfollow" : "follow")}
+            disabled={!!busy()}
+            class={`${button} ${u().following ? "border-border" : "border-primary bg-primary"}`}
+          >
+            <Text class={`text-sm font-semibold ${u().following ? "text-foreground" : "text-primary-foreground"}`}>
+              {busy() === "follow" ? "Following…" : busy() === "unfollow" ? "Unfollowing…" : u().following ? "Following ✓" : "Follow"}
+            </Text>
+          </Button>
         </If>
-        <Badge
-          label={block().blocked === null ? "Block status unknown" : block().blocked ? "Blocked" : "Not blocked"}
-          tone={block().blocked ? "danger" : "muted"}
-        />
+        <Button
+          onPress={() => run(blocked() ? "unblock" : "block")}
+          disabled={!!busy()}
+          class={`${button} ${blocked() ? "border-border" : "border-destructive"}`}
+        >
+          <Text class={`text-sm font-semibold ${blocked() ? "text-foreground" : "text-destructive"}`}>
+            {busy() === "block" ? "Blocking…" : busy() === "unblock" ? "Unblocking…" : blocked() ? "Unblock" : "Block"}
+          </Text>
+        </Button>
       </View>
-      <Text class="text-xs text-muted-foreground">
-        {block().evidence.length
-          ? `Read from ${block().evidence.join(", ")}`
-          : "The profile answer has no block field; open the raw answer to find it."}
-      </Text>
+      <If when={error()}>
+        <Text class="text-xs text-destructive">{error()}</Text>
+      </If>
     </View>
   );
 }
 
-function ProfileHeader(props: { data: ProfileData }) {
+function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void> }) {
   const u = () => props.data.user;
   const showRaw = signal(false);
   return (
@@ -68,6 +152,7 @@ function ProfileHeader(props: { data: ProfileData }) {
         <Text class="text-sm text-muted-foreground">{u().followers ?? "0"} followers</Text>
         <Text class="text-sm text-muted-foreground">{count(u().posts ?? 0)} posts</Text>
       </View>
+      <Actions data={props.data} reload={props.reload} />
       <Relationship data={props.data} />
       <Button onPress={() => showRaw.update((v) => !v)} class="self-start active:opacity-60">
         <Text class="text-xs text-primary">{showRaw() ? "Hide raw answer" : "Show raw answer"}</Text>
@@ -91,25 +176,40 @@ export function Profile(props: { uid: string } | { screenName: string }) {
     uid.catch(() => (uid = undefined));
     return uid;
   };
+  const posts = createFeed<Status, number>(async (page) => userPosts(await resolveUid(), page ?? 1));
+  // weibo.com shows no posts of an account I block (the posts API still returns them): load them
+  // once the profile says it is not blocked, and again after an unblock.
+  const blocked = () => data()?.block.blocked === true;
+  let postsStarted = false;
   const loadProfile = () => {
     error.set(null);
-    resolveUid().then(profile).then(
-      (p) => data.set(p),
-      (e) => !(e instanceof NotSignedIn) && error.set(String(e?.message ?? e)),
-    );
+    return resolveUid()
+      .then(profile)
+      .then(
+        (p) => {
+          const wasBlocked = blocked();
+          data.set(p);
+          if (p.block.blocked === true) return;
+          if (!postsStarted) {
+            postsStarted = true;
+            posts.more();
+          } else if (wasBlocked) posts.refresh();
+        },
+        (e) => {
+          if (!(e instanceof NotSignedIn)) error.set(String(e?.message ?? e));
+        },
+      );
   };
   loadProfile();
-  const posts = createFeed<Status, number>(async (page) => userPosts(await resolveUid(), page ?? 1));
-  posts.more();
   const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : "Profile");
 
   return (
     <NavPage title={title()} header={<Header title={title()} />}>
       <List
-        each={posts.items()}
+        each={blocked() ? [] : posts.items()}
         keyExtractor={(s) => s.id}
         estimatedItemSize={220}
-        onLoadMore={() => posts.more()}
+        onLoadMore={() => !blocked() && postsStarted && posts.more()}
         header={
           <If
             when={data()}
@@ -124,17 +224,28 @@ export function Profile(props: { uid: string } | { screenName: string }) {
               </View>
             }
           >
-            {(d) => <ProfileHeader data={d()} />}
+            {(d) => <ProfileHeader data={d()} reload={loadProfile} />}
           </If>
         }
         footer={
-          <FeedFooter
-            loading={posts.loading()}
-            error={posts.error()}
-            done={posts.done()}
-            empty={!posts.items().length}
-            onRetry={() => posts.more()}
-          />
+          <If
+            when={!blocked()}
+            else={
+              <Text class="p-6 text-center text-sm text-muted-foreground">
+                {data()?.block.message ?? "You blocked this account: its posts are hidden."}
+              </Text>
+            }
+          >
+            <If when={data()}>
+              <FeedFooter
+                loading={posts.loading()}
+                error={posts.error()}
+                done={posts.done()}
+                empty={!posts.items().length}
+                onRetry={() => posts.more()}
+              />
+            </If>
+          </If>
         }
         class="flex-1"
       >
