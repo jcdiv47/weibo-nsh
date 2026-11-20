@@ -7,6 +7,7 @@ import {
   follow,
   type Profile as ProfileData,
   profile,
+  myUid,
   type Status,
   uidByName,
   unblock,
@@ -20,6 +21,7 @@ import { RichText } from "../components/RichText";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
+import { openPeople } from "../nav";
 
 function Badge(props: { label: string; tone?: "primary" | "danger" | "muted" }) {
   const tone = () =>
@@ -146,13 +148,13 @@ function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
   );
 }
 
-function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void> }) {
+function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void>; mine: boolean }) {
   const u = () => props.data.user;
   const showRaw = signal(false);
   return (
     <View class="gap-3 border-b border-border px-4 py-4">
       <View class="flex-row items-center gap-4">
-        <Avatar user={u()} size="lg" />
+        <Avatar user={u()} size="lg" still />
         <View class="flex-1 gap-1">
           <Text class="text-lg font-semibold text-foreground">{u().name}</Text>
           <If when={u().verified}>
@@ -164,11 +166,25 @@ function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void> }
         <RichText text={u().description!} class="select-text text-sm text-foreground" />
       </If>
       <View class="flex-row gap-5">
-        <Text class="text-sm text-muted-foreground">{t("profile.following_count", { n: count(u().followingCount ?? 0) })}</Text>
-        <Text class="text-sm text-muted-foreground">{t("profile.followers_count", { n: count(u().followersCount ?? 0) })}</Text>
+        <Text
+          role="link"
+          onPress={() => openPeople(u().id, "following")}
+          class="text-sm text-muted-foreground active:opacity-60"
+        >
+          {t("profile.following_count", { n: count(u().followingCount ?? 0) })}
+        </Text>
+        <Text
+          role="link"
+          onPress={() => openPeople(u().id, "followers")}
+          class="text-sm text-muted-foreground active:opacity-60"
+        >
+          {t("profile.followers_count", { n: count(u().followersCount ?? 0) })}
+        </Text>
         <Text class="text-sm text-muted-foreground">{t("profile.posts_count", { n: count(u().posts ?? 0) })}</Text>
       </View>
-      <Actions data={props.data} reload={props.reload} />
+      <If when={!props.mine}>
+        <Actions data={props.data} reload={props.reload} />
+      </If>
       <Relationship data={props.data} />
       <Button onPress={() => showRaw.update((v) => !v)} class="self-start active:opacity-60">
         <Text class="text-xs text-primary">{showRaw() ? t("profile.hide_raw") : t("profile.show_raw")}</Text>
@@ -182,13 +198,13 @@ function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void> }
   );
 }
 
-export function Profile(props: { uid: string } | { screenName: string }) {
+export function Profile(props: { uid: string } | { screenName: string } | { me: true }) {
   const data = signal<ProfileData | null>(null);
   const error = signal<string | null>(null);
   // An `@name` mention opens the page by name: find the uid first (again on a retry, if it failed).
   let uid: Promise<string> | undefined;
   const resolveUid = () => {
-    uid ??= "uid" in props ? Promise.resolve(props.uid) : uidByName(props.screenName);
+    uid ??= "uid" in props ? Promise.resolve(props.uid) : "screenName" in props ? uidByName(props.screenName) : myUid();
     uid.catch(() => (uid = undefined));
     return uid;
   };
@@ -196,6 +212,9 @@ export function Profile(props: { uid: string } | { screenName: string }) {
   // weibo.com shows no posts of an account I block (the posts API still returns them): load them
   // once the profile says it is not blocked, and again after an unblock.
   const blocked = () => data()?.block.blocked === true;
+  // My own profile: no follow or block buttons.
+  const mine = signal("me" in props);
+  if (!("me" in props)) myUid().then((me) => resolveUid().then((id) => mine.set(id === me)), () => {});
   let postsStarted = false;
   const loadProfile = () => {
     error.set(null);
@@ -217,7 +236,7 @@ export function Profile(props: { uid: string } | { screenName: string }) {
       );
   };
   loadProfile();
-  const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : t("profile.title"));
+  const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : "me" in props ? t("profile.me") : t("profile.title"));
 
   return (
     <NavPage title={title()} header={<Header title={title()} />}>
@@ -240,7 +259,7 @@ export function Profile(props: { uid: string } | { screenName: string }) {
               </View>
             }
           >
-            {(d) => <ProfileHeader data={d()} reload={loadProfile} />}
+            {(d) => <ProfileHeader data={d()} reload={loadProfile} mine={mine()} />}
           </If>
         }
         footer={

@@ -10,6 +10,7 @@ import { nav } from "./nav";
 import { Post } from "./pages/Post";
 import { Profile } from "./pages/Profile";
 import { Timeline } from "./pages/Timeline";
+import { People } from "./pages/People";
 import { Topic } from "./pages/Topic";
 
 // The page the bridge idles on once signed in: same origin as the API, but a plain text file, so
@@ -122,10 +123,12 @@ function App() {
                 return <Timeline />;
               case "post":
                 return <Post id={route.id} />;
+              case "people":
+                return <People uid={route.uid} kind={route.kind} />;
               case "topic":
                 return <Topic topic={route.topic} />;
               case "profile":
-                return "uid" in route ? <Profile uid={route.uid} /> : <Profile screenName={route.screenName} />;
+                return <Profile {...route} />;
             }
           }}
         </NavStack>

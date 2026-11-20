@@ -31,6 +31,7 @@ video:
   error: "无法播放此视频：%{error}"
 profile:
   title: "主页"
+  me: "我"
   loading: "正在加载主页…"
   following_count: "关注 %{n}"
   followers_count: "粉丝 %{n}"
@@ -59,3 +60,7 @@ time:
   just_now: "刚刚"
   minutes: "%{n}分钟前"
   hours: "%{n}小时前"
+people:
+  following: "关注"
+  followers: "粉丝"
+  mutual: "互相关注"

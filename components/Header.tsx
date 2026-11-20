@@ -4,7 +4,7 @@ import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { nav } from "../nav";
 
-export function Header(props: { title: string; right?: JSX.Element }) {
+export function Header(props: { title: string; left?: JSX.Element; right?: JSX.Element }) {
   return (
     <View class="flex-row items-center gap-3 border-b border-border px-4 py-3">
       <If when={nav.routes().length > 1}>
@@ -12,6 +12,7 @@ export function Header(props: { title: string; right?: JSX.Element }) {
           <Text class="text-primary">{t("common.back")}</Text>
         </Button>
       </If>
+      {props.left}
       <Text class="flex-1 font-semibold text-foreground">{props.title}</Text>
       {props.right}
     </View>

@@ -222,24 +222,33 @@ const cursor = (v: unknown) => (v === undefined || v === null || str(v) === "0" 
 // "全部关注" feed (`unreadfriendstimeline`) ranks posts by its own order and mixes in posts that
 // people I follow liked; this one does neither. Its gid is `11000<my uid>` today, but read it from
 // the group list by title in case that changes.
-let latestGid: Promise<string> | undefined;
+// The group list, read once: it names the 最新微博 group and, in each group's `uid`, me.
+let groupList: Promise<{ latestGid: string; uid: string }> | undefined;
 
-function latestGroup(): Promise<string> {
-  latestGid ??= get(`/ajax/feed/allGroups?is_new_segment=1&fetch_hot=1`)
+function groupInfo(): Promise<{ latestGid: string; uid: string }> {
+  groupList ??= get(`/ajax/feed/allGroups?is_new_segment=1&fetch_hot=1`)
     .then((json) => {
       const groups: any[] = (json.groups ?? []).flatMap((g: any) => g?.group ?? []);
-      const latest = groups.find((g) => g?.title === "最新微博");
-      if (latest?.gid) return str(latest.gid);
       const uid = str(groups.find((g) => g?.uid)?.uid);
-      if (!uid) throw new Error("Weibo's group list has no 最新微博 group");
-      return `11000${uid}`;
+      const latest = groups.find((g) => g?.title === "最新微博");
+      if (!latest?.gid && !uid) throw new Error("Weibo's group list has no 最新微博 group");
+      return { latestGid: latest?.gid ? str(latest.gid) : `11000${uid}`, uid };
     })
     .catch((e) => {
-      latestGid = undefined; // Ask again next time.
+      groupList = undefined; // Ask again next time.
       throw e;
     });
-  return latestGid;
+  return groupList;
 }
+
+const latestGroup = () => groupInfo().then((g) => g.latestGid);
+
+/** My uid (the signed-in account's). */
+export const myUid = () =>
+  groupInfo().then((g) => {
+    if (!g.uid) throw new Error("Weibo's group list does not name the signed-in account");
+    return g.uid;
+  });
 
 // The latest feed still carries ads (`readtimetype: "adMblog"`, a `promotion` block) from accounts
 // I don't follow; drop them, and anything else from an account I don't follow (my own posts aside).
@@ -425,4 +434,16 @@ export async function block(uid: string): Promise<void> {
 /** Unblocks an account (解除黑名单). Following them again is a separate `follow`. */
 export async function unblock(uid: string): Promise<void> {
   await post("/ajax/statuses/deleteFilters", { uid });
+}
+
+/** Accounts an account follows (`following`) or that follow it (`followers`); pages count from 1. */
+export async function people(uid: string, kind: "following" | "followers", page = 1): Promise<Page<User, number>> {
+  const q =
+    kind === "followers"
+      ? `relate=fans&page=${page}&uid=${encodeURIComponent(uid)}&type=fans&newFollowerCount=0`
+      : `uid=${encodeURIComponent(uid)}&page=${page}`;
+  const json = await get(`/ajax/friendships/friends?${q}`);
+  const users: any[] = Array.isArray(json.users) ? json.users : [];
+  // `next_cursor` is 0 on the last page.
+  return { items: users.map(toUser), next: users.length && num(json.next_cursor) ? page + 1 : null };
 }

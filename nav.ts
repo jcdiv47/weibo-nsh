@@ -9,6 +9,10 @@ export type Route =
   /** By uid, or by screen name (an `@name` mention), which the page resolves. */
   | { name: "profile"; uid: string }
   | { name: "profile"; screenName: string }
+  /** The signed-in account's own profile. */
+  | { name: "profile"; me: true }
+  /** Who an account follows, or who follows it. */
+  | { name: "people"; uid: string; kind: "following" | "followers" }
   /** A topic's posts, by its name without the `#`s. */
   | { name: "topic"; topic: string };
 
@@ -36,4 +40,12 @@ export const openProfileByName = (screenName: string) => {
 export const openTopic = (topic: string) => {
   const name = topic.replace(/^#|#$/g, "").trim();
   if (name) nav.push({ name: "topic", topic: name });
+};
+
+/** My own profile. */
+export const openMe = () => nav.push({ name: "profile", me: true });
+
+/** Who `uid` follows, or who follows `uid`. */
+export const openPeople = (uid: string, kind: "following" | "followers") => {
+  if (uid) nav.push({ name: "people", uid, kind });
 };

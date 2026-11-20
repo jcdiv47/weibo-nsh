@@ -10,13 +10,14 @@ import { openViewer } from "./ImageViewer";
 import { RichText } from "./RichText";
 import { openVideo } from "./VideoPlayer";
 
-export function Avatar(props: { user: User; size?: "sm" | "md" | "lg" }) {
+/** `still`: not a link to the profile (on the profile itself). */
+export function Avatar(props: { user: User; size?: "sm" | "md" | "lg"; still?: boolean }) {
   const size = () => (props.size === "lg" ? "size-16" : props.size === "sm" ? "size-8" : "size-10");
   return (
     <View
-      role="button"
+      role={props.still ? undefined : "button"}
       accessibilityLabel={props.user.name}
-      onPress={() => openProfile(props.user.id)}
+      onPress={props.still ? undefined : () => openProfile(props.user.id)}
       class={`${size()} overflow-hidden rounded-full bg-muted active:opacity-70`}
     >
       <If when={props.user.avatar}>
