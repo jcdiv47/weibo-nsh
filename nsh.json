@@ -1,0 +1,34 @@
+{
+  "name": "Weibo",
+  "id": "com.example.weibo",
+  "version": "0.1.0",
+  "build": 1,
+  "appearance": "system",
+  "window": {
+    "title": "Weibo",
+    "defaultSize": {
+      "width": 480,
+      "height": 860
+    }
+  },
+  "capabilities": {
+    "webview": {
+      "hosts": [
+        "weibo.com",
+        "*.weibo.com",
+        "weibo.cn",
+        "*.weibo.cn",
+        "*.sina.com.cn",
+        "*.sina.cn",
+        "*.sinaimg.cn",
+        "*.geetest.com"
+      ]
+    },
+    "network": {
+      "hosts": [
+        "*.sinaimg.cn"
+      ]
+    },
+    "statusBar": true
+  }
+}
