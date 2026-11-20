@@ -10,6 +10,7 @@ import { ReplySheet } from "./components/ReplySheet";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { nav } from "./nav";
 import { Edits } from "./pages/Edits";
+import { Favorites } from "./pages/Favorites";
 import { Post } from "./pages/Post";
 import { Profile } from "./pages/Profile";
 import { Replies } from "./pages/Replies";
@@ -141,6 +142,8 @@ function App() {
                 return <Edits id={route.id} />;
               case "replies":
                 return <Replies postId={route.postId} commentId={route.commentId} />;
+              case "favorites":
+                return <Favorites />;
             }
           }}
         </NavStack>

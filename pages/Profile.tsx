@@ -23,7 +23,7 @@ import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
-import { openPeople } from "../nav";
+import { openFavorites, openPeople } from "../nav";
 import { loadSaved, save } from "../saved";
 
 function Badge(props: { label: string; icon?: IconName; tone?: "primary" | "danger" | "muted" }) {
@@ -203,6 +203,13 @@ function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void>; 
         </Text>
         <Text class="text-sm text-muted-foreground">{t("profile.posts_count", { n: count(u().posts ?? 0) })}</Text>
       </View>
+      {/* My favorites are mine alone to see: Weibo lists no one else's. */}
+      <If when={props.mine}>
+        <Button onPress={openFavorites} class="flex-row items-center gap-1.5 self-start active:opacity-60">
+          <Icon name="bookmark" class="size-4 tint-primary" />
+          <Text class="text-sm text-primary">{t("favorite.title")}</Text>
+        </Button>
+      </If>
       <If when={!props.mine}>
         <Actions data={props.data} reload={props.reload} />
       </If>

@@ -5,6 +5,8 @@ import { Image } from "nsh";
 import alertTriangle from "../icons/alert-triangle.svg";
 import arrowsLeftRight from "../icons/arrows-left-right.svg";
 import ban from "../icons/ban.svg";
+import bookmark from "../icons/bookmark.svg";
+import bookmarkFilled from "../icons/bookmark-filled.svg";
 import chevronDown from "../icons/chevron-down.svg";
 import chevronLeft from "../icons/chevron-left.svg";
 import chevronUp from "../icons/chevron-up.svg";
@@ -32,6 +34,8 @@ const ICONS = {
   "alert-triangle": alertTriangle,
   "arrows-left-right": arrowsLeftRight,
   ban,
+  bookmark,
+  "bookmark-filled": bookmarkFilled,
   "chevron-down": chevronDown,
   "chevron-left": chevronLeft,
   "chevron-up": chevronUp,

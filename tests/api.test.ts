@@ -5,6 +5,7 @@ import { expect, test } from "nsh/test";
 import {
   parseComments,
   parseEditHistory,
+  parseFavorites,
   parseGroups,
   parseLikes,
   parseLongText,
@@ -24,6 +25,7 @@ import { driftReports, WeiboChanged } from "../drift";
 import allGroups from "./fixtures/allGroups.json";
 import buildComments from "./fixtures/buildComments.json";
 import editHistory from "./fixtures/editHistory.json";
+import favoritesFixture from "./fixtures/favorites.json";
 import friends from "./fixtures/friends.json";
 import friendstimeline from "./fixtures/friendstimeline.json";
 import longtext from "./fixtures/longtext.json";
@@ -114,6 +116,26 @@ test("likes: the accounts that liked, a like without one left out", () => {
   // Three likes in all, three read (one without its user): the end.
   expect(page.next).toBeNull();
   expect(parseLikes({ ...copy(likeShow), total_number: 100 }, 1).next).toBe(2);
+});
+
+test("favorites: saved posts, wrapped or not, a deleted one left out", () => {
+  const page = parseFavorites(favoritesFixture, 1);
+  expect(page.items.map((s) => s.id)).toEqual(["5100000000000301", "5100000000000302"]);
+  // Listed as saved even where the answer leaves `favorited` out.
+  expect(page.items.every((s) => s.favorited)).toBe(true);
+  expect(page.items[1]).toMatchObject({ text: "旧样式：包在 status 里", user: { name: "路人甲" } });
+  // No total: read on until a page is empty.
+  expect(page.next).toBe(2);
+  expect(parseFavorites({ ok: 1, count: 20, data: { status: [] } }, 2).next).toBeNull();
+  // A bare list under `data` reads the same.
+  expect(parseFavorites({ ok: 1, data: copy(favoritesFixture).data.status }, 1).items.length).toBe(2);
+  expect(() => parseFavorites({ ok: 1 }, 1)).toThrow(WeiboChanged);
+  expect(() => parseFavorites({ ok: 1, data: {} }, 1)).toThrow(WeiboChanged);
+});
+
+test("a post says whether I saved it", () => {
+  expect(parseStatus({ ...copy(statusShow), favorited: true }).favorited).toBe(true);
+  expect(parseStatus(statusShow).favorited).toBe(false);
 });
 
 test("reposts and likes in a new shape are a change", () => {

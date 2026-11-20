@@ -8,6 +8,7 @@ import { NotSignedIn } from "../bridge";
 import { type Comment, comments, likes, longText, reposts, type Status, status as loadStatus, type User } from "../api";
 import { CommentBody, CommentFooter, InlineReply } from "../components/CommentBody";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
+import { FavoriteButton } from "../components/FavoriteButton";
 import { Icon } from "../components/Icon";
 import { Header } from "../components/Header";
 import { Spinner } from "../components/Spinner";
@@ -208,6 +209,9 @@ function Tabs(props: { status: Status; tab: Tab; onTab: (tab: Tab) => void }) {
           );
         }}
       </Each>
+      {/* Saving the post sits at the row's end, as the tabs' row is the post's last. */}
+      <View class="flex-1" />
+      <FavoriteButton status={props.status} class="self-center" />
     </View>
   );
 }

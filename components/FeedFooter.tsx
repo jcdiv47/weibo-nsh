@@ -8,7 +8,7 @@ import { Icon } from "./Icon";
 /** A load's error, centered, behind a warning sign. */
 export function ErrorText(props: { error: string }) {
   return (
-    <View class="flex-row items-start justify-center gap-1.5">
+    <View class="flex-row items-start justify-center gap-1.5 self-stretch">
       <Icon name="alert-triangle" class="mt-px size-4 shrink-0 tint-destructive" />
       <Text class="shrink text-center text-sm text-destructive">{props.error}</Text>
     </View>

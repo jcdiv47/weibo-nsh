@@ -18,7 +18,9 @@ export type Route =
   /** An edited post's versions, by the post's id. */
   | { name: "edits"; id: string }
   /** All the replies to a comment of a post, by the post's and the comment's ids. */
-  | { name: "replies"; postId: string; commentId: string };
+  | { name: "replies"; postId: string; commentId: string }
+  /** The posts I saved (收藏). */
+  | { name: "favorites" };
 
 export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
@@ -84,3 +86,6 @@ export const openMe = () => nav.push({ name: "profile", me: true });
 export const openPeople = (uid: string, kind: "following" | "followers") => {
   if (uid) nav.push({ name: "people", uid, kind });
 };
+
+/** The posts I saved (收藏). */
+export const openFavorites = () => nav.push({ name: "favorites" });

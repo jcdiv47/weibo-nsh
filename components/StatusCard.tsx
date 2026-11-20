@@ -7,6 +7,7 @@ import type { Status, User, VerifiedKind, Video } from "../api";
 import { count, relativeTime } from "../format";
 import { openEdits, openPost, openProfile } from "../nav";
 import { Icon, type IconName } from "./Icon";
+import { FavoriteButton } from "./FavoriteButton";
 import { openViewer } from "./ImageViewer";
 import { RichText } from "./RichText";
 import { openVideo } from "./VideoPlayer";
@@ -193,6 +194,8 @@ export function StatusCard(props: { status: Status; full?: boolean }) {
           <Stat icon="repeat" n={s().reposts} label={t("post.reposts", { n: count(s().reposts) })} />
           <Stat icon="message-circle" n={s().comments} label={t("post.comments", { n: count(s().comments) })} />
           <Stat icon="thumb-up" n={s().likes} label={t("post.likes", { n: count(s().likes) })} />
+          <View class="flex-1" />
+          <FavoriteButton status={s()} />
         </View>
       </If>
     </View>

@@ -50,6 +50,10 @@ repost:
 comment:
   like: "Like"
   unlike: "Unlike"
+favorite:
+  title: "Favorites"
+  add: "Add to favorites"
+  remove: "Remove from favorites"
 edits:
   title: "Edit history"
   current: "Current version"

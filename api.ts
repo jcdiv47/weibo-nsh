@@ -46,6 +46,8 @@ export interface Status {
   retweeted?: Status;
   /** Times the author edited it since posting (`edit_count`); its versions: `editHistory`. */
   editCount: number;
+  /** I saved it to my favorites (收藏, `favorited`). */
+  favorited: boolean;
 }
 
 export interface Video {
@@ -245,6 +247,7 @@ function toStatus(s: any): Status {
     links: toLinks(s?.url_struct),
     retweeted,
     editCount: num(s?.edit_count),
+    favorited: s?.favorited === true || s?.favorited === 1,
   };
 }
 
@@ -650,6 +653,33 @@ export async function topicPosts(topic: string, page = 1): Promise<Page<Status, 
   const pages = [...html.matchAll(/[?&]page=(\d+)/g)].map((m) => Number(m[1]));
   const last = Math.max(page, ...pages);
   return { items: posts.filter((p): p is Status => !!p), next: ids.length && page < last ? page + 1 : null };
+}
+
+/**
+ * The posts I saved (收藏), the latest saved first; pages count from 1. My uid comes from the group
+ * list, as weibo.com's own favorites page asks with it.
+ */
+export async function favorites(page = 1): Promise<Page<Status, number>> {
+  const uid = await myUid();
+  return parseFavorites(await get(`/ajax/favorites/all_fav?uid=${encodeURIComponent(uid)}&page=${page}&with_total=true`), page);
+}
+
+export function parseFavorites(json: any, page: number): Page<Status, number> {
+  const EP = "/ajax/favorites/all_fav";
+  // The posts are under `data.status` (`{ count, data: { status: [...] } }`); a bare `data` list
+  // is read too, each item the post or, as older answers had it, `{ status, favorited_time }`.
+  const path = Array.isArray(json?.data) ? "data" : "data.status";
+  const raw = list(EP, json, path).map((f: any) => (f?.status && typeof f.status === "object" ? f.status : f));
+  // No total to go by (`count` may be the page's size): read on until a page is empty.
+  const more = json?.total_number === undefined ? raw.length > 0 : num(json.total_number) > page * raw.length;
+  // A saved post deleted since comes without its author: dropped (and noted) as a post that fits no more.
+  const posts = items(EP, raw, shapes.status).map((s): Status => ({ ...toStatus(s), favorited: true }));
+  return { items: posts, next: raw.length && more ? page + 1 : null };
+}
+
+/** Saves a post to my favorites (收藏), or takes it out, as weibo.com's 收藏 button does. (`destory`: Weibo's spelling.) */
+export async function favorite(status: Status, on: boolean): Promise<void> {
+  await post(`/ajax/statuses/${on ? "createFavorites" : "destoryFavorites"}`, { id: status.id });
 }
 
 // Writes, as weibo.com's own client sends them (its profile page's buttons). Their answers do not

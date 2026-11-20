@@ -50,6 +50,10 @@ repost:
 comment:
   like: "赞"
   unlike: "取消赞"
+favorite:
+  title: "收藏"
+  add: "收藏"
+  remove: "取消收藏"
 edits:
   title: "编辑记录"
   current: "当前版本"

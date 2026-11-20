@@ -17,6 +17,10 @@ What it does now:
   the comment or any reply answers it. Under each comment, a like (`/ajax/statuses/updateLike`,
   `destroyLike`, with `object_type=comment`) and a repost (`/ajax/statuses/normal_repost` with its
   `cid`, the box starting with "//@author:text" as weibo.com's does).
+- **Favorites** (收藏): a bookmark on each post (at the end of its counts; on its page, of its
+  tabs) saves it or takes it out (`/ajax/statuses/createFavorites`, `destoryFavorites`), filled
+  while saved (the post's `favorited`). My profile opens "Favorites", the posts I saved, latest
+  first (`/ajax/favorites/all_fav`).
 - **Edit history**: an edited post (`edit_count`) says so; on its page, "Edited · history" lists its
   versions (`/ajax/statuses/editHistory`), newest first, each with what changed from the one before.
 - **Profile** (`/ajax/profile/info`, `/ajax/statuses/mymblog`): following / follows you and the
