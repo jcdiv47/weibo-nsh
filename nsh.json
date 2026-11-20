@@ -29,6 +29,12 @@
         "*.sinaimg.cn"
       ]
     },
-    "statusBar": true
+    "statusBar": true,
+    "openUrl": {
+      "schemes": [
+        "http",
+        "https"
+      ]
+    }
   }
 }
