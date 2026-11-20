@@ -31,7 +31,7 @@ export interface Status {
   reposts: number;
   comments: number;
   likes: number;
-  pics: { thumb: string; large: string }[];
+  pics: Pic[];
   video?: Video;
   /** What the post's short links (`http://t.cn/...`) stand for, by short link. */
   links: Record<string, Link>;
@@ -55,6 +55,13 @@ export interface Link {
   url: string;
   /** The link is the post's own video. */
   video: boolean;
+  /** The pictures the link shows ("查看图片", a comment's pictures). */
+  pics?: Pic[];
+}
+
+export interface Pic {
+  thumb: string;
+  large: string;
 }
 
 export interface Comment {
@@ -69,6 +76,10 @@ export interface Comment {
   /** The author of the comment this replies to (in a thread of replies): name and uid. */
   replyTo?: string;
   replyToUid?: string;
+  /** Its short links, by short link; picture links carry the pictures. */
+  links: Record<string, Link>;
+  /** Its pictures (Weibo attaches them as "查看图片" links). */
+  pics: Pic[];
 }
 
 /** A page of items and the cursor of the next, `null` at the end. */
@@ -129,6 +140,11 @@ function toVideo(info: any): Video | undefined {
   };
 }
 
+const pic = (id: string, info: any): Pic => ({
+  thumb: https(str(info?.bmiddle?.url || info?.thumbnail?.url) || `https://wx1.sinaimg.cn/orj360/${id}.jpg`),
+  large: https(str(info?.largest?.url || info?.large?.url) || `https://wx1.sinaimg.cn/large/${id}.jpg`),
+});
+
 function toLinks(structs: unknown): Record<string, Link> {
   const links: Record<string, Link> = {};
   for (const u of Array.isArray(structs) ? structs : []) {
@@ -136,15 +152,14 @@ function toLinks(structs: unknown): Record<string, Link> {
     if (!short) continue;
     // A browser can't open `sinaweibo://` (the Weibo app's own links): use the web address.
     const url = [u?.long_url, u?.h5_target_url, u?.ori_url].map(str).find((v) => /^https?:/.test(v)) ?? short;
-    links[short] = { title: str(u?.url_title) || "网页链接", url, video: num(u?.url_type) === 39 || /video/.test(str(u?.ori_url)) };
+    // `url_type` 39 marks pictures as well as videos: tell them apart by what they point at.
+    const video = u?.object_type === "video" || /video/.test(str(u?.ori_url));
+    const ids: string[] = Array.isArray(u?.pic_ids) ? u.pic_ids.map(str) : [];
+    const pics = ids.length ? ids.map((id) => pic(id, u?.pic_infos?.[id])) : undefined;
+    links[short] = { title: str(u?.url_title) || "网页链接", url, video, pics };
   }
   return links;
 }
-
-const pic = (id: string, info: any) => ({
-  thumb: str(info?.bmiddle?.url || info?.thumbnail?.url) || `https://wx1.sinaimg.cn/orj360/${id}.jpg`,
-  large: str(info?.largest?.url || info?.large?.url) || `https://wx1.sinaimg.cn/large/${id}.jpg`,
-});
 
 function toStatus(s: any): Status {
   const ids: string[] = Array.isArray(s?.pic_ids) ? s.pic_ids : [];
@@ -154,7 +169,12 @@ function toStatus(s: any): Status {
   const pics = ids.length
     ? ids.map((id) => pic(id, infos[id]))
     : mix.filter((m) => m?.type === "pic").map((m) => pic(str(m.id), m.data));
-  const video = toVideo(s?.page_info) ?? toVideo(mix.find((m) => m?.type === "video")?.data);
+  const retweeted = s?.retweeted_status ? toStatus(s.retweeted_status) : undefined;
+  let video = toVideo(s?.page_info) ?? toVideo(mix.find((m) => m?.type === "video")?.data);
+  // A repost carries the reposted post's video as its own: show it once, in the reposted post.
+  if (video && retweeted?.video && (video.src === retweeted.video.src || video.poster === retweeted.video.poster)) {
+    video = undefined;
+  }
   return {
     id: str(s?.idstr ?? s?.id),
     mblogid: str(s?.mblogid),
@@ -170,14 +190,18 @@ function toStatus(s: any): Status {
     pics,
     video,
     links: toLinks(s?.url_struct),
-    retweeted: s?.retweeted_status ? toStatus(s.retweeted_status) : undefined,
+    retweeted,
   };
 }
 
 function toComment(c: any): Comment {
+  const text = str(c?.text_raw) || stripTags(str(c?.text));
+  // A reply's `url_struct` repeats the links of the comment it replies to: keep its own, those
+  // its text has, or the parent's pictures show again under each reply.
+  const links = Object.fromEntries(Object.entries(toLinks(c?.url_struct)).filter(([short]) => text.includes(short)));
   return {
     id: str(c?.idstr ?? c?.id),
-    text: str(c?.text_raw) || stripTags(str(c?.text)),
+    text,
     createdAt: str(c?.created_at),
     user: toUser(c?.user),
     likes: num(c?.like_counts),
@@ -185,6 +209,8 @@ function toComment(c: any): Comment {
     preview: Array.isArray(c?.comments) ? c.comments.map(toComment) : [],
     replyTo: c?.reply_comment?.user?.screen_name ? str(c.reply_comment.user.screen_name) : undefined,
     replyToUid: str(c?.reply_comment?.user?.idstr ?? c?.reply_comment?.user?.id) || undefined,
+    links,
+    pics: Object.values(links).flatMap((l) => l.pics ?? []),
   };
 }
 
@@ -239,10 +265,13 @@ export async function friendsTimeline(maxId?: string): Promise<Page<Status>> {
   return { items: [], next };
 }
 
-/** A post's full text, for `isLongText` posts whose `text` is cut. */
-export async function longText(mblogid: string): Promise<string | null> {
+/** A post's full text and its links, for `isLongText` posts whose `text` is cut. */
+export async function longText(mblogid: string): Promise<{ text: string; links: Record<string, Link> } | null> {
   const json = await get(`/ajax/statuses/longtext?id=${encodeURIComponent(mblogid)}`);
-  return json.data?.longTextContent ? str(json.data.longTextContent) : null;
+  // The full text has links the cut one does not: they come with it.
+  return json.data?.longTextContent
+    ? { text: str(json.data.longTextContent), links: toLinks(json.data.url_struct) }
+    : null;
 }
 
 /** A post's comments, hottest first; `maxId` continues an earlier page. */

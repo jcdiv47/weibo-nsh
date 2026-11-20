@@ -25,8 +25,8 @@ export function Avatar(props: { user: User; size?: "sm" | "md" | "lg" }) {
   );
 }
 
-function Pictures(props: { pics: Status["pics"] }) {
-  // One picture shows large; several in a grid of three across, at most nine.
+export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
+  // One picture shows large; several in a grid of three across, at most nine. `small`: comments'.
   return (
     <If when={props.pics.length}>
       <View class="flex-row flex-wrap gap-1">
@@ -36,7 +36,7 @@ function Pictures(props: { pics: Status["pics"] }) {
               role="button"
               accessibilityLabel={`Picture ${i() + 1} of ${props.pics.length}`}
               onPress={() => openViewer(props.pics, i())}
-              class={`${props.pics.length === 1 ? "h-56 w-56" : "size-24"} overflow-hidden rounded-md bg-muted active:opacity-80`}
+              class={`${props.small ? (props.pics.length === 1 ? "h-32 w-32" : "size-20") : props.pics.length === 1 ? "h-56 w-56" : "size-24"} overflow-hidden rounded-md bg-muted active:opacity-80`}
             >
               <Image src={pic().thumb} class="size-full object-cover" />
             </View>
@@ -92,7 +92,7 @@ function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
   );
 }
 
-export function StatusCard(props: { status: Status; full?: boolean; text?: string }) {
+export function StatusCard(props: { status: Status; full?: boolean }) {
   const s = () => props.status;
   const meta = () =>
     [relativeTime(s().createdAt), s().source && `via ${s().source}`, s().region].filter(Boolean).join(" · ");
@@ -114,7 +114,7 @@ export function StatusCard(props: { status: Status; full?: boolean; text?: strin
           <Text class="text-xs text-muted-foreground line-clamp-1">{meta()}</Text>
         </View>
       </View>
-      <Body status={props.text ? { ...s(), text: props.text } : s()} lines={props.full ? undefined : 8} selectable={props.full} />
+      <Body status={s()} lines={props.full ? undefined : 8} selectable={props.full} />
       <If when={s().retweeted}>
         {(rt) => (
           <View

@@ -4,6 +4,7 @@
 import { openUrl, Text } from "nsh";
 import type { Link } from "../api";
 import { openProfileByName, openTopic } from "../nav";
+import { openViewer } from "./ImageViewer";
 
 /** Weibo's link orange, for mentions and links. */
 export const LINK_CLASS = "text-[#eb7350]";
@@ -39,7 +40,12 @@ function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
     <Text
       role="link"
       accessibilityLabel={props.link?.title ?? props.url}
-      onPress={() => (video() ? props.onVideo!() : openUrl(props.link?.url ?? props.url).catch(() => {}))}
+      onPress={() => {
+        const link = props.link;
+        if (video()) props.onVideo!();
+        else if (link?.pics?.length) openViewer(link.pics, 0);
+        else openUrl(link?.url ?? props.url).catch(() => {});
+      }}
       class={`${LINK_CLASS} active:opacity-60`}
     >
       {label()}
@@ -54,6 +60,10 @@ export function RichText(props: {
   links?: Record<string, Link>;
   /** Plays the post's video, for its video link. */
   onVideo?: () => void;
+  /** Mentions in the text's color (comments), still links. */
+  plainMentions?: boolean;
+  /** Leaves out picture links ("查看图片"): the pictures show beside the text. */
+  hidePictureLinks?: boolean;
 }) {
   return (
     <Text class={props.class}>
@@ -61,7 +71,11 @@ export function RichText(props: {
         typeof s === "string" ? (
           s
         ) : "url" in s ? (
-          <UrlLink url={s.url} link={props.links?.[s.url]} onVideo={props.onVideo} />
+          props.hidePictureLinks && props.links?.[s.url]?.pics?.length ? (
+            ""
+          ) : (
+            <UrlLink url={s.url} link={props.links?.[s.url]} onVideo={props.onVideo} />
+          )
         ) : "topic" in s ? (
           <Text
             role="link"
@@ -76,7 +90,7 @@ export function RichText(props: {
             role="link"
             accessibilityLabel={`@${s.mention}'s profile`}
             onPress={() => openProfileByName(s.mention)}
-            class={`${LINK_CLASS} active:opacity-60`}
+            class={`${props.plainMentions ? "" : LINK_CLASS} active:opacity-60`}
           >
             @{s.mention}
           </Text>

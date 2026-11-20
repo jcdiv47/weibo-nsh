@@ -4,8 +4,8 @@ import { Button, NavPage } from "nsh/base";
 import { type Comment, comments, longText, replies, type Status } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
-import { LINK_CLASS, RichText } from "../components/RichText";
-import { Avatar, StatusCard } from "../components/StatusCard";
+import { RichText } from "../components/RichText";
+import { Avatar, Pictures, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
 import { openProfile, openProfileByName, postById } from "../nav";
@@ -26,9 +26,12 @@ export function Post(props: { id: string }) {
       </NavPage>
     );
   }
-  const fullText = signal<string | undefined>(undefined);
+  const full = signal<Status>(status);
   if (status.isLongText && status.mblogid) {
-    longText(status.mblogid).then((t) => t && fullText.set(t), () => {});
+    longText(status.mblogid).then(
+      (t) => t && full.set({ ...status, text: t.text, links: { ...status.links, ...t.links } }),
+      () => {},
+    );
   }
   const feed = createFeed((cursor?: string) => comments(status, cursor));
   feed.more();
@@ -57,7 +60,7 @@ export function Post(props: { id: string }) {
         onLoadMore={() => feed.more()}
         header={
           <View>
-            <StatusCard status={status} full text={fullText()} />
+            <StatusCard status={full()} full />
             <Text class="px-4 pt-3 pb-1 text-sm font-semibold text-muted-foreground">
               Comments {count(status.comments)}
             </Text>
@@ -104,7 +107,7 @@ function CommentBody(props: { comment: Comment; small?: boolean }) {
             }}
             class="text-xs text-muted-foreground active:opacity-60"
           >
-            → <Text class={LINK_CLASS}>{props.comment.replyTo}</Text>
+            → {props.comment.replyTo}
           </Text>
         </If>
         <Text class="text-xs text-muted-foreground">{relativeTime(props.comment.createdAt)}</Text>
@@ -114,9 +117,13 @@ function CommentBody(props: { comment: Comment; small?: boolean }) {
         </If>
       </View>
       <RichText
-        text={props.comment.text}
+        text={props.comment.text.trimEnd()}
+        links={props.comment.links}
+        plainMentions
+        hidePictureLinks
         class={`select-text ${props.small ? "text-sm" : "text-[15px]"} leading-6 text-foreground`}
       />
+      <Pictures pics={props.comment.pics} small />
     </View>
   );
 }
