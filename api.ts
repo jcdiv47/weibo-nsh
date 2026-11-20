@@ -64,6 +64,8 @@ export interface Link {
   video: boolean;
   /** The pictures the link shows ("查看图片", a comment's pictures). */
   pics?: Pic[];
+  /** The Weibo post the link points at ("微博正文", "xxx的微博"), by its id or mblogid: opens in the app. */
+  post?: string;
 }
 
 export interface Pic {
@@ -152,6 +154,25 @@ const pic = (id: string, info: any): Pic => ({
   large: https(str(info?.largest?.url || info?.large?.url) || `https://wx1.sinaimg.cn/large/${id}.jpg`),
 });
 
+// A post's id: its `mid` (digits) or its `mblogid` (9 letters and digits, never all lowercase,
+// unlike a path such as `followers`).
+const POST_ID = /^(\d{15,19}|(?=[A-Za-z0-9]*[A-Z0-9])[A-Za-z0-9]{9})$/;
+
+/**
+ * The post a URL points at, by id or mblogid, if it is one: `weibo.com/<uid>/<id>`,
+ * `weibo.com/detail/<id>`, `m.weibo.cn/status/<id>` (or `/detail/`, `/<uid>/<id>`), and the Weibo
+ * app's `sinaweibo://detail?mblogid=<id>` (or `?id=`).
+ */
+export function postIdOf(url: string): string | undefined {
+  const app = /^sinaweibo:\/\/detail\/?\?(?:.*&)?(?:mblogid|id)=([A-Za-z0-9]+)/.exec(url);
+  if (app) return POST_ID.test(app[1]) ? app[1] : undefined;
+  const web = /^https?:\/\/(?:www\.|m\.)?weibo\.(?:com|cn)\/(\w+)\/([A-Za-z0-9]+)\/?(?:[?#].*)?$/.exec(url);
+  if (!web) return undefined;
+  const [, first, id] = web;
+  if (first !== "detail" && first !== "status" && !/^\d+$/.test(first)) return undefined;
+  return POST_ID.test(id) ? id : undefined;
+}
+
 function toLinks(structs: unknown): Record<string, Link> {
   const links: Record<string, Link> = {};
   for (const u of Array.isArray(structs) ? structs : []) {
@@ -163,7 +184,8 @@ function toLinks(structs: unknown): Record<string, Link> {
     const video = u?.object_type === "video" || /video/.test(str(u?.ori_url));
     const ids: string[] = Array.isArray(u?.pic_ids) ? u.pic_ids.map(str) : [];
     const pics = ids.length ? ids.map((id) => pic(id, u?.pic_infos?.[id])) : undefined;
-    links[short] = { title: str(u?.url_title) || "网页链接", url, video, pics };
+    const post = video ? undefined : [u?.long_url, u?.ori_url, u?.h5_target_url].map((v) => postIdOf(str(v))).find(Boolean);
+    links[short] = { title: str(u?.url_title) || "网页链接", url, video, pics, ...(post ? { post } : {}) };
   }
   return links;
 }

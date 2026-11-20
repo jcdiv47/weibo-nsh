@@ -13,6 +13,7 @@ import {
   parseStatus,
   parseTimeline,
   parseUserPosts,
+  postIdOf,
 } from "../api";
 import { diff } from "../diff";
 import { driftReports, WeiboChanged } from "../drift";
@@ -102,6 +103,44 @@ test("long text and its links", () => {
     text: "我自己发的，这是全文。详情见 http://t.cn/A6long1",
     links: { "http://t.cn/A6long1": { title: "网页链接", url: "https://example.com/long", video: false } },
   });
+});
+
+test("links to Weibo posts (微博正文) know their post", () => {
+  const links = parseLongText({
+    ok: 1,
+    data: {
+      longTextContent: "http://t.cn/A6post1 http://t.cn/A6post2",
+      url_struct: [
+        { url_title: "微博正文", short_url: "http://t.cn/A6post1", ori_url: "sinaweibo://detail?mblogid=PbCdEfGhI", url_type: 0 },
+        { url_title: "微博正文", short_url: "http://t.cn/A6post2", long_url: "https://weibo.com/1000000001/5100000000000201" },
+      ],
+    },
+  })!.links;
+  expect(links["http://t.cn/A6post1"]).toMatchObject({ title: "微博正文", post: "PbCdEfGhI" });
+  expect(links["http://t.cn/A6post2"]).toMatchObject({ url: "https://weibo.com/1000000001/5100000000000201", post: "5100000000000201" });
+});
+
+test("post addresses", () => {
+  for (const url of [
+    "https://weibo.com/1000000001/PbCdEfGhI",
+    "https://www.weibo.com/1000000001/PbCdEfGhI?refer_flag=1001030103_",
+    "https://weibo.com/detail/PbCdEfGhI",
+    "https://m.weibo.cn/status/PbCdEfGhI",
+    "https://m.weibo.cn/detail/PbCdEfGhI",
+    "https://m.weibo.cn/1000000001/PbCdEfGhI",
+    "sinaweibo://detail?mblogid=PbCdEfGhI",
+    "sinaweibo://detail/?id=PbCdEfGhI",
+  ])
+    expect(postIdOf(url)).toBe("PbCdEfGhI");
+  for (const url of [
+    "https://weibo.com/u/1000000001",
+    "https://weibo.com/1000000001/followers",
+    "https://weibo.com/1000000001",
+    "https://example.com/1000000001/PbCdEfGhI",
+    "https://s.weibo.com/weibo?q=%23x%23",
+    "sinaweibo://userinfo?uid=1000000001",
+  ])
+    expect(postIdOf(url)).toBeUndefined();
 });
 
 test("comments: pictures, previewed replies without their parent's links", () => {

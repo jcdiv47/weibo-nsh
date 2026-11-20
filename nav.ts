@@ -29,7 +29,21 @@ export function openPost(status: Status) {
   nav.push({ name: "post", id: status.id });
 }
 
+/**
+ * A post by its id or mblogid (a link to it), which the page loads when it has not got it. Pages
+ * stack: a post linked from a post linked from a post opens on top, and back returns each.
+ */
+export const openPostById = (id: string) => {
+  if (id) nav.push({ name: "post", id });
+};
+
 export const postById = (id: string) => posts.get(id);
+
+/** Keeps a post a page loaded by id, for the pages it opens (its replies, its versions). */
+export const keepPost = (id: string, status: Status) => {
+  posts.set(id, status);
+  posts.set(status.id, status);
+};
 
 const commentsById = new Map<string, Comment>();
 

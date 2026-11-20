@@ -1,10 +1,11 @@
 // Post and comment text, as weibo.com shows it: `@name` mentions link to their profiles,
 // `#topics#` to their posts, short links show what they stand for ("网页链接", "xxx的微博视频")
-// and open it: the post's video in the player, anything else in the browser.
+// and open it: the post's video in the player, a Weibo post ("微博正文") on its page in the app,
+// anything else in the browser.
 import { openUrl, Text } from "nsh";
 import { t } from "nsh/i18n";
-import type { Link } from "../api";
-import { openProfileByName, openTopic } from "../nav";
+import { type Link, postIdOf } from "../api";
+import { openPostById, openProfileByName, openTopic } from "../nav";
 import { openViewer } from "./ImageViewer";
 
 /** Weibo's link orange, for mentions and links. */
@@ -43,7 +44,10 @@ function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
       accessibilityLabel={props.link?.title ?? props.url}
       onPress={() => {
         const link = props.link;
+        // Pages saved before links knew their posts: read the address.
+        const post = link?.post ?? postIdOf(link?.url ?? props.url);
         if (video()) props.onVideo!();
+        else if (post) openPostById(post);
         else if (link?.pics?.length) openViewer(link.pics, 0);
         else openUrl(link?.url ?? props.url).catch(() => {});
       }}

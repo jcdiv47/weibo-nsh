@@ -22,7 +22,10 @@ What it does now:
   `/ajax/statuses/deleteFilters`). Blocking ends the follow; unblocking does not restore it.
 - **Pictures** full screen (swipe, pinch, double tap), **videos** in the system player, `@mentions`
   to profiles, `#topics#` to their posts (read from s.weibo.com's search page through a second
-  hidden web view), short links labelled as Weibo labels them.
+  hidden web view), short links labelled as Weibo labels them. A link to a Weibo post ("微博正文",
+  `weibo.com/<uid>/<id>`, `m.weibo.cn/status/<id>`) opens its page in the app, loading it by id
+  (`/ajax/statuses/show`) when the app hasn't got it; such pages stack, so back returns through
+  each.
 
 ## Run on Linux
 
