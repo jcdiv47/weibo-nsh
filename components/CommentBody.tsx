@@ -6,52 +6,28 @@ import { signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import { type Comment, likeComment } from "../api";
 import { count, relativeTime } from "../format";
-import { openProfile, openProfileByName } from "../nav";
+import { openProfile } from "../nav";
 import { Icon } from "./Icon";
 import { LINK_CLASS, LINK_TINT, RichText } from "./RichText";
 import { Pictures } from "./StatusCard";
 
-// `parent`: the comment this one sits under. A reply to it needs no "→ name": being in its
-// thread says as much. Only a reply to someone else in the thread names them.
-function replyTarget(c: Comment, p?: Comment) {
-  if (!c.replyTo || !p) return c.replyTo;
-  const toParent = c.replyToUid ? c.replyToUid === p.user.id : c.replyTo === p.user.name;
-  return toParent ? undefined : c.replyTo;
-}
-
-function openReplyTarget(c: Comment) {
-  if (c.replyToUid) openProfile(c.replyToUid);
-  else if (c.replyTo) openProfileByName(c.replyTo);
-}
-
+// Who a reply answers isn't shown apart: Weibo starts its text with "回复@name:" already.
 const commentText = (c: Comment, cls: string) => (
   <RichText text={c.text.trimEnd()} links={c.links} plainMentions hidePictureLinks class={cls} />
 );
 
 /** The author's name, then the text and pictures. */
-export function CommentBody(props: { comment: Comment; parent?: Comment }) {
-  const replyTo = () => replyTarget(props.comment, props.parent);
+export function CommentBody(props: { comment: Comment }) {
   // No `flex-1`: in a column it sets a zero basis, and the replies' bodies collapsed onto each other.
   return (
     <View class="gap-1">
-      <View class="flex-row items-center gap-2">
-        <Text
-          role="button"
-          onPress={() => openProfile(props.comment.user.id)}
-          class="text-sm text-muted-foreground active:opacity-60"
-        >
-          {props.comment.user.name}
-        </Text>
-        <If when={replyTo()}>
-          <Text
-            role="link"
-            onPress={() => openReplyTarget(props.comment)}
-            class="text-xs text-muted-foreground active:opacity-60"
-          >
-            → {replyTo()}
-          </Text>
-        </If>
-      </View>
+      <Text
+        role="button"
+        onPress={() => openProfile(props.comment.user.id)}
+        class="text-sm text-muted-foreground active:opacity-60"
+      >
+        {props.comment.user.name}
+      </Text>
       {commentText(props.comment, "select-text text-[15px] leading-6 text-foreground")}
       <Pictures pics={props.comment.pics} small />
     </View>
@@ -59,19 +35,13 @@ export function CommentBody(props: { comment: Comment; parent?: Comment }) {
 }
 
 /** A reply in its comment's preview: "name: text" in one run, then its pictures. */
-export function InlineReply(props: { comment: Comment; parent: Comment }) {
-  const replyTo = () => replyTarget(props.comment, props.parent);
+export function InlineReply(props: { comment: Comment }) {
   return (
     <View class="gap-1">
       <Text class="text-sm leading-6 text-foreground">
         <Text role="button" onPress={() => openProfile(props.comment.user.id)} class="text-primary active:opacity-60">
           {props.comment.user.name}
         </Text>
-        <If when={replyTo()}>
-          <Text role="link" onPress={() => openReplyTarget(props.comment)} class="text-primary active:opacity-60">
-            {` → ${replyTo()}`}
-          </Text>
-        </If>
         {": "}
         {commentText(props.comment, "")}
       </Text>

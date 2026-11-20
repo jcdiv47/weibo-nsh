@@ -16,7 +16,6 @@ import { commentById, postById } from "../nav";
 function ReplyRow(props: {
   comment: Comment;
   root?: boolean;
-  parent?: Comment;
   onPress: () => void;
   onRepost: () => void;
 }) {
@@ -29,7 +28,7 @@ function ReplyRow(props: {
     >
       <Avatar user={props.comment.user} size="sm" />
       <View class="flex-1 gap-2">
-        <CommentBody comment={props.comment} parent={props.parent} />
+        <CommentBody comment={props.comment} />
         <CommentFooter comment={props.comment} onReply={props.onPress} onRepost={props.onRepost} />
       </View>
     </View>
@@ -80,7 +79,6 @@ export function Replies(props: { postId: string; commentId: string }) {
         {(c) => (
           <ReplyRow
             comment={c()}
-            parent={root}
             onPress={() => reply(status, c())}
             onRepost={() => openRepost(status, c(), root)}
           />

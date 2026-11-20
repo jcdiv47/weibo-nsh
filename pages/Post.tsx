@@ -270,7 +270,7 @@ function CommentRow(props: { comment: Comment; onReply: () => void; onRepost: ()
             class="gap-1 rounded-lg bg-muted px-3 py-2 active:opacity-60"
           >
             <Each of={c().preview} key={(r) => r.id}>
-              {(r) => <InlineReply comment={r()} parent={c()} />}
+              {(r) => <InlineReply comment={r()} />}
             </Each>
             <If when={c().replyCount > c().preview.length}>
               <View class="flex-row items-center gap-1">
