@@ -4,6 +4,7 @@ import { keyboardFrame, safeArea, signal, Text, View } from "nsh";
 import { Button, Input, Sheet } from "nsh/base";
 import { t } from "nsh/i18n";
 import { type Comment, replyComment, type Status } from "../api";
+import { Icon } from "./Icon";
 
 interface Target {
   status: Status;
@@ -62,14 +63,18 @@ export function ReplySheet() {
     >
       <View class="gap-2">
         <View class="flex-row items-center gap-2">
+          <Button accessibilityLabel={t("common.cancel")} onPress={close} hitSlop={8} class="active:opacity-60">
+            <Icon name="x" class="size-5 tint-muted-foreground" />
+          </Button>
           <Text class="flex-1 text-sm font-semibold text-foreground line-clamp-1">
             {t("reply.to", { name: target()?.comment.user.name ?? "" })}
           </Text>
           <Button
             onPress={send}
             disabled={!text().trim() || sending()}
-            class="rounded-full bg-primary px-4 py-1.5 active:opacity-60 disabled:opacity-40"
+            class="flex-row items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 active:opacity-60 disabled:opacity-40"
           >
+            <Icon name="send" class="size-4 tint-primary-foreground" />
             <Text class="text-sm font-semibold text-primary-foreground">
               {sending() ? t("reply.sending") : t("reply.send")}
             </Text>

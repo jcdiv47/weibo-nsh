@@ -22,12 +22,7 @@ function PersonRow(props: { user: User }) {
     >
       <Avatar user={u()} />
       <View class="flex-1 gap-0.5">
-        <View class="flex-row items-center gap-1">
-          <Text class="font-semibold text-foreground line-clamp-1">{u().name}</Text>
-          <If when={u().verified}>
-            <Text class="text-xs text-primary">✓</Text>
-          </If>
-        </View>
+        <Text class="font-semibold text-foreground line-clamp-1">{u().name}</Text>
         <If when={u().description}>
           <Text class="text-sm text-muted-foreground line-clamp-1">{u().description}</Text>
         </If>

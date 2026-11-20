@@ -1,8 +1,10 @@
 // A post's pictures full screen: swipe between them, pinch or double tap to zoom, drag to pan
 // when zoomed, tap to close. One viewer for the app, opened with `openViewer`.
 import { Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
-import { Dialog } from "nsh/base";
+import { Button, Dialog } from "nsh/base";
+import { t } from "nsh/i18n";
 import type { Status } from "../api";
+import { Icon } from "./Icon";
 
 type Pics = Status["pics"];
 
@@ -84,6 +86,15 @@ export function ImageViewer() {
                 {(pic) => <ZoomPage src={pic().large} />}
               </Each>
             </Scroll>
+            <Button
+              accessibilityLabel={t("common.close")}
+              onPress={close}
+              hitSlop={8}
+              class="absolute left-4 size-9 items-center justify-center rounded-full bg-black/50 active:opacity-60"
+              style={{ top: safeArea().top + 8 }}
+            >
+              <Icon name="x" class="size-5 tint-white" />
+            </Button>
             <If when={v().pics.length > 1}>
               <View class="pointer-events-none absolute inset-x-0 items-center" style={{ top: safeArea().top + 12 }}>
                 <Text class="rounded-full bg-black/50 px-3 py-1 text-sm text-white">

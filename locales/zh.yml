@@ -11,6 +11,7 @@ common:
   no_more: "没有更多了"
   back: "返回"
   cancel: "取消"
+  close: "关闭"
 timeline:
   title: "关注"
 post:
@@ -19,6 +20,9 @@ post:
   reposts: "转发 %{n}"
   comments: "评论 %{n}"
   likes: "赞 %{n}"
+  tab_reposts: "转发"
+  tab_comments: "评论"
+  tab_likes: "赞"
   via: "来自 %{source}"
   view_replies: "查看 %{n} 条回复"
   reposted_by: "%{name} 的原微博"

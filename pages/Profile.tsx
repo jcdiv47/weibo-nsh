@@ -15,8 +15,9 @@ import {
   userPosts,
 } from "../api";
 import { NotSignedIn } from "../bridge";
-import { FeedFooter } from "../components/FeedFooter";
+import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
 import { Header } from "../components/Header";
+import { Icon, type IconName } from "../components/Icon";
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
@@ -25,14 +26,21 @@ import { count } from "../format";
 import { openPeople } from "../nav";
 import { loadSaved, save } from "../saved";
 
-function Badge(props: { label: string; tone?: "primary" | "danger" | "muted" }) {
+function Badge(props: { label: string; icon?: IconName; tone?: "primary" | "danger" | "muted" }) {
   const tone = () =>
     props.tone === "danger"
       ? "border-destructive text-destructive"
       : props.tone === "primary"
         ? "border-primary text-primary"
         : "border-border text-muted-foreground";
-  return <Text class={`rounded-full border px-2 py-0.5 text-xs ${tone()}`}>{props.label}</Text>;
+  const tint = () =>
+    props.tone === "danger" ? "tint-destructive" : props.tone === "primary" ? "tint-primary" : "tint-muted-foreground";
+  return (
+    <View class={`flex-row items-center gap-1 rounded-full border px-2 py-0.5 ${tone()}`}>
+      <If when={props.icon}>{(icon) => <Icon name={icon()} class={`size-3.5 ${tint()}`} />}</If>
+      <Text class={`text-xs ${tone()}`}>{props.label}</Text>
+    </View>
+  );
 }
 
 // What the buttons above don't say: whether they follow me, and a block state the answer left
@@ -43,7 +51,7 @@ function Relationship(props: { data: ProfileData }) {
     <>
       <If when={props.data.user.followsMe}>
         <View class="flex-row">
-          <Badge label={t("profile.follows_you")} tone="primary" />
+          <Badge label={t("profile.follows_you")} icon="arrows-left-right" tone="primary" />
         </View>
       </If>
       <If when={block().blocked === null}>
@@ -106,7 +114,7 @@ function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
     }
   }
 
-  const button = "rounded-full border px-4 py-1.5 active:opacity-60";
+  const button = "flex-row items-center gap-1.5 rounded-full border px-4 py-1.5 active:opacity-60";
   return (
     <View class="gap-2">
       <View class="flex-row gap-2">
@@ -116,6 +124,10 @@ function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
             disabled={!!busy()}
             class={`${button} ${u().following ? "border-border" : "border-primary bg-primary"}`}
           >
+            <Icon
+              name={busy() === "unfollow" ? "user-minus" : u().following ? "user-check" : "user-plus"}
+              class={`size-4 ${u().following ? "tint-foreground" : "tint-primary-foreground"}`}
+            />
             <Text class={`text-sm font-semibold ${u().following ? "text-foreground" : "text-primary-foreground"}`}>
               {busy() === "follow"
                 ? t("profile.following_busy")
@@ -132,6 +144,7 @@ function Actions(props: { data: ProfileData; reload: () => Promise<void> }) {
           disabled={!!busy()}
           class={`${button} ${blocked() ? "border-border" : "border-destructive"}`}
         >
+          <Icon name="ban" class={`size-4 ${blocked() ? "tint-foreground" : "tint-destructive"}`} />
           <Text class={`text-sm font-semibold ${blocked() ? "text-foreground" : "text-destructive"}`}>
             {busy() === "block"
               ? t("profile.block_busy")
@@ -160,7 +173,13 @@ function ProfileHeader(props: { data: ProfileData; reload: () => Promise<void>; 
         <View class="flex-1 gap-1">
           <Text class="text-lg font-semibold text-foreground">{u().name}</Text>
           <If when={u().verified}>
-            <Text class="text-xs text-primary line-clamp-2">{u().verified}</Text>
+            <Text class="text-xs text-muted-foreground line-clamp-2">{u().verified}</Text>
+          </If>
+          <If when={u().location}>
+            <View class="flex-row items-center gap-1">
+              <Icon name="map-pin" class="size-3.5 tint-muted-foreground" />
+              <Text class="text-xs text-muted-foreground">{u().location}</Text>
+            </View>
           </If>
         </View>
       </View>
@@ -279,11 +298,9 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
             when={data()}
             else={
               <View class="items-center gap-2 p-6">
-                <Text class="text-sm text-muted-foreground">{error() ?? t("profile.loading")}</Text>
-                <If when={error()}>
-                  <Button onPress={loadProfile} class="rounded-(--radius) border border-border px-4 py-2">
-                    <Text class="text-foreground">{t("common.retry")}</Text>
-                  </Button>
+                <If when={error()} else={<Text class="text-sm text-muted-foreground">{t("profile.loading")}</Text>}>
+                  <ErrorText error={error()!} />
+                  <RetryButton onPress={loadProfile} />
                 </If>
               </View>
             }

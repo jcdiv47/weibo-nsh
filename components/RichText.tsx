@@ -6,10 +6,12 @@ import { openUrl, Text } from "nsh";
 import { t } from "nsh/i18n";
 import { type Link, postIdOf } from "../api";
 import { openPostById, openProfileByName, openTopic } from "../nav";
+import { Icon } from "./Icon";
 import { openViewer } from "./ImageViewer";
 
 /** Weibo's link orange, for mentions and links. */
 export const LINK_CLASS = "text-[#eb7350]";
+const LINK_TINT = "tint-[#eb7350]";
 
 // Weibo screen names: letters (Chinese included), digits, `_` and `-`, up to 30 characters. A
 // mention ends at anything else: `//@name:` in repost chains, `@name ` before text.
@@ -37,7 +39,6 @@ export function segments(text: string): Segment[] {
 
 function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
   const video = () => !!props.link?.video && !!props.onVideo;
-  const label = () => (props.link ? `${video() ? "▶︎" : "↗"} ${props.link.title}` : props.url);
   return (
     <Text
       role="link"
@@ -53,7 +54,13 @@ function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
       }}
       class={`${LINK_CLASS} active:opacity-60`}
     >
-      {label()}
+      <If when={props.link} else={props.url}>
+        {(link) => (
+          <>
+            <Icon name={video() ? "player-play" : "link"} class={`size-4 ${LINK_TINT}`} /> {link().title}
+          </>
+        )}
+      </If>
     </Text>
   );
 }

@@ -1,0 +1,39 @@
+{
+  "ok": 1,
+  "total_number": 3,
+  "data": [
+    {
+      "user": {
+        "id": 2000000021,
+        "idstr": "2000000021",
+        "screen_name": "点赞的人",
+        "avatar_large": "https://tvax1.sinaimg.cn/crop.0.0.180.180.180/eeee.jpg",
+        "description": "暂无介绍",
+        "followers_count": 28,
+        "friends_count": 402,
+        "verified": false,
+        "verified_type": -1,
+        "following": false,
+        "follow_me": false
+      },
+      "attitude": 1
+    },
+    {
+      "user": {
+        "id": 2000000022,
+        "idstr": "2000000022",
+        "screen_name": "金V博主",
+        "avatar_large": "https://tvax1.sinaimg.cn/crop.0.0.180.180.180/ffff.jpg",
+        "followers_count": 1200000,
+        "verified": true,
+        "verified_type": 0,
+        "verified_type_ext": 1,
+        "verified_reason": "知名博主",
+        "following": true,
+        "follow_me": false
+      },
+      "attitude": 1
+    },
+    { "attitude": 1 }
+  ]
+}

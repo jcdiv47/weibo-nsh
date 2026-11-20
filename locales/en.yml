@@ -11,6 +11,7 @@ common:
   no_more: "No more"
   back: "Back"
   cancel: "Cancel"
+  close: "Close"
 timeline:
   title: "Following"
 post:
@@ -19,6 +20,9 @@ post:
   reposts: "Reposts %{n}"
   comments: "Comments %{n}"
   likes: "Likes %{n}"
+  tab_reposts: "Reposts"
+  tab_comments: "Comments"
+  tab_likes: "Likes"
   via: "via %{source}"
   view_replies: "View %{n} replies"
   reposted_by: "Reposted post by %{name}"
@@ -56,7 +60,7 @@ profile:
   posts_count: "%{n} posts"
   follows_you: "Follows you"
   follow: "Follow"
-  following: "Following ✓"
+  following: "Following"
   following_busy: "Following…"
   unfollow: "Unfollow"
   unfollow_busy: "Unfollowing…"

@@ -12,6 +12,8 @@
       "location": "上海",
       "verified": true,
       "verified_reason": "摄影博主",
+      "verified_type": 0,
+      "verified_type_ext": 1,
       "followers_count": 123456,
       "friends_count": 321,
       "statuses_count": 4567,

@@ -1,8 +1,10 @@
 // A comment's author, time, likes, text and pictures: in a post's comments and a thread's replies.
 import { Text, View } from "nsh";
+import { t } from "nsh/i18n";
 import type { Comment } from "../api";
 import { count, relativeTime } from "../format";
 import { openProfile, openProfileByName } from "../nav";
+import { Icon } from "./Icon";
 import { RichText } from "./RichText";
 import { Pictures } from "./StatusCard";
 
@@ -43,7 +45,10 @@ export function CommentBody(props: { comment: Comment; small?: boolean; parent?:
         <Text class="text-xs text-muted-foreground">{relativeTime(props.comment.createdAt)}</Text>
         <View class="flex-1" />
         <If when={props.comment.likes}>
-          <Text class="text-xs text-muted-foreground">♥ {count(props.comment.likes)}</Text>
+          <View accessibilityLabel={t("post.likes", { n: count(props.comment.likes) })} class="flex-row items-center gap-1">
+            <Icon name="thumb-up" class="size-3.5 tint-muted-foreground" />
+            <Text class="text-xs text-muted-foreground">{count(props.comment.likes)}</Text>
+          </View>
         </If>
       </View>
       <RichText

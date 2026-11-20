@@ -1,20 +1,23 @@
-// A post and its comments: a press on a comment replies to it, one on its replies opens its thread.
+// A post and, in tabs under it, its reposts, comments and likes: a press on a comment replies to
+// it, one on its replies opens its thread.
 // A post the app has not got (one a "微博正文" link points at) loads by its id first.
-import { List, signal, Text, View } from "nsh";
+import { computed, List, signal, Text, View } from "nsh";
 import { Button, NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
-import { type Comment, comments, longText, type Status, status as loadStatus } from "../api";
+import { type Comment, comments, likes, longText, reposts, type Status, status as loadStatus, type User } from "../api";
 import { CommentBody } from "../components/CommentBody";
-import { FeedFooter } from "../components/FeedFooter";
+import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
+import { Icon } from "../components/Icon";
 import { Header } from "../components/Header";
 import { Spinner } from "../components/Spinner";
 import { openReply } from "../components/ReplySheet";
+import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
-import { count } from "../format";
-import { keepPost, openReplies, postById } from "../nav";
+import { count, relativeTime } from "../format";
+import { keepPost, openPost, openProfile, openReplies, postById } from "../nav";
 
 export function Post(props: { id: string }) {
   const cached = postById(props.id);
@@ -49,10 +52,8 @@ export function Post(props: { id: string }) {
         else={
           <View class="items-center gap-3 p-8">
             <If when={error()} else={<Spinner />}>
-              <Text class="text-center text-sm text-muted-foreground">{error()}</Text>
-              <Button onPress={load} class="rounded-(--radius) border border-border px-4 py-2 active:opacity-60">
-                <Text class="text-foreground">{t("common.retry")}</Text>
-              </Button>
+              <ErrorText error={error()!} />
+              <RetryButton onPress={load} />
             </If>
           </View>
         }
@@ -63,7 +64,19 @@ export function Post(props: { id: string }) {
   );
 }
 
-/** The post and its comments, under the page's header. */
+type Tab = "reposts" | "comments" | "likes";
+
+/** A row of the list under the tabs: whichever list the tab shows. */
+type Row = { id: string; comment: Comment } | { id: string; repost: Status } | { id: string; like: User };
+const commentOf = (r: Row) => ("comment" in r ? r.comment : undefined);
+const repostOf = (r: Row) => ("repost" in r ? r.repost : undefined);
+const likeOf = (r: Row) => ("like" in r ? r.like : undefined);
+
+/**
+ * The post, then three tabs, as weibo.com's post page has them: its reposts, its comments (shown
+ * first) and who liked it, each list below them. A tab's list loads when it is first opened, and
+ * stays loaded while the page is open: switching back shows it at once.
+ */
 function PostBody(props: { status: Status }) {
   const status = props.status;
   const full = signal<Status>(status);
@@ -73,12 +86,46 @@ function PostBody(props: { status: Status }) {
       () => {},
     );
   }
-  const feed = createFeed((cursor?: string) => comments(status, cursor), { saveAs: () => `comments:${status.id}` });
-  feed.more();
+  const feeds = {
+    comments: createFeed((cursor?: string) => comments(status, cursor), { saveAs: () => `comments:${status.id}` }),
+    // Not saved on the device: the saved store keeps few pages, and these are worth less offline
+    // than the timeline's and profiles' that they would push out.
+    reposts: createFeed<Status, number>((page) => reposts(status, page ?? 1)),
+    likes: createFeed<User, number>((page) => likes(status, page ?? 1)),
+  };
+  const tab = signal<Tab>("comments");
+  const opened = new Set<Tab>(["comments"]);
+  feeds.comments.more();
+  const open = (to: Tab) => {
+    tab.set(to);
+    if (!opened.has(to)) {
+      opened.add(to);
+      feeds[to].more();
+    }
+  };
+  const feed = () => feeds[tab()];
+  // Each item keeps one row object while it is loaded, so a change (a page more, a reply sent)
+  // hands the list new objects only for the items that changed.
+  const wrapped = new WeakMap<object, Row>();
+  const wrap = <T extends object>(item: T, make: (item: T) => Row) => {
+    let row = wrapped.get(item);
+    if (!row) wrapped.set(item, (row = make(item)));
+    return row;
+  };
+  const rows = computed((): Row[] => {
+    switch (tab()) {
+      case "comments":
+        return feeds.comments.items().map((c) => wrap(c, (c) => ({ id: `c${c.id}`, comment: c })));
+      case "reposts":
+        return feeds.reposts.items().map((s) => wrap(s, (s) => ({ id: `r${s.id}`, repost: s })));
+      case "likes":
+        return feeds.likes.items().map((u) => wrap(u, (u) => ({ id: `l${u.id}`, like: u })));
+    }
+  });
 
   // A reply sent from here joins its comment's thread, as Weibo now has it.
   const sent = (to: Comment) => (reply: Comment | null) =>
-    feed.update((list) =>
+    feeds.comments.update((list) =>
       list.map((c) =>
         c.id === to.id
           ? { ...c, replyCount: c.replyCount + 1, preview: reply && c.preview.length < 3 ? [...c.preview, reply] : c.preview }
@@ -88,38 +135,117 @@ function PostBody(props: { status: Status }) {
 
   return (
     <List
-      each={feed.items()}
-      keyExtractor={(c) => c.id}
-      estimatedItemSize={96}
-      onLoadMore={() => feed.more()}
+      each={rows()}
+      keyExtractor={(r) => r.id}
+      estimatedItemSize={tab() === "likes" ? 52 : 96}
+      onLoadMore={() => feed().more()}
       header={
         <View>
           <StatusCard status={full()} full />
-          <Text class="px-4 pt-3 pb-1 text-sm font-semibold text-muted-foreground">
-            {t("post.comments", { n: count(status.comments) })}
-          </Text>
-          <SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />
+          <Tabs status={full()} tab={tab()} onTab={open} />
+          <SavedNotice at={feed().savedAt()} failed={!!feed().error()} onRetry={() => feed().more()} />
         </View>
       }
       footer={
         <FeedFooter
-          loading={feed.loading()}
-          error={feed.error()}
-          done={feed.done()}
-          empty={!feed.items().length}
-          onRetry={() => feed.more()}
+          loading={feed().loading()}
+          error={feed().error()}
+          done={feed().done()}
+          empty={!rows().length}
+          onRetry={() => feed().more()}
         />
       }
       class="flex-1"
     >
-      {(c) => (
-        <CommentRow
-          comment={c()}
-          onReply={() => openReply(full(), c(), sent(c()))}
-          onReplies={() => openReplies(full(), c())}
-        />
+      {/* Rows are recycled across tabs: the row's kind is read again with each item it shows. */}
+      {(r) => (
+        <If
+          when={commentOf(r())}
+          else={
+            <If when={repostOf(r())} else={<If when={likeOf(r())}>{(u) => <LikeRow user={u()} />}</If>}>
+              {(s) => <RepostRow repost={s()} />}
+            </If>
+          }
+        >
+          {(c) => (
+            <CommentRow
+              comment={c()}
+              onReply={() => openReply(full(), c(), sent(c()))}
+              onReplies={() => openReplies(full(), c())}
+            />
+          )}
+        </If>
       )}
     </List>
+  );
+}
+
+function Tabs(props: { status: Status; tab: Tab; onTab: (tab: Tab) => void }) {
+  const tabs: { id: Tab; label: () => string; n: () => number; a11y: () => string }[] = [
+    { id: "reposts", label: () => t("post.tab_reposts"), n: () => props.status.reposts, a11y: () => t("post.reposts", { n: count(props.status.reposts) }) },
+    { id: "comments", label: () => t("post.tab_comments"), n: () => props.status.comments, a11y: () => t("post.comments", { n: count(props.status.comments) }) },
+    { id: "likes", label: () => t("post.tab_likes"), n: () => props.status.likes, a11y: () => t("post.likes", { n: count(props.status.likes) }) },
+  ];
+  return (
+    <View class="flex-row gap-8 border-b border-border px-4">
+      <Each of={tabs} key={(tb) => tb.id}>
+        {(tb) => {
+          const on = () => props.tab === tb().id;
+          return (
+            <Button
+              accessibilityLabel={tb().a11y()}
+              selected={on()}
+              onPress={() => props.onTab(tb().id)}
+              class="items-center gap-2 pt-3 active:opacity-60"
+            >
+              <Text class={`text-[15px] ${on() ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                {tb().label()}
+                {tb().n() ? ` ${count(tb().n())}` : ""}
+              </Text>
+              <View class={`h-0.5 w-6 rounded-full ${on() ? "bg-primary" : "bg-transparent"}`} />
+            </Button>
+          );
+        }}
+      </Each>
+    </View>
+  );
+}
+
+/** Someone who liked the post: who, nothing more; a press opens their profile. */
+function LikeRow(props: { user: User }) {
+  return (
+    <View
+      role="button"
+      accessibilityLabel={props.user.name}
+      onPress={() => openProfile(props.user.id)}
+      class="flex-row items-center gap-3 border-b border-border px-4 py-2.5 active:bg-muted/40"
+    >
+      <Avatar user={props.user} size="sm" still />
+      <Text class="flex-1 text-sm font-semibold text-foreground line-clamp-1">{props.user.name}</Text>
+    </View>
+  );
+}
+
+/** A repost: who, when, and what they said; a press opens it as a post of its own. */
+function RepostRow(props: { repost: Status }) {
+  const s = () => props.repost;
+  return (
+    <View
+      role="button"
+      onPress={() => openPost(s())}
+      class="flex-row gap-3 border-b border-border px-4 py-3 active:bg-muted/40"
+    >
+      <Avatar user={s().user} size="sm" />
+      <View class="flex-1 gap-1">
+        <View class="flex-row items-center gap-2">
+          <Text role="button" onPress={() => openProfile(s().user.id)} class="text-sm font-semibold text-foreground">
+            {s().user.name}
+          </Text>
+          <Text class="text-xs text-muted-foreground">{relativeTime(s().createdAt)}</Text>
+        </View>
+        <RichText text={s().text} links={s().links} class="text-[15px] leading-6 text-foreground" />
+      </View>
+    </View>
   );
 }
 
@@ -146,7 +272,10 @@ function CommentRow(props: { comment: Comment; onReply: () => void; onReplies: (
               {(r) => <CommentBody comment={r()} small parent={c()} />}
             </Each>
             <If when={c().replyCount > c().preview.length}>
-              <Text class="text-xs text-primary">{t("post.view_replies", { n: count(c().replyCount) })}</Text>
+              <View class="flex-row items-center gap-1">
+                <Icon name="message-circle" class="size-3.5 tint-primary" />
+                <Text class="text-xs text-primary">{t("post.view_replies", { n: count(c().replyCount) })}</Text>
+              </View>
             </If>
           </View>
         </If>

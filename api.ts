@@ -12,7 +12,10 @@ export interface User {
   id: string;
   name: string;
   avatar: string;
+  /** Why Weibo verified them (`verified_reason`), when it did. */
   verified?: string;
+  /** Which badge Weibo gives them, when verified (`verifiedKind`). */
+  verifiedKind?: VerifiedKind;
   description?: string;
   location?: string;
   followersCount?: number;
@@ -109,12 +112,29 @@ const stripTags = (html: string) =>
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
 
+/**
+ * Weibo's verification badges: `personal` an individual's orange V (`verified_type` 0), `gold`
+ * a widely followed individual's gold V (0 with `verified_type_ext` 1 or more), `org` an
+ * organization's blue V (1–7: government, company, media, campus, website, app, group), `talent`
+ * a 达人 (200, 220). Another type of a verified account counts as `personal`.
+ */
+export type VerifiedKind = "personal" | "gold" | "org" | "talent";
+
+export function verifiedKind(u: any): VerifiedKind | undefined {
+  if (!u?.verified) return undefined;
+  const type = num(u.verified_type);
+  if (type >= 1 && type <= 7) return "org";
+  if (type === 200 || type === 220) return "talent";
+  return num(u.verified_type_ext) >= 1 ? "gold" : "personal";
+}
+
 export function toUser(u: any): User {
   return {
     id: str(u?.idstr ?? u?.id),
     name: str(u?.screen_name) || "(unknown)",
     avatar: str(u?.avatar_large || u?.avatar_hd || u?.profile_image_url),
     verified: u?.verified ? str(u?.verified_reason) || "Verified" : undefined,
+    verifiedKind: verifiedKind(u),
     description: str(u?.description) || undefined,
     location: str(u?.location) || undefined,
     followersCount: u?.followers_count === undefined ? undefined : num(u.followers_count),
@@ -354,6 +374,38 @@ export async function comments(status: Status, maxId?: string): Promise<Page<Com
 export function parseComments(json: any): Page<Comment> {
   const EP = "/ajax/statuses/buildComments";
   return { items: items(EP, list(EP, json, "data"), shapes.comment).map(toComment), next: cursor(json.max_id) };
+}
+
+/** A post's reposts, newest first, each a post (its `retweeted` the post); pages count from 1. */
+export async function reposts(status: Status, page = 1): Promise<Page<Status, number>> {
+  return parseReposts(await get(`/ajax/statuses/repostTimeline?id=${status.id}&page=${page}&moduleID=feed&count=20`), page);
+}
+
+export function parseReposts(json: any, page: number): Page<Status, number> {
+  const EP = "/ajax/statuses/repostTimeline";
+  const raw = list(EP, json, "data");
+  // `max_page` counts the pages. Without it, read on until a page is empty.
+  if (raw.length && json.max_page === undefined) reportDrift(EP, ["max_page"], json);
+  const more = json.max_page === undefined ? raw.length > 0 : page < num(json.max_page);
+  return { items: items(EP, raw, shapes.status).map(toStatus), next: raw.length && more ? page + 1 : null };
+}
+
+/** Who liked a post, latest first; pages count from 1. */
+export async function likes(status: Status, page = 1): Promise<Page<User, number>> {
+  return parseLikes(
+    await get(`/ajax/statuses/likeShow?id=${status.id}&attitude_type=0&attitude_enable=1&page=${page}&count=20`),
+    page,
+  );
+}
+
+export function parseLikes(json: any, page: number): Page<User, number> {
+  const EP = "/ajax/statuses/likeShow";
+  // Each like is `{ user, attitude }`.
+  const raw = list(EP, json, "data").map((like: any) => like?.user);
+  // `total_number` counts the likes. Without it, read on until a page is empty.
+  if (raw.length && json.total_number === undefined) reportDrift(EP, ["total_number"], json);
+  const more = json.total_number === undefined ? raw.length > 0 : num(json.total_number) > page * raw.length;
+  return { items: items(EP, raw, shapes.user).map(toUser), next: raw.length && more ? page + 1 : null };
 }
 
 /** The replies to one comment (its thread), oldest first. */

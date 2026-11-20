@@ -6,6 +6,7 @@ import { t } from "nsh/i18n";
 import { editHistory, type Version } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { Header } from "../components/Header";
+import { Icon } from "../components/Icon";
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, Pictures } from "../components/StatusCard";
@@ -43,7 +44,8 @@ export function Edits(props: { id: string }) {
         <Header
           title={t("edits.title")}
           right={
-            <Button onPress={() => changes.update((v) => !v)} class="active:opacity-60">
+            <Button onPress={() => changes.update((v) => !v)} class="flex-row items-center gap-1 active:opacity-60">
+              <Icon name={changes() ? "chevron-up" : "chevron-down"} class="size-4 tint-primary" />
               <Text class="text-sm text-primary">{changes() ? t("edits.hide_changes") : t("edits.show_changes")}</Text>
             </Button>
           }

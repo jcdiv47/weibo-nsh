@@ -6,14 +6,17 @@ import {
   parseComments,
   parseEditHistory,
   parseGroups,
+  parseLikes,
   parseLongText,
   parsePeople,
   parseProfile,
   parseReply,
+  parseReposts,
   parseStatus,
   parseTimeline,
   parseUserPosts,
   postIdOf,
+  verifiedKind,
 } from "../api";
 import { diff } from "../diff";
 import { driftReports, WeiboChanged } from "../drift";
@@ -26,7 +29,9 @@ import longtext from "./fixtures/longtext.json";
 import mymblog from "./fixtures/mymblog.json";
 import profileInfo from "./fixtures/profileInfo.json";
 import profileInfoBlocked from "./fixtures/profileInfoBlocked.json";
+import likeShow from "./fixtures/likeShow.json";
 import replies from "./fixtures/replies.json";
+import repostTimeline from "./fixtures/repostTimeline.json";
 import statusShow from "./fixtures/statusShow.json";
 
 const GID = "110001000000001"; // 11000 + my uid, as allGroups names it.
@@ -57,7 +62,7 @@ test("timeline: a post's fields, pictures and links", () => {
     reposts: 3,
     comments: 12,
     likes: 108,
-    user: { id: "2000000001", name: "晚霞观察员", verified: "摄影博主", following: true, followsMe: false },
+    user: { id: "2000000001", name: "晚霞观察员", verified: "摄影博主", verifiedKind: "gold", following: true, followsMe: false },
   });
   expect(s.pics).toEqual([
     {
@@ -71,6 +76,48 @@ test("timeline: a post's fields, pictures and links", () => {
     },
   ]);
   expect(s.links["http://t.cn/A6abcd"]).toEqual({ title: "网页链接", url: "https://example.com/sunset", video: false });
+});
+
+test("users: Weibo's verification types to its badges", () => {
+  expect(verifiedKind({ verified: false, verified_type: -1 })).toBeUndefined();
+  expect(verifiedKind({ verified: true, verified_type: 0, verified_type_ext: 0 })).toBe("personal");
+  expect(verifiedKind({ verified: true, verified_type: 0 })).toBe("personal");
+  expect(verifiedKind({ verified: true, verified_type: 0, verified_type_ext: 1 })).toBe("gold");
+  expect(verifiedKind({ verified: true, verified_type: 0, verified_type_ext: 2 })).toBe("gold");
+  for (const type of [1, 2, 3, 4, 5, 6, 7]) expect(verifiedKind({ verified: true, verified_type: type })).toBe("org");
+  expect(verifiedKind({ verified: true, verified_type: 220 })).toBe("talent");
+  expect(verifiedKind({ verified: true, verified_type: 200 })).toBe("talent");
+  // A type the app doesn't know: still verified.
+  expect(verifiedKind({ verified: true, verified_type: 10 })).toBe("personal");
+});
+
+test("reposts: each a post of its own, the reposted post under it; one without an author left out", () => {
+  const page = parseReposts(repostTimeline, 1);
+  expect(page.items.map((s) => s.id)).toEqual(["5100000000000301", "5100000000000302"]);
+  expect(page.items[0]).toMatchObject({
+    text: "好看！//@路人甲:同感",
+    region: "浙江",
+    user: { id: "2000000011", name: "看云的人" },
+    retweeted: { id: "5100000000000001" },
+  });
+  expect(page.items[1].user).toMatchObject({ name: "城市观察", verifiedKind: "org" });
+  expect(page.next).toBe(2);
+  expect(parseReposts({ ...copy(repostTimeline), max_page: 2 }, 2).next).toBeNull();
+  expect(parseReposts({ ok: 1, data: [] }, 3).next).toBeNull();
+});
+
+test("likes: the accounts that liked, a like without one left out", () => {
+  const page = parseLikes(likeShow, 1);
+  expect(page.items.map((u) => u.name)).toEqual(["点赞的人", "金V博主"]);
+  expect(page.items[1]).toMatchObject({ id: "2000000022", verifiedKind: "gold", followersCount: 1200000, following: true });
+  // Three likes in all, three read (one without its user): the end.
+  expect(page.next).toBeNull();
+  expect(parseLikes({ ...copy(likeShow), total_number: 100 }, 1).next).toBe(2);
+});
+
+test("reposts and likes in a new shape are a change", () => {
+  expect(() => parseReposts({ ok: 1, list: [] }, 1)).toThrow(WeiboChanged);
+  expect(() => parseLikes({ ok: 1 }, 1)).toThrow(WeiboChanged);
 });
 
 test("timeline: a repost shows the reposted post's video once, at 720p", () => {

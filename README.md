@@ -9,8 +9,10 @@ What it does now:
 - **Following timeline**, strictly newest first: the "最新微博" group (`/ajax/feed/allGroups` for its
   gid, then `/ajax/feed/friendstimeline`), with ads and posts from accounts you don't follow
   filtered out. Pull to refresh, more on scroll.
-- **Post page** with its full text (`/ajax/statuses/longtext`) and comments
-  (`/ajax/statuses/buildComments`). A press on a comment opens a reply box over the keyboard
+- **Post page** with its full text (`/ajax/statuses/longtext`) and, in three tabs under it, its
+  reposts (`/ajax/statuses/repostTimeline`), comments (`/ajax/statuses/buildComments`, the tab
+  it opens on) and who liked it (`/ajax/statuses/likeShow`); a tab loads its list when first
+  opened. A press on a comment opens a reply box over the keyboard
   (`/ajax/comments/reply`); a press on its replies opens its thread, "N replies", where a press on
   the comment or any reply answers it.
 - **Edit history**: an edited post (`edit_count`) says so; on its page, "Edited · history" lists its
@@ -60,8 +62,11 @@ device. Differences handled already:
 - `nsh test` runs the parsers against `tests/fixtures/` (answers in weibo.com's shapes) and the
   saved-page logic. When Weibo changes an endpoint, put its new answer (the drift log's sample)
   in the fixture, see which test fails, fix the parser.
-- The first page of each list and each profile are saved on the device (`saved.ts`, the newest
+- The first page of each list (except a post's reposts and likes) and each profile are saved on the device (`saved.ts`, the newest
   40): a page opens on its saved copy while it loads and keeps it, marked as saved, when the load
   fails. Signing out clears them.
+- Icons are [Tabler Icons](https://tabler.io/icons) (MIT, `icons/LICENSE`): only the SVGs the app
+  uses, in `icons/`, named in `components/Icon.tsx`. To add one, copy it from `@tabler/icons`'
+  `icons/outline/` (or `filled/`) and list it there; give each use a `tint-*` class.
 - Images load straight from `*.sinaimg.cn` with no `Referer`, which its hot-link guard allows.
 - Keep request rates gentle; this is against Weibo's terms of service and for personal use only.

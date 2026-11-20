@@ -3,25 +3,46 @@
 // the post's comments. An edited post says so; on its own page, its versions open from below it.
 import { Image, Text, View } from "nsh";
 import { t } from "nsh/i18n";
-import type { Status, User, Video } from "../api";
+import type { Status, User, VerifiedKind, Video } from "../api";
 import { count, relativeTime } from "../format";
 import { openEdits, openPost, openProfile } from "../nav";
+import { Icon, type IconName } from "./Icon";
 import { openViewer } from "./ImageViewer";
 import { RichText } from "./RichText";
 import { openVideo } from "./VideoPlayer";
 
-/** `still`: not a link to the profile (on the profile itself). */
+/** The badge's color for each kind of verification, as Weibo colors its V's. */
+const VERIFIED_TINT: Record<VerifiedKind, string> = {
+  personal: "tint-[#ffa200]",
+  gold: "tint-[#ff5a1f]",
+  org: "tint-[#2d9cf4]",
+  talent: "tint-[#f0437a]",
+};
+
+/** `still`: not a link to the profile (on the profile itself). A verified account's picture has
+ * Weibo's badge for its kind of verification at its bottom right. */
 export function Avatar(props: { user: User; size?: "sm" | "md" | "lg"; still?: boolean }) {
   const size = () => (props.size === "lg" ? "size-16" : props.size === "sm" ? "size-8" : "size-10");
+  const badge = () => (props.size === "lg" ? "size-5" : props.size === "sm" ? "size-3" : "size-3.5");
+  const kind = () => (props.user.verified ? (props.user.verifiedKind ?? "personal") : undefined);
   return (
     <View
       role={props.still ? undefined : "button"}
-      accessibilityLabel={props.user.name}
+      accessibilityLabel={props.user.verified ? `${props.user.name}, ${props.user.verified}` : props.user.name}
       onPress={props.still ? undefined : () => openProfile(props.user.id)}
-      class={`${size()} overflow-hidden rounded-full bg-muted active:opacity-70`}
+      class={`${size()} shrink-0 active:opacity-70`}
     >
-      <If when={props.user.avatar}>
-        <Image src={props.user.avatar} class="size-full object-cover" />
+      <View class="size-full overflow-hidden rounded-full bg-muted">
+        <If when={props.user.avatar}>
+          <Image src={props.user.avatar} class="size-full object-cover" />
+        </If>
+      </View>
+      <If when={kind()}>
+        {(k) => (
+          <View class={`absolute rounded-full bg-background ${props.size === "lg" ? "bottom-0 right-0 p-0.5" : "-bottom-px -right-px p-px"}`}>
+            <Icon name="circle-check-filled" class={`${badge()} ${VERIFIED_TINT[k()]}`} />
+          </View>
+        )}
       </If>
     </View>
   );
@@ -67,7 +88,7 @@ function VideoCard(props: { video: Video }) {
       </If>
       <View class="absolute inset-0 items-center justify-center">
         <View class="size-12 items-center justify-center rounded-full bg-black/55">
-          <Text class="pl-1 text-xl text-white">▶︎</Text>
+          <Icon name="player-play-filled" class="size-6 tint-white" />
         </View>
       </View>
       <If when={length()}>
@@ -115,14 +136,13 @@ export function StatusCard(props: { status: Status; full?: boolean }) {
         <View class="flex-1">
           <View role="button" onPress={() => openProfile(s().user.id)} class="flex-row items-center gap-1">
             <Text class="font-semibold text-foreground">{s().user.name}</Text>
-            <If when={s().user.verified}>
-              <Text class="text-xs text-primary">✓</Text>
-            </If>
           </View>
           <View class="flex-row items-center gap-1">
             <Text class="shrink text-xs text-muted-foreground line-clamp-1">{meta()}</Text>
             <If when={!props.full && s().editCount}>
-              <Text class="shrink-0 text-xs text-muted-foreground">· {t("post.edited")}</Text>
+              <Text class="shrink-0 text-xs text-muted-foreground">·</Text>
+              <Icon name="pencil" class="size-3 shrink-0 tint-muted-foreground" />
+              <Text class="shrink-0 text-xs text-muted-foreground">{t("post.edited")}</Text>
             </If>
           </View>
         </View>
@@ -153,21 +173,40 @@ export function StatusCard(props: { status: Status; full?: boolean }) {
       <If when={props.full && (s().editCount || s().region)}>
         <View class="flex-row items-center gap-3">
           <If when={s().editCount}>
-            <Text role="link" onPress={() => openEdits(s())} class="text-xs text-primary active:opacity-60">
-              {t("post.edit_history")}
-            </Text>
+            <View role="link" onPress={() => openEdits(s())} class="flex-row items-center gap-1 active:opacity-60">
+              <Icon name="history" class="size-3.5 tint-primary" />
+              <Text class="text-xs text-primary">{t("post.edit_history")}</Text>
+            </View>
           </If>
           <View class="flex-1" />
           <If when={s().region}>
-            <Text class="text-xs text-muted-foreground">{t("post.region", { region: s().region })}</Text>
+            <View class="flex-row items-center gap-1" accessibilityLabel={t("post.region", { region: s().region })}>
+              <Icon name="map-pin" class="size-3.5 tint-muted-foreground" />
+              <Text class="text-xs text-muted-foreground">{s().region}</Text>
+            </View>
           </If>
         </View>
       </If>
-      <View class="flex-row gap-6">
-        <Text class="text-xs text-muted-foreground">{t("post.reposts", { n: count(s().reposts) })}</Text>
-        <Text class="text-xs text-muted-foreground">{t("post.comments", { n: count(s().comments) })}</Text>
-        <Text class="text-xs text-muted-foreground">{t("post.likes", { n: count(s().likes) })}</Text>
-      </View>
+      {/* On the post's page the tabs under it carry the counts. */}
+      <If when={!props.full}>
+        <View class="flex-row gap-8">
+          <Stat icon="repeat" n={s().reposts} label={t("post.reposts", { n: count(s().reposts) })} />
+          <Stat icon="message-circle" n={s().comments} label={t("post.comments", { n: count(s().comments) })} />
+          <Stat icon="thumb-up" n={s().likes} label={t("post.likes", { n: count(s().likes) })} />
+        </View>
+      </If>
+    </View>
+  );
+}
+
+/** A post's count: its icon, then the number (none for 0). `label` is what screen readers say. */
+export function Stat(props: { icon: IconName; n: number; label: string }) {
+  return (
+    <View accessibilityLabel={props.label} class="flex-row items-center gap-1">
+      <Icon name={props.icon} class="size-4 tint-muted-foreground" />
+      <If when={props.n}>
+        <Text class="text-xs text-muted-foreground">{count(props.n)}</Text>
+      </If>
     </View>
   );
 }

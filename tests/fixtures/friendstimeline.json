@@ -42,6 +42,8 @@
         "avatar_hd": "https://tvax1.sinaimg.cn/crop.0.0.180.180.1024/aaaa.jpg",
         "verified": true,
         "verified_reason": "摄影博主",
+        "verified_type": 0,
+        "verified_type_ext": 1,
         "following": true,
         "follow_me": false
       }
