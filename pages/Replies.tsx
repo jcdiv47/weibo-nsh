@@ -13,7 +13,7 @@ import { createFeed } from "../feed";
 import { count } from "../format";
 import { commentById, postById } from "../nav";
 
-function ReplyRow(props: { comment: Comment; root?: boolean; onPress: () => void }) {
+function ReplyRow(props: { comment: Comment; root?: boolean; parent?: Comment; onPress: () => void }) {
   return (
     <View
       role="button"
@@ -23,7 +23,7 @@ function ReplyRow(props: { comment: Comment; root?: boolean; onPress: () => void
     >
       <Avatar user={props.comment.user} size="sm" />
       <View class="flex-1">
-        <CommentBody comment={props.comment} small={!props.root} />
+        <CommentBody comment={props.comment} small={!props.root} parent={props.parent} />
       </View>
     </View>
   );
@@ -70,7 +70,7 @@ export function Replies(props: { postId: string; commentId: string }) {
         }
         class="flex-1"
       >
-        {(c) => <ReplyRow comment={c()} onPress={() => reply(status, c())} />}
+        {(c) => <ReplyRow comment={c()} parent={root} onPress={() => reply(status, c())} />}
       </List>
     </NavPage>
   );

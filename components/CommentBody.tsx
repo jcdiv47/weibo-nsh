@@ -6,7 +6,16 @@ import { openProfile, openProfileByName } from "../nav";
 import { RichText } from "./RichText";
 import { Pictures } from "./StatusCard";
 
-export function CommentBody(props: { comment: Comment; small?: boolean }) {
+// `parent`: the comment this one sits under. A reply to it needs no "→ name": being in its
+// thread says as much. Only a reply to someone else in the thread names them.
+export function CommentBody(props: { comment: Comment; small?: boolean; parent?: Comment }) {
+  const replyTo = () => {
+    const c = props.comment;
+    const p = props.parent;
+    if (!c.replyTo || !p) return c.replyTo;
+    const toParent = c.replyToUid ? c.replyToUid === p.user.id : c.replyTo === p.user.name;
+    return toParent ? undefined : c.replyTo;
+  };
   // No `flex-1`: in a column it sets a zero basis, and the replies' bodies collapsed onto each other.
   return (
     <View class="gap-1">
@@ -18,7 +27,7 @@ export function CommentBody(props: { comment: Comment; small?: boolean }) {
         >
           {props.comment.user.name}
         </Text>
-        <If when={props.comment.replyTo}>
+        <If when={replyTo()}>
           <Text
             role="link"
             onPress={() => {
@@ -28,7 +37,7 @@ export function CommentBody(props: { comment: Comment; small?: boolean }) {
             }}
             class="text-xs text-muted-foreground active:opacity-60"
           >
-            → {props.comment.replyTo}
+            → {replyTo()}
           </Text>
         </If>
         <Text class="text-xs text-muted-foreground">{relativeTime(props.comment.createdAt)}</Text>

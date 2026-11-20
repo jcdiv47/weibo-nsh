@@ -143,7 +143,7 @@ function CommentRow(props: { comment: Comment; onReply: () => void; onReplies: (
             class="gap-2 rounded-lg bg-muted px-3 py-2 active:opacity-60"
           >
             <Each of={c().preview} key={(r) => r.id}>
-              {(r) => <CommentBody comment={r()} small />}
+              {(r) => <CommentBody comment={r()} small parent={c()} />}
             </Each>
             <If when={c().replyCount > c().preview.length}>
               <Text class="text-xs text-primary">{t("post.view_replies", { n: count(c().replyCount) })}</Text>
