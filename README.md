@@ -20,7 +20,7 @@ What it does now:
 - **Favorites** (收藏): the bookmark at the top right of a post's page saves it or takes it out
   (`/ajax/statuses/createFavorites`, `destoryFavorites`), filled while saved (the post's `favorited`);
   saving says so in a toast that leads to them. The "我" menu on the timeline opens "My favorites",
-  the posts I saved, latest first (`/ajax/favorites/all_fav`); swiping one left takes it out.
+  the posts I saved, latest first (`/ajax/favorites/all_fav`).
 - **Edit history**: an edited post (`edit_count`) says so; on its page, "Edited · history" lists its
   versions (`/ajax/statuses/editHistory`), newest first, each with what changed from the one before.
 - **Profile** (`/ajax/profile/info`, `/ajax/statuses/mymblog`): following / follows you and the

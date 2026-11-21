@@ -58,7 +58,6 @@ favorite:
   remove: "取消收藏"
   saved: "已收藏"
   view: "查看收藏"
-  remove_short: "取消收藏"
   empty_title: "还没有收藏"
   empty_note: "在微博正文页点右上角的收藏按钮，\n想再看的微博就会留在这里。"
 edits:

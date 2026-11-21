@@ -7,7 +7,6 @@ import arrowsLeftRight from "../icons/arrows-left-right.svg";
 import at from "../icons/at.svg";
 import ban from "../icons/ban.svg";
 import bookmarkFilled from "../icons/bookmark-filled.svg";
-import bookmarkOff from "../icons/bookmark-off.svg";
 import bookmark from "../icons/bookmark.svg";
 import chevronDown from "../icons/chevron-down.svg";
 import chevronLeft from "../icons/chevron-left.svg";
@@ -45,7 +44,6 @@ const ICONS = {
   ban,
   bookmark,
   "bookmark-filled": bookmarkFilled,
-  "bookmark-off": bookmarkOff,
   "chevron-down": chevronDown,
   "chevron-left": chevronLeft,
   "chevron-right": chevronRight,

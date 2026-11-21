@@ -1,10 +1,10 @@
-// The posts I saved (收藏), the latest saved first: pull to refresh, more as it scrolls. Swiping
-// a post left uncovers 取消收藏, which takes it out of the list; the bookmark at the end of its
-// counts takes it out too but keeps it there, empty, until the next refresh, so it can go back in.
-import { createAnimatedValue, effect, type JSX, List, Text, View } from "nsh";
+// The posts I saved (收藏), the latest saved first: pull to refresh, more as it scrolls. The
+// bookmark at the end of a post's counts takes it out of my favorites but keeps it in the list,
+// empty, until the next refresh, so it can go back in.
+import { List, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
-import { favorite, favorites, type Status } from "../api";
+import { favorites, type Status } from "../api";
 import { isFavorited, toggleFavorite } from "../components/FavoriteButton";
 import { FeedFooter } from "../components/FeedFooter";
 import { Page } from "../components/Header";
@@ -12,36 +12,6 @@ import { Icon } from "../components/Icon";
 import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
-
-const ACTION_WIDTH = 96;
-
-/** A row that slides left over an action behind its right end. `id`: the item it shows; a
- * recycled row showing another closes. */
-function SwipeRow(props: { id: string; action: JSX.Element; children: JSX.Element }) {
-  const x = createAnimatedValue(0);
-  effect(() => {
-    props.id;
-    x.set(0);
-  });
-  return (
-    <View class="overflow-hidden bg-danger">
-      <View class="absolute inset-y-0 right-0" style={{ width: ACTION_WIDTH }}>
-        {props.action}
-      </View>
-      <View
-        pan={{ x }}
-        onPanEnd={(e) => {
-          // Open past half the action's width (counting the fling), closed otherwise.
-          const projected = (e.value?.x ?? 0) + e.velocity.x * 0.2;
-          x.spring(projected < -ACTION_WIDTH / 2 ? -ACTION_WIDTH : 0, { velocity: e.velocity.x });
-        }}
-        style={{ translate: [x, 0] }}
-      >
-        {props.children}
-      </View>
-    </View>
-  );
-}
 
 /** At the end of a saved post's counts: the bookmark, filled while saved; a press toggles it. */
 function SavedMark(props: { status: Status }) {
@@ -78,18 +48,6 @@ export function Favorites() {
   const feed = createFeed<Status, number>((page) => favorites(page ?? 1), { saveAs: () => "favorites" });
   feed.more();
 
-  // Out of my favorites and out of the list; back in its place if Weibo refuses.
-  async function remove(s: Status) {
-    const before = feed.items();
-    feed.update((list) => list.filter((x) => x.id !== s.id));
-    try {
-      await favorite(s, false);
-      s.favorited = false;
-    } catch {
-      feed.update(() => before);
-    }
-  }
-
   const empty = () => feed.done() && !feed.loading() && !feed.error() && !feed.items().length;
   return (
     <Page title={t("favorite.title")}>
@@ -113,23 +71,7 @@ export function Favorites() {
           }
           class="flex-1"
         >
-          {(status) => (
-            <SwipeRow
-              id={status().id}
-              action={
-                <Button
-                  accessibilityLabel={t("favorite.remove")}
-                  onPress={() => remove(status())}
-                  class="size-full items-center justify-center gap-1.5 active:opacity-70"
-                >
-                  <Icon name="bookmark-off" class="size-[22px] tint-white" />
-                  <Text class="text-meta font-semibold text-white">{t("favorite.remove_short")}</Text>
-                </Button>
-              }
-            >
-              <StatusCard status={status()} trailing={<SavedMark status={status()} />} />
-            </SwipeRow>
-          )}
+          {(status) => <StatusCard status={status()} trailing={<SavedMark status={status()} />} />}
         </List>
       </If>
     </Page>

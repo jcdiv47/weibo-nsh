@@ -58,7 +58,6 @@ favorite:
   remove: "Remove from favorites"
   saved: "Saved"
   view: "View"
-  remove_short: "Remove"
   empty_title: "No favorites yet"
   empty_note: "Tap the bookmark at the top right of a post,\nand the posts you want to read again stay here."
 edits:
