@@ -57,6 +57,26 @@ const pageFetch = (path: string, asText: boolean, form?: Record<string, string>)
 })()`;
 
 const TIMEOUT_MS = 20_000;
+/** A second revive within this long is the same death: its first reload is already on the way. */
+const REVIVE_GAP_MS = 3_000;
+
+/** A request the page's navigation cut off (a reload, a new page). */
+const cutByNavigation = (e: unknown) => /navigated/i.test(String((e as Error)?.message ?? e));
+
+/**
+ * A request whose web view died under it: iOS ends a WKWebView's web content process when it
+ * likes (the app in the background a while, memory short), and the view then runs nothing, every
+ * request failing with "the web view went away", until it loads a page again.
+ */
+const cutByDeath = (e: unknown) => {
+  const err = e as { code?: string; message?: string } | undefined;
+  if (cutByNavigation(e)) return false;
+  return (
+    err?.code === "ERR_NSH_WEBVIEW_ABORTED" ||
+    err?.code === "ERR_NSH_WEBVIEW_TERMINATED" ||
+    /went away|process ended/i.test(String(err?.message ?? e))
+  );
+};
 
 /**
  * One hidden web view and the requests that run in it, as its page's own fetches: `weibo` for
@@ -70,15 +90,22 @@ export class Channel {
   private waiting = new Map<number, { resolve: (a: PageAnswer) => void; reject: (e: Error) => void; timer: number }>();
   private loaded!: Promise<void>;
   private markLoaded!: () => void;
+  private isLoaded = true; // So the constructor's resetLoaded makes the first promise.
+  private revivedAt = -Infinity;
 
   constructor(
     /** The page the channel idles on: requests run once it has loaded. */
     readonly idleUrl: string,
+    /** The page to load again when the web view's process died: the idle page, unless signing in. */
+    private readonly revivalUrl: () => string = () => idleUrl,
   ) {
     this.resetLoaded();
   }
 
+  // A page still loading keeps its promise, so whoever waits on it hears when it is up.
   private resetLoaded() {
+    if (!this.isLoaded) return;
+    this.isLoaded = false;
     this.loaded = new Promise((resolve) => (this.markLoaded = resolve));
   }
 
@@ -96,7 +123,29 @@ export class Channel {
 
   /** The web view's `onLoad`. */
   onLoad(url: string) {
-    if (url.startsWith(this.idleUrl)) this.markLoaded();
+    if (!url.startsWith(this.idleUrl)) return;
+    this.isLoaded = true;
+    this.markLoaded();
+  }
+
+  /**
+   * The web view's `onError`: a web content process that ended (`ERR_NSH_WEBVIEW_TERMINATED`)
+   * loads its page again. True when it was that.
+   */
+  onError(e: { code?: string; message?: string }): boolean {
+    if (e.code !== "ERR_NSH_WEBVIEW_TERMINATED") return false;
+    this.revive();
+    return true;
+  }
+
+  /** Loads the page again in a web view whose process died; requests then wait for it. */
+  revive() {
+    const web = this.web;
+    if (!web || Date.now() - this.revivedAt < REVIVE_GAP_MS) return;
+    this.revivedAt = Date.now();
+    this.resetLoaded();
+    this.abort("The bridge page went away");
+    web.load({ src: this.revivalUrl() });
   }
 
   /** The web view's `onMessage`: replies of the postMessage transport. */
@@ -127,15 +176,17 @@ export class Channel {
   /**
    * Runs `path` as the page's fetch. `waitForPage`: first wait for the idle page (the main
    * channel's pages only start once it is up). A request the page's navigation cut off (a reload)
-   * runs again once, when the page is back.
+   * or its web view's death (which loads the page again) runs again once, when the page is back.
    */
   async run(path: string, asText = false, waitForPage = false, form?: Record<string, string>): Promise<PageAnswer> {
     if (waitForPage) await this.waitLoaded();
     try {
       return await this.runOnce(path, asText, form);
     } catch (e) {
+      const died = cutByDeath(e);
+      if (died) this.revive();
       // A cut-off GET runs again; a POST might have gone through, so it reports the failure.
-      if (form || !/navigated/i.test(String((e as Error)?.message ?? e))) throw e;
+      if (form || !(died || cutByNavigation(e))) throw e;
       await this.waitLoaded();
       return this.runOnce(path, asText);
     }
@@ -172,7 +223,9 @@ export class Channel {
 }
 
 /** weibo.com's API; idles on a plain text file, so the web view runs none of weibo.com's app. */
-export const weibo = new Channel(`${WEIBO_ORIGIN}/robots.txt`);
+export const weibo = new Channel(`${WEIBO_ORIGIN}/robots.txt`, () =>
+  session() === "login" ? LOGIN_URL : `${WEIBO_ORIGIN}/robots.txt`,
+);
 /** s.weibo.com's search pages; idles on its icon, the one plain file it serves. */
 export const search = new Channel("https://s.weibo.com/favicon.ico");
 

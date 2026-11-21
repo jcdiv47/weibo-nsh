@@ -90,7 +90,9 @@ function Bridge() {
           probe(e.url);
         }}
         onMessage={(e) => weibo.onMessage(e.data)}
-        onError={(e) => problem.set(e.message)}
+        onError={(e) => {
+          if (!weibo.onError(e)) problem.set(e.message);
+        }}
       />
     </View>
   );
@@ -108,6 +110,7 @@ function SearchBridge() {
         onLoadStart={() => search.onLoadStart()}
         onLoad={(e) => search.onLoad(e.url)}
         onMessage={(e) => search.onMessage(e.data)}
+        onError={(e) => search.onError(e)}
       />
     </View>
   );
