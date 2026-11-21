@@ -3,8 +3,6 @@ meta:
 app:
   connecting: "正在连接微博…"
   signing_out: "正在退出登录…"
-  sign_in_title: "登录微博"
-  sign_in_note: "登录状态只保存在本应用的网页视图中；应用不会读取你的密码或 Cookie。"
 common:
   retry: "重试"
   loading: "加载中…"

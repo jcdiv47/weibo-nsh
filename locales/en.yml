@@ -3,8 +3,6 @@ meta:
 app:
   connecting: "Connecting to Weibo…"
   signing_out: "Signing out…"
-  sign_in_title: "Sign in to Weibo"
-  sign_in_note: "The session stays in this app's web view; the app never reads your password or cookies."
 common:
   retry: "Retry"
   loading: "Loading…"

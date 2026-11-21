@@ -16,7 +16,6 @@ import {
   weibo,
 } from "./bridge";
 import { SavedToast } from "./components/FavoriteButton";
-import { Icon } from "./components/Icon";
 import { ImageViewer } from "./components/ImageViewer";
 import { ReplySheet } from "./components/ReplySheet";
 import { Spinner } from "./components/Spinner";
@@ -70,6 +69,11 @@ function Bridge() {
   });
 
   const visible = () => session() === "login" && !signingOut();
+  // Only the sign-in pages are for the eye: the idle page (before them, after a sign-out) and
+  // weibo.com's own app (after a sign-in, until the timeline shows) are not. The startup screen
+  // covers the web view from each page's start, while it still shows the page before, until a
+  // page off weibo.com has loaded.
+  const showPage = signal(false);
   return (
     <View
       class={
@@ -78,15 +82,6 @@ function Bridge() {
           : "pointer-events-none absolute left-0 top-0 h-px w-px opacity-0"
       }
     >
-      <If when={visible()}>
-        <View class="gap-1.5 border-b-[0.5px] border-hairline px-5 pb-4 pt-2">
-          <Text class="text-title font-bold tracking-tight text-ink">{t("app.sign_in_title")}</Text>
-          <View class="flex-row items-start gap-1.5">
-            <Icon name="lock" class="mt-0.5 size-3.5 shrink-0 tint-ink-2" />
-            <Text class="flex-1 text-meta text-ink-2">{t("app.sign_in_note")}</Text>
-          </View>
-        </View>
-      </If>
       <WebView
         ref={(r) => {
           web = r;
@@ -95,8 +90,12 @@ function Bridge() {
         src={BRIDGE_URL}
         userAgent={DESKTOP_UA}
         class="flex-1"
-        onLoadStart={() => weibo.onLoadStart()}
+        onLoadStart={(e) => {
+          showPage.set(false);
+          weibo.onLoadStart();
+        }}
         onLoad={(e) => {
+          showPage.set(!onWeibo(e.url));
           weibo.onLoad(e.url);
           signOutLoaded(e.url);
           probe(e.url);
@@ -108,6 +107,19 @@ function Bridge() {
           else problem.set(e.message);
         }}
       />
+      <If when={visible() && !showPage()}>
+        <Connecting />
+      </If>
+    </View>
+  );
+}
+
+/** The startup screen: a spinner and what the app is doing. */
+function Connecting() {
+  return (
+    <View class="absolute inset-0 items-center justify-center gap-3 bg-ground">
+      <Spinner />
+      <Text class="text-sm text-ink-2">{signingOut() ? t("app.signing_out") : t("app.connecting")}</Text>
     </View>
   );
 }
@@ -148,12 +160,7 @@ function App() {
     <View class="flex-1 bg-ground">
       <If
         when={started()}
-        else={
-          <View class="flex-1 items-center justify-center gap-3">
-            <Spinner />
-            <Text class="text-sm text-ink-2">{signingOut() ? t("app.signing_out") : t("app.connecting")}</Text>
-          </View>
-        }
+        else={<Connecting />}
       >
         <NavStack state={nav} class="flex-1">
           {(route) => {
