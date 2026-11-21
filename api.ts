@@ -4,7 +4,7 @@
 // answer goes through a `parse...` function (tested against `tests/fixtures/`), which checks it
 // with `drift.ts`: an answer that no longer fits throws `WeiboChanged` instead of showing nothing.
 import { t } from "nsh/i18n";
-import { get, getSearchPage, NotSignedIn, post } from "./bridge";
+import { get, getSearchPage, NotSignedIn, post, weibo } from "./bridge";
 import { items, list, one, reportDrift, shapes, WeiboChanged } from "./drift";
 import { learnFromHtml, loadEmoticons } from "./emoticons";
 import { clearSaved, loadSaved, save } from "./saved";
@@ -359,8 +359,14 @@ export function parseTimeline(json: any, gid: string): Page<Status> {
   return { items: items(EP, raw.filter((s) => isFromFollowed(s, gid)), shapes.status).map(toStatus), next };
 }
 
-/** Reads weibo.com's list of emoticons (`emoticons.ts`), once. */
-export const emoticonList = () => loadEmoticons(get);
+/** Reads weibo.com's list of emoticons (`emoticons.ts`), once. Not through `get`: a failure here
+ * leaves the codes as text, and must not ask for a sign-in. */
+export const emoticonList = () =>
+  loadEmoticons(async (path) => {
+    const answer = await weibo.run(path);
+    if (answer.status !== 200 || !answer.json) throw new Error(`Weibo answered ${answer.status} for ${path}`);
+    return answer.json;
+  });
 
 /** A post's full text and its links, for `isLongText` posts whose `text` is cut. */
 export async function longText(mblogid: string): Promise<{ text: string; links: Record<string, Link> } | null> {

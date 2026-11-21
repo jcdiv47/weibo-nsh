@@ -39,7 +39,7 @@ export function segments(text: string): Segment[] {
   return out;
 }
 
-const EMOTICON = /\[[^\[\]\n]{1,12}\]/g;
+const EMOTICON = /\[[^\[\]\n]+\]/g;
 
 /** Plain text with its known emoticon codes as their pictures. */
 function Plain(props: { text: string }) {
