@@ -50,6 +50,9 @@ repost:
   action: "Repost"
   also_comment: "Also comment"
 comment:
+  title: "Comment on %{name}'s post"
+  placeholder: "Write a comment…"
+  write: "Write a comment…"
   like: "Like"
   unlike: "Unlike"
 favorite:

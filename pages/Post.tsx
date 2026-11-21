@@ -1,7 +1,7 @@
 // A post and, in tabs under it, its reposts, comments and likes: a press on a comment replies to
-// it, one on its replies opens its thread.
+// it, one on its replies opens its thread. A bar at the bottom comments on the post.
 // A post the app has not got (one a "微博正文" link points at) loads by its id first.
-import { computed, List, signal, Text, View } from "nsh";
+import { computed, List, safeArea, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
@@ -12,7 +12,7 @@ import { FavoriteButton } from "../components/FavoriteButton";
 import { Icon } from "../components/Icon";
 import { Page } from "../components/Header";
 import { Spinner } from "../components/Spinner";
-import { openReply, openRepost } from "../components/ReplySheet";
+import { openComment, openReply, openRepost } from "../components/ReplySheet";
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
@@ -131,51 +131,80 @@ function PostBody(props: { status: Status }) {
       ),
     );
 
+  // A comment sent from here goes at the top of the comments, and the tab shows them.
+  const commented = (c: Comment | null) => {
+    full.set({ ...full(), comments: full().comments + 1 });
+    if (c) feeds.comments.update((list) => [c, ...list]);
+    open("comments");
+  };
+
   return (
-    <List
-      each={rows()}
-      keyExtractor={(r) => r.id}
-      estimatedItemSize={tab() === "likes" ? 52 : 96}
-      onLoadMore={() => feed().more()}
-      header={
-        <View>
-          <StatusCard status={full()} full />
-          <Tabs status={full()} tab={tab()} onTab={open} />
-          <SavedNotice at={feed().savedAt()} failed={!!feed().error()} onRetry={() => feed().more()} />
-        </View>
-      }
-      footer={
-        <FeedFooter
-          loading={feed().loading()}
-          error={feed().error()}
-          done={feed().done()}
-          empty={!rows().length}
-          onRetry={() => feed().more()}
-        />
-      }
-      class="flex-1"
+    <View class="flex-1">
+      <List
+        each={rows()}
+        keyExtractor={(r) => r.id}
+        estimatedItemSize={tab() === "likes" ? 52 : 96}
+        onLoadMore={() => feed().more()}
+        header={
+          <View>
+            <StatusCard status={full()} full />
+            <Tabs status={full()} tab={tab()} onTab={open} />
+            <SavedNotice at={feed().savedAt()} failed={!!feed().error()} onRetry={() => feed().more()} />
+          </View>
+        }
+        footer={
+          <FeedFooter
+            loading={feed().loading()}
+            error={feed().error()}
+            done={feed().done()}
+            empty={!rows().length}
+            onRetry={() => feed().more()}
+          />
+        }
+        class="flex-1"
+      >
+        {/* Rows are recycled across tabs: the row's kind is read again with each item it shows. */}
+        {(r) => (
+          <If
+            when={commentOf(r())}
+            else={
+              <If when={repostOf(r())} else={<If when={likeOf(r())}>{(u) => <LikeRow user={u()} />}</If>}>
+                {(s) => <RepostRow repost={s()} />}
+              </If>
+            }
+          >
+            {(c) => (
+              <CommentRow
+                comment={c()}
+                onReply={() => openReply(full(), c(), sent(c()))}
+                onRepost={() => openRepost(full(), c())}
+                onReplies={() => openReplies(full(), c())}
+              />
+            )}
+          </If>
+        )}
+      </List>
+      <CommentBar onPress={() => openComment(full(), commented)} />
+    </View>
+  );
+}
+
+/** "Write a comment…", under the list: opens the box that comments on the post. */
+function CommentBar(props: { onPress: () => void }) {
+  return (
+    <View
+      class="border-t-[0.5px] border-hairline bg-ground px-4 pt-2"
+      style={{ paddingBottom: safeArea().bottom + 8 }}
     >
-      {/* Rows are recycled across tabs: the row's kind is read again with each item it shows. */}
-      {(r) => (
-        <If
-          when={commentOf(r())}
-          else={
-            <If when={repostOf(r())} else={<If when={likeOf(r())}>{(u) => <LikeRow user={u()} />}</If>}>
-              {(s) => <RepostRow repost={s()} />}
-            </If>
-          }
-        >
-          {(c) => (
-            <CommentRow
-              comment={c()}
-              onReply={() => openReply(full(), c(), sent(c()))}
-              onRepost={() => openRepost(full(), c())}
-              onReplies={() => openReplies(full(), c())}
-            />
-          )}
-        </If>
-      )}
-    </List>
+      <Button
+        accessibilityLabel={t("comment.write")}
+        onPress={props.onPress}
+        class="h-9 flex-row items-center gap-2 rounded-full bg-well px-3.5 active:opacity-60"
+      >
+        <Icon name="pencil" class="size-4 tint-ink-3" />
+        <Text class="flex-1 text-sm leading-[18px] text-ink-3">{t("comment.write")}</Text>
+      </Button>
+    </View>
   );
 }
 

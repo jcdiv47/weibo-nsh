@@ -443,6 +443,22 @@ export async function replyComment(status: Status, comment: Comment, text: strin
   return parseReply(json);
 }
 
+/**
+ * Comments on the post itself, as weibo.com's comment box under a post does.
+ * Returns the comment when Weibo answers with it. `alsoRepost`: repost the post with it too (同时转发).
+ */
+export async function commentPost(status: Status, text: string, alsoRepost = false): Promise<Comment | null> {
+  const json = await post("/ajax/comments/create", {
+    id: status.id,
+    comment: text,
+    pic_id: "",
+    is_repost: alsoRepost ? "1" : "0",
+    comment_ori: "0",
+    is_comment: "0",
+  });
+  return parseReply(json);
+}
+
 /** Likes a comment, or takes the like back, as weibo.com's comment like button does. */
 export async function likeComment(comment: Comment, like: boolean): Promise<void> {
   await post(`/ajax/statuses/${like ? "updateLike" : "destroyLike"}`, { object_id: comment.id, object_type: "comment" });

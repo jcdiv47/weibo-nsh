@@ -12,7 +12,8 @@ What it does now:
 - **Post page** with its full text (`/ajax/statuses/longtext`) and, in three tabs under it, its
   reposts (`/ajax/statuses/repostTimeline`), comments (`/ajax/statuses/buildComments`, the tab
   it opens on) and who liked it (`/ajax/statuses/likeShow`); a tab loads its list when first
-  opened. A press on a comment opens a reply box over the keyboard
+  opened. A "Write a comment…" bar at the bottom comments on the post itself
+  (`/ajax/comments/create`); the comment goes to the top of the comments. A press on a comment opens a reply box over the keyboard
   (`/ajax/comments/reply`); a press on its replies opens its thread, "N replies", where a press on
   the comment or any reply answers it. Under each comment, a like (`/ajax/statuses/updateLike`,
   `destroyLike`, with `object_type=comment`) and a repost (`/ajax/statuses/normal_repost` with its

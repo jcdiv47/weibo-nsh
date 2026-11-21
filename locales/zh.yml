@@ -50,6 +50,9 @@ repost:
   action: "转发"
   also_comment: "同时评论"
 comment:
+  title: "评论 %{name} 的微博"
+  placeholder: "写评论…"
+  write: "写评论…"
   like: "赞"
   unlike: "取消赞"
 favorite:
