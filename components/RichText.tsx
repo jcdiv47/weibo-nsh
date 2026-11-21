@@ -1,11 +1,11 @@
 // Post and comment text, as weibo.com shows it: `@name` mentions link to their profiles,
 // `#topics#` to their posts, short links show what they stand for ("网页链接", "xxx的微博视频")
 // and open it: the post's video in the player, a Weibo post ("微博正文") on its page in the app,
-// anything else in the browser. Emoticon codes ("[允悲]") show as their pictures, once known
+// anything else in the browser. "图一", "图2" open the post's picture they name. Emoticon codes ("[允悲]") show as their pictures, once known
 // (`emoticons.ts`), a little taller than the text around them.
 import { Image, openUrl, Text } from "nsh";
 import { t } from "nsh/i18n";
-import { type Link, postIdOf } from "../api";
+import { type Link, postIdOf, type Status } from "../api";
 import { emoticons } from "../emoticons";
 import { openPostById, openProfileByName, openTopic } from "../nav";
 import { Icon } from "./Icon";
@@ -33,6 +33,39 @@ export function segments(text: string): Segment[] {
     if (m[1] && at > 0 && NAME_CHAR.test(text[at - 1])) continue;
     if (at > last) out.push(text.slice(last, at));
     out.push(m[1] ? { mention: m[1] } : m[2] ? { url: m[2] } : { topic: m[3] });
+    last = at + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+// "图一", "图十二", "图 3": a picture of the post, by its place. Not "地图一", "试图二", where 图 ends a word.
+const PICTURE_REF = /图(?:([一二三四五六七八九十]{1,3})|\s?(\d{1,2}))/g;
+const NOT_REF_BEFORE = new Set([..."地试企意构视版蓝拼宏草制绘作插贴截"]);
+const DIGIT: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+
+/** "一" 1, "十" 10, "十二" 12, "二十" 20; undefined for anything else ("一二"). */
+function chineseNumber(s: string): number | undefined {
+  if (s.length === 1) return s === "十" ? 10 : DIGIT[s];
+  const ten = s.indexOf("十");
+  if (ten < 0 || s.indexOf("十", ten + 1) >= 0) return undefined;
+  const tens = ten === 0 ? 1 : ten === 1 ? DIGIT[s[0]] : undefined;
+  const ones = ten === s.length - 1 ? 0 : ten === s.length - 2 ? DIGIT[s[s.length - 1]] : undefined;
+  return tens && ones !== undefined ? tens * 10 + ones : undefined;
+}
+
+/** Plain text with its picture references ("图一") apart, as 0-based indices under `count`. */
+export function pictureRefs(text: string, count: number): (string | { pic: number; label: string })[] {
+  if (!count || !text.includes("图")) return [text];
+  const out: (string | { pic: number; label: string })[] = [];
+  let last = 0;
+  for (const m of text.matchAll(PICTURE_REF)) {
+    const at = m.index!;
+    if (at > 0 && NOT_REF_BEFORE.has(text[at - 1])) continue;
+    const n = m[1] ? chineseNumber(m[1]) : Number(m[2]);
+    if (!n || n > count) continue;
+    if (at > last) out.push(text.slice(last, at));
+    out.push({ pic: n - 1, label: m[0] });
     last = at + m[0].length;
   }
   if (last < text.length) out.push(text.slice(last));
@@ -115,12 +148,29 @@ export function RichText(props: {
   /** Ends the text with this in the link color, not itself a link: "全文" after a cut long post,
    * whose card opens the post on a press anyway. */
   more?: string;
+  /** The post's pictures: "图一", "图2" in the text open them. */
+  pics?: Status["pics"];
 }) {
+  const plain = (text: string) =>
+    pictureRefs(text, props.pics?.length ?? 0).map((p) =>
+      typeof p === "string" ? (
+        <Plain text={p} />
+      ) : (
+        <Text
+          role="link"
+          accessibilityLabel={t("post.picture", { i: p.pic + 1, n: props.pics!.length })}
+          onPress={() => openViewer(props.pics!, p.pic)}
+          class={`${LINK_CLASS} active:opacity-60`}
+        >
+          {p.label}
+        </Text>
+      ),
+    );
   return (
     <Text class={props.class}>
       {segments(props.text).map((s) =>
         typeof s === "string" ? (
-          <Plain text={s} />
+          plain(s)
         ) : "url" in s ? (
           props.hidePictureLinks && props.links?.[s.url]?.pics?.length ? (
             ""
