@@ -104,7 +104,10 @@ function Bridge() {
         onError={(e) => {
           if (weibo.onError(e)) return;
           if (signingOut()) signOutLoaded(null);
-          else problem.set(e.message);
+          else {
+            problem.set(e.message);
+            showPage.set(true); // What the web view shows now (the form, or its error) beats a spinner.
+          }
         }}
       />
       <If when={visible() && !showPage()}>
