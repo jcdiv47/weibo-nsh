@@ -40,8 +40,8 @@ export function segments(text: string): Segment[] {
 }
 
 // "图一", "图十二", "图 3": a picture of the post, by its place. Not "地图一", "试图二", where 图 ends a word.
-const PICTURE_REF = /图(?:([一二三四五六七八九十]{1,3})|\s?(\d{1,2}))/g;
-const NOT_REF_BEFORE = new Set([..."地试企意构视版蓝拼宏草制绘作插贴截"]);
+const PICTURE_REF = /图(?:([一二三四五六七八九十]+)|\s?(\d+))/g;
+const NOT_REF_BEFORE = new Set([..."地试企意构视版蓝拼宏草绘作插贴截"]);
 const DIGIT: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
 
 /** "一" 1, "十" 10, "十二" 12, "二十" 20; undefined for anything else ("一二"). */

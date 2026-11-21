@@ -12,6 +12,8 @@ test("Chinese and Arabic numbers name pictures, 0-based", () => {
   expect(pictureRefs("见图3和图 4", 9)).toEqual(["见", { pic: 2, label: "图3" }, "和", { pic: 3, label: "图 4" }]);
   expect(pictureRefs("图十二", 18)).toEqual([{ pic: 11, label: "图十二" }]);
   expect(pictureRefs("图二十", 18)).toEqual(["图二十"]);
+  expect(pictureRefs("图100", 18)).toEqual(["图100"]);
+  expect(pictureRefs("我重新绘制图一", 6)).toEqual(["我重新绘制", { pic: 0, label: "图一" }]);
 });
 
 test("references past the pictures, words ending in 图, and posts without pictures stay text", () => {
