@@ -5,7 +5,7 @@ import { Image, type JSX, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import type { Pic, Status, User, VerifiedKind, Video } from "../api";
 import { count, relativeTime } from "../format";
-import { openEdits, openPost, openProfile } from "../nav";
+import { openEdits, opening, openPost, openProfile } from "../nav";
 import { Icon, type IconName } from "./Icon";
 import { openViewer } from "./ImageViewer";
 import { RichText } from "./RichText";
@@ -194,7 +194,7 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
     <View
       role={props.full ? undefined : "button"}
       onPress={props.full ? undefined : () => openPost(s())}
-      class={`gap-2.5 bg-ground px-4 pb-3 ${props.full ? "pt-1" : "border-b-[0.5px] border-hairline pt-3.5 active:bg-well"}`}
+      class={`gap-2.5 px-4 pb-3 ${props.full ? "bg-ground pt-1" : `border-b-[0.5px] border-hairline pt-3.5 active:bg-well ${opening() === s().id ? "bg-well" : "bg-ground"}`}`}
     >
       <Byline user={s().user} meta={meta()} edited={!props.full && !!s().editCount} />
       <Body status={s()} lines={props.full ? undefined : 8} selectable={props.full} />
