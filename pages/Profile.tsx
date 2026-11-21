@@ -14,7 +14,7 @@ import {
   unfollow,
   userPosts,
 } from "../api";
-import { NotSignedIn } from "../bridge";
+import { NotSignedIn, signOut } from "../bridge";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
 import { GlassButton, Page } from "../components/Header";
 import { PopMenu } from "../components/PopMenu";
@@ -29,6 +29,19 @@ import { openPeople } from "../nav";
 import { loadSaved, save } from "../saved";
 
 type Action = "follow" | "unfollow" | "block" | "unblock";
+
+/** Asks first, then signs out (the timeline's menu and my profile's). */
+export async function confirmSignOut() {
+  const { action } = await AlertDialog.show({
+    title: t("menu.sign_out_title"),
+    description: t("menu.sign_out_description"),
+    actions: [
+      { id: "cancel", label: t("common.cancel"), role: "cancel" },
+      { id: "ok", label: t("menu.sign_out"), role: "destructive" },
+    ],
+  });
+  if (action === "ok") signOut();
+}
 
 const confirmations: Partial<Record<Action, (name: string) => { title: string; description: string; label: string }>> = {
   unfollow: (name) => ({
@@ -274,10 +287,21 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
   const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : "me" in props ? t("profile.me") : t("profile.title"));
 
   const actions = createActions(data, loadProfile);
-  // The header's menu: block (unblock is a button of its own while blocked). Not on mine.
+  // The header's menu: block (unblock is a button of its own while blocked); on mine, sign out.
   const more = () => {
     const d = data();
-    if (!d || mine() || d.block.blocked === true) return undefined;
+    if (mine())
+      return (
+        <PopMenu
+          trigger={
+            <GlassButton label={t("profile.more")}>
+              <Icon name="dots" class="size-6 tint-ink" />
+            </GlassButton>
+          }
+          items={[{ label: t("menu.sign_out"), icon: "logout", danger: true, onSelect: confirmSignOut }]}
+        />
+      );
+    if (!d || d.block.blocked === true) return undefined;
     return (
       <PopMenu
         trigger={
@@ -291,7 +315,8 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
   };
 
   return (
-    <Page title={title()} right={more()}>
+    // The name is the header's below: none in the bar.
+    <Page title={title()} hideTitle right={more()}>
       <List
         each={blocked() ? [] : posts.items()}
         keyExtractor={(s) => s.id}

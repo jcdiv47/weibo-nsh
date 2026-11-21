@@ -4,7 +4,17 @@ import { effect, mount, signal, Text, View, WebView, type WebViewRef } from "nsh
 import { NavStack } from "nsh/base";
 import { t } from "nsh/i18n";
 import { emoticonList, forgetAccount } from "./api";
-import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from "./bridge";
+import {
+  DESKTOP_UA,
+  get,
+  LOGIN_URL,
+  NotSignedIn,
+  search,
+  session,
+  signingOut,
+  signOutLoaded,
+  weibo,
+} from "./bridge";
 import { SavedToast } from "./components/FavoriteButton";
 import { Icon } from "./components/Icon";
 import { ImageViewer } from "./components/ImageViewer";
@@ -87,11 +97,14 @@ function Bridge() {
         onLoadStart={() => weibo.onLoadStart()}
         onLoad={(e) => {
           weibo.onLoad(e.url);
+          signOutLoaded(e.url);
           probe(e.url);
         }}
         onMessage={(e) => weibo.onMessage(e.data)}
         onError={(e) => {
-          if (!weibo.onError(e)) problem.set(e.message);
+          if (weibo.onError(e)) return;
+          if (signingOut()) signOutLoaded(null);
+          else problem.set(e.message);
         }}
       />
     </View>
@@ -117,12 +130,18 @@ function SearchBridge() {
 }
 
 function App() {
-  // Pages mount once the first sign-in succeeds and stay through later re-sign-ins.
+  // Pages mount once the first sign-in succeeds and stay through later re-sign-ins (a session
+  // that ran out). A sign-out ends them: whoever signs in next starts on a timeline of their own.
   const started = signal(false);
   effect(() => {
     if (session() !== "ready") return;
     started.set(true);
     emoticonList();
+  });
+  effect(() => {
+    if (!signingOut()) return;
+    started.set(false);
+    nav.setRoutes([{ name: "timeline" }]);
   });
   return (
     <View class="flex-1 bg-ground">
@@ -131,7 +150,7 @@ function App() {
         else={
           <View class="flex-1 items-center justify-center gap-3">
             <Spinner />
-            <Text class="text-sm text-ink-2">{t("app.connecting")}</Text>
+            <Text class="text-sm text-ink-2">{signingOut() ? t("app.signing_out") : t("app.connecting")}</Text>
           </View>
         }
       >

@@ -148,6 +148,11 @@ export class Channel {
     web.load({ src: this.revivalUrl() });
   }
 
+  /** Loads `src` in the web view; requests wait until it is back on the idle page. */
+  load(src: string) {
+    this.web?.load({ src });
+  }
+
   /** The web view's `onMessage`: replies of the postMessage transport. */
   onMessage(data: string) {
     let reply: { id?: number; v?: PageAnswer; error?: string };
@@ -228,6 +233,43 @@ export const weibo = new Channel(`${WEIBO_ORIGIN}/robots.txt`, () =>
 );
 /** s.weibo.com's search pages; idles on its icon, the one plain file it serves. */
 export const search = new Channel("https://s.weibo.com/favicon.ico");
+
+/**
+ * weibo.com's own sign-out, as its menu's 退出 runs it: Weibo ends the session and clears its
+ * cookies, which the app cannot touch itself.
+ */
+const LOGOUT_URL = `${WEIBO_ORIGIN}/logout.php?backurl=${encodeURIComponent("/")}`;
+/** How long the sign-out page may take before the app asks for a sign-in anyway. */
+const SIGN_OUT_WAIT_MS = 15_000;
+
+/** True from a sign-out until its page has run: the pages are gone, the sign-in page next. */
+export const signingOut = signal(false);
+let signOutTimer: number | undefined;
+
+/** Signs out: runs weibo.com's sign-out page in the bridge, then asks for a sign-in. */
+export function signOut() {
+  if (signingOut() || session() !== "ready") return;
+  signingOut.set(true);
+  signOutTimer = setTimeout(signedOutNow, SIGN_OUT_WAIT_MS);
+  weibo.load(LOGOUT_URL);
+}
+
+/**
+ * The bridge's `onLoad` and `onError` while signing out: a page past the sign-out page (where it
+ * sends the browser after) means it ran. Either way the sign-in page comes next: if the session
+ * somehow survived, signing in shows it.
+ */
+export function signOutLoaded(url: string | null) {
+  if (!signingOut() || (url !== null && /\/logout/i.test(url))) return;
+  signedOutNow();
+}
+
+function signedOutNow() {
+  if (!signingOut()) return;
+  clearTimeout(signOutTimer);
+  signingOut.set(false);
+  session.set("login");
+}
 
 const signedOut = (answer: PageAnswer) =>
   /passport\.weibo|login\.sina/.test(answer.url) || answer.status === 401 || answer.status === 403;

@@ -46,13 +46,16 @@ export function BackButton() {
   );
 }
 
-/** The bar under the status bar: back, the title centered over the whole width, an action. */
-export function Header(props: { title: string; right?: JSX.Element }) {
+/** The bar under the status bar: back, the title centered over the whole width (unless
+ * `hideTitle`), an action. */
+export function Header(props: { title: string; hideTitle?: boolean; right?: JSX.Element }) {
   return (
     <View class="h-[54px] flex-row items-center justify-between px-4">
-      <View class="pointer-events-none absolute inset-y-0 left-20 right-20 items-center justify-center">
-        <Text class="text-center text-headline font-semibold text-ink line-clamp-1">{props.title}</Text>
-      </View>
+      <If when={!props.hideTitle}>
+        <View class="pointer-events-none absolute inset-y-0 left-20 right-20 items-center justify-center">
+          <Text class="text-center text-headline font-semibold text-ink line-clamp-1">{props.title}</Text>
+        </View>
+      </If>
       <If when={nav.routes().length > 1} else={<View />}>
         <BackButton />
       </If>
@@ -76,13 +79,15 @@ export function Page(props: {
   title: string;
   /** The timeline's large title. */
   large?: boolean;
+  /** No title in the header (the page names itself below it); the page keeps it for the system. */
+  hideTitle?: boolean;
   right?: JSX.Element;
   children?: JSX.Element;
 }) {
   return (
     <NavPage title={props.title} headerVisible={false} class="bg-ground">
       <View class="flex-1 bg-ground pt-[env(safe-area-inset-top)]">
-        <If when={props.large} else={<Header title={props.title} right={props.right} />}>
+        <If when={props.large} else={<Header title={props.title} hideTitle={props.hideTitle} right={props.right} />}>
           <LargeHeader title={props.title} right={props.right} />
         </If>
         {props.children}

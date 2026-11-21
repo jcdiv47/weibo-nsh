@@ -2,6 +2,7 @@ meta:
   lang: "en"
 app:
   connecting: "Connecting to Weibo…"
+  signing_out: "Signing out…"
   sign_in_title: "Sign in to Weibo"
   sign_in_note: "The session stays in this app's web view; the app never reads your password or cookies."
 common:
@@ -117,6 +118,9 @@ saved:
 menu:
   my_profile: "My profile"
   my_favorites: "My favorites"
+  sign_out: "Sign out"
+  sign_out_title: "Sign out of Weibo?"
+  sign_out_description: "Your saved posts and profiles are cleared from this device."
 compose:
   mention: "Mention"
   topic: "Topic"
