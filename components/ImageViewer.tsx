@@ -4,7 +4,7 @@
 // It is an overlay over the app's pages, not a `Dialog`: a native modal ignores touches while it
 // comes in and goes, so a drag to close right after opening (or a tap on the feed right after
 // closing) was lost. Here the fades are the app's own and touches work throughout them.
-import { createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
+import { cleanup, createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
 import { BackHandler } from "nsh/mobile";
 import type { Status } from "../api";
 
@@ -74,6 +74,8 @@ function ZoomPage(props: { src: string }) {
   const zoomedIn = signal(false);
   let lastTap = 0;
   let pending: number | undefined;
+  // A tap's close still pending as the viewer goes must not close the next one opened.
+  cleanup(() => clearTimeout(pending));
   return (
     <Scroll
       ref={(r) => (scroll = r as ScrollRef)}
