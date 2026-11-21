@@ -3,7 +3,7 @@
 import { effect, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { NavStack } from "nsh/base";
 import { t } from "nsh/i18n";
-import { forgetAccount } from "./api";
+import { emoticonList, forgetAccount } from "./api";
 import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from "./bridge";
 import { SavedToast } from "./components/FavoriteButton";
 import { Icon } from "./components/Icon";
@@ -117,7 +117,9 @@ function App() {
   // Pages mount once the first sign-in succeeds and stay through later re-sign-ins.
   const started = signal(false);
   effect(() => {
-    if (session() === "ready") started.set(true);
+    if (session() !== "ready") return;
+    started.set(true);
+    emoticonList();
   });
   return (
     <View class="flex-1 bg-ground">

@@ -58,7 +58,8 @@
     "network": {
       "hosts": [
         "*.sinaimg.cn",
-        "*.weibocdn.com"
+        "*.weibocdn.com",
+        "face.t.sinajs.cn"
       ]
     },
     "statusBar": true,

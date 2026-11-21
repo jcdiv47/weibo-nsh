@@ -1,10 +1,12 @@
 // Post and comment text, as weibo.com shows it: `@name` mentions link to their profiles,
 // `#topics#` to their posts, short links show what they stand for ("网页链接", "xxx的微博视频")
 // and open it: the post's video in the player, a Weibo post ("微博正文") on its page in the app,
-// anything else in the browser.
-import { openUrl, Text } from "nsh";
+// anything else in the browser. Emoticon codes ("[允悲]") show as their pictures, once known
+// (`emoticons.ts`), a little taller than the text around them.
+import { Image, openUrl, Text } from "nsh";
 import { t } from "nsh/i18n";
 import { type Link, postIdOf } from "../api";
+import { emoticons } from "../emoticons";
 import { openPostById, openProfileByName, openTopic } from "../nav";
 import { Icon } from "./Icon";
 import { openViewer } from "./ImageViewer";
@@ -35,6 +37,40 @@ export function segments(text: string): Segment[] {
   }
   if (last < text.length) out.push(text.slice(last));
   return out;
+}
+
+const EMOTICON = /\[[^\[\]\n]+\]/g;
+
+/** Plain text with its known emoticon codes as their pictures. */
+function Plain(props: { text: string }) {
+  const parts = () => {
+    const known = emoticons();
+    if (!props.text.includes("[")) return [props.text];
+    const out: (string | { code: string; src: string })[] = [];
+    let last = 0;
+    for (const m of props.text.matchAll(EMOTICON)) {
+      const src = known[m[0]];
+      if (!src) continue;
+      if (m.index! > last) out.push(props.text.slice(last, m.index));
+      out.push({ code: m[0], src });
+      last = m.index! + m[0].length;
+    }
+    if (last < props.text.length) out.push(props.text.slice(last));
+    return out;
+  };
+  return (
+    <>
+      {parts().map((p) =>
+        typeof p === "string" ? (
+          p
+        ) : (
+          // A little taller than the letters (the text runs 13 to 16 points), as weibo.com draws them;
+          // `middle` keeps the line's height.
+          <Image src={p.src} accessibilityLabel={p.code} style={{ width: 18, height: 18, verticalAlign: "middle" }} />
+        ),
+      )}
+    </>
+  );
 }
 
 function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
@@ -81,7 +117,7 @@ export function RichText(props: {
     <Text class={props.class}>
       {segments(props.text).map((s) =>
         typeof s === "string" ? (
-          s
+          <Plain text={s} />
         ) : "url" in s ? (
           props.hidePictureLinks && props.links?.[s.url]?.pics?.length ? (
             ""
