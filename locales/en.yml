@@ -34,6 +34,7 @@ post:
   edit_history: "Edited · history"
   region: "Posted from %{region}"
   comment_region: "From %{region}"
+  full_text: "More"
 replies:
   title: "%{n} replies"
 reply:

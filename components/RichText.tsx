@@ -112,6 +112,9 @@ export function RichText(props: {
   plainMentions?: boolean;
   /** Leaves out picture links ("查看图片"): the pictures show beside the text. */
   hidePictureLinks?: boolean;
+  /** Ends the text with this in the link color, not itself a link: "全文" after a cut long post,
+   * whose card opens the post on a press anyway. */
+  more?: string;
 }) {
   return (
     <Text class={props.class}>
@@ -144,6 +147,14 @@ export function RichText(props: {
           </Text>
         ),
       )}
+      <If when={props.more}>
+        {(more) => (
+          <>
+            {/[.…]$/.test(props.text.trimEnd()) ? " " : "… "}
+            <Text class={LINK_CLASS}>{more()}</Text>
+          </>
+        )}
+      </If>
     </Text>
   );
 }
