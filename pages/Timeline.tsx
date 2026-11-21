@@ -1,27 +1,38 @@
-// The timeline of followed accounts: pull to refresh, more as it scrolls.
-import { Image, List, signal, View } from "nsh";
-import { Button, NavPage } from "nsh/base";
+// The timeline of followed accounts: pull to refresh, more as it scrolls. My picture at the top
+// right opens a menu: my profile, my favorites.
+import { Image, List, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import { friendsTimeline, myUid, profile, type User } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
-import { Header } from "../components/Header";
+import { GlassButton, Page } from "../components/Header";
+import { PopMenu } from "../components/PopMenu";
 import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
-import { openMe } from "../nav";
+import { openFavorites, openMe } from "../nav";
 
-// My avatar in the header: opens my own profile.
-function MeButton() {
+// My picture in the header (a "我" until it loads): opens the menu.
+function MeMenu() {
   const me = signal<User | null>(null);
   myUid()
     .then(profile)
     .then((p) => me.set(p.user), () => {});
   return (
-    <Button accessibilityLabel={t("profile.me")} onPress={openMe} class="active:opacity-70">
-      <View class="size-8 overflow-hidden rounded-full bg-muted">
-        <If when={me()?.avatar}>{(src) => <Image src={src()} class="size-full object-cover" />}</If>
-      </View>
-    </Button>
+    <PopMenu
+      trigger={
+        <GlassButton label={t("profile.me")} size="size-10">
+          <View class="size-8 items-center justify-center overflow-hidden rounded-full bg-weibo">
+            <If when={me()?.avatar} else={<Text class="text-sm font-semibold text-white">{t("profile.me")}</Text>}>
+              {(src) => <Image src={src()} class="size-full object-cover" />}
+            </If>
+          </View>
+        </GlassButton>
+      }
+      items={[
+        { label: t("menu.my_profile"), icon: "user", onSelect: openMe },
+        { label: t("menu.my_favorites"), icon: "bookmark", onSelect: openFavorites },
+      ]}
+    />
   );
 }
 
@@ -29,12 +40,7 @@ export function Timeline() {
   const feed = createFeed(friendsTimeline, { saveAs: () => "timeline" });
   feed.more();
   return (
-    <NavPage
-      title={t("timeline.title")}
-      headerLeft={<MeButton />}
-      ios={{ headerLeftSymbol: "person.crop.circle" }}
-      header={<Header title={t("timeline.title")} left={<MeButton />} />}
-    >
+    <Page title={t("timeline.title")} large right={<MeMenu />}>
       <List
         each={feed.items()}
         keyExtractor={(s) => s.id}
@@ -56,6 +62,6 @@ export function Timeline() {
       >
         {(status) => <StatusCard status={status()} />}
       </List>
-    </NavPage>
+    </Page>
   );
 }

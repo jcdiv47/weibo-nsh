@@ -5,8 +5,11 @@ import { NavStack } from "nsh/base";
 import { t } from "nsh/i18n";
 import { forgetAccount } from "./api";
 import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from "./bridge";
+import { SavedToast } from "./components/FavoriteButton";
+import { Icon } from "./components/Icon";
 import { ImageViewer } from "./components/ImageViewer";
 import { ReplySheet } from "./components/ReplySheet";
+import { Spinner } from "./components/Spinner";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { nav } from "./nav";
 import { Edits } from "./pages/Edits";
@@ -60,16 +63,17 @@ function Bridge() {
     <View
       class={
         visible()
-          ? "absolute inset-0 bg-background pt-[env(safe-area-inset-top)]"
+          ? "absolute inset-0 bg-ground pt-[env(safe-area-inset-top)]"
           : "pointer-events-none absolute left-0 top-0 h-px w-px opacity-0"
       }
     >
       <If when={visible()}>
-        <View class="gap-1 border-b border-border px-4 py-3">
-          <Text class="font-semibold text-foreground">{t("app.sign_in_title")}</Text>
-          <Text class="text-xs text-muted-foreground">
-            {t("app.sign_in_note")}
-          </Text>
+        <View class="gap-1.5 border-b-[0.5px] border-hairline px-5 pb-4 pt-2">
+          <Text class="text-title font-bold tracking-tight text-ink">{t("app.sign_in_title")}</Text>
+          <View class="flex-row items-start gap-1.5">
+            <Icon name="lock" class="mt-0.5 size-3.5 shrink-0 tint-ink-2" />
+            <Text class="flex-1 text-meta text-ink-2">{t("app.sign_in_note")}</Text>
+          </View>
         </View>
       </If>
       <WebView
@@ -116,12 +120,13 @@ function App() {
     if (session() === "ready") started.set(true);
   });
   return (
-    <View class="flex-1 bg-background">
+    <View class="flex-1 bg-ground">
       <If
         when={started()}
         else={
-          <View class="flex-1 items-center justify-center">
-            <Text class="text-muted-foreground">{t("app.connecting")}</Text>
+          <View class="flex-1 items-center justify-center gap-3">
+            <Spinner />
+            <Text class="text-sm text-ink-2">{t("app.connecting")}</Text>
           </View>
         }
       >
@@ -133,7 +138,15 @@ function App() {
               case "post":
                 return <Post id={route.id} />;
               case "people":
-                return <People uid={route.uid} kind={route.kind} />;
+                return (
+                  <People
+                    uid={route.uid}
+                    kind={route.kind}
+                    name={route.userName}
+                    followingCount={route.followingCount}
+                    followersCount={route.followersCount}
+                  />
+                );
               case "topic":
                 return <Topic topic={route.topic} />;
               case "profile":
@@ -148,6 +161,7 @@ function App() {
           }}
         </NavStack>
       </If>
+      <SavedToast />
       <ReplySheet />
       <ImageViewer />
       <VideoPlayer />

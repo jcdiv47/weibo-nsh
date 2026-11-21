@@ -4,6 +4,37 @@
   "version": "0.1.0",
   "build": 1,
   "appearance": "system",
+  "theme": "theme.json",
+  "tailwind": {
+    "fontSize": {
+      "fine": 11,
+      "meta": [
+        13,
+        1.3846153846
+      ],
+      "body": [
+        15,
+        1.6
+      ],
+      "headline": [
+        17,
+        1.2941176471
+      ],
+      "title": [
+        22,
+        1.2727272727
+      ],
+      "large-title": [
+        34,
+        1.2058823529
+      ]
+    },
+    "radius": {
+      "pic": 6,
+      "well": 10,
+      "sheet": 28
+    }
+  },
   "window": {
     "title": "Weibo",
     "defaultSize": {

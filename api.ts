@@ -428,15 +428,15 @@ export async function replies(comment: Comment, statusUid: string, maxId?: strin
 /**
  * Replies to a comment, or to a reply in its thread (`comment`), as weibo.com's reply box does:
  * Weibo files it in the comment's thread and, for a reply, prefixes "回复@name:" itself.
- * Returns the reply when Weibo answers with it.
+ * Returns the reply when Weibo answers with it. `alsoRepost`: repost the post with it too (同时转发).
  */
-export async function replyComment(status: Status, comment: Comment, text: string): Promise<Comment | null> {
+export async function replyComment(status: Status, comment: Comment, text: string, alsoRepost = false): Promise<Comment | null> {
   const json = await post("/ajax/comments/reply", {
     id: status.id,
     cid: comment.id,
     comment: text,
     pic_id: "",
-    is_repost: "0",
+    is_repost: alsoRepost ? "1" : "0",
     comment_ori: "0",
     is_comment: "0",
   });
@@ -464,8 +464,9 @@ export function repostText(status: Status, comment: Comment, parent?: Comment): 
     .join(" ");
 }
 
-/** Reposts the post (`status`) with a comment on it quoted in `text`, as weibo.com's repost box for a comment does. */
-export async function repostComment(status: Status, comment: Comment, text: string): Promise<void> {
+/** Reposts the post (`status`) with a comment on it quoted in `text`, as weibo.com's repost box for a
+ * comment does. `alsoComment`: post `text` as a comment on it too (同时评论). */
+export async function repostComment(status: Status, comment: Comment, text: string, alsoComment = false): Promise<void> {
   await post("/ajax/statuses/normal_repost", {
     id: status.id,
     cid: comment.id,
@@ -473,7 +474,7 @@ export async function repostComment(status: Status, comment: Comment, text: stri
     pic_id: "",
     is_repost: "0",
     comment_ori: "0",
-    is_comment: "0",
+    is_comment: alsoComment ? "1" : "0",
   });
 }
 

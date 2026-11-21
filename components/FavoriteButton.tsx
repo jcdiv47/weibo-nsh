@@ -1,10 +1,12 @@
 // Saving a post to my favorites (收藏), or taking it out: a bookmark, filled while it is saved.
-import { signal } from "nsh";
+// Saving one says so in a toast at the bottom, with a way to my favorites.
+import { safeArea, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { favorite, type Status } from "../api";
+import { nav, openFavorites } from "../nav";
+import { GlassButton } from "./Header";
 import { Icon } from "./Icon";
-import { LINK_TINT } from "./RichText";
 
 // Posts saved or taken out here, by id. The lists hold plain objects, a recycled row shows another
 // post, and the same post shows on several pages (the timeline, its own page, my favorites): each
@@ -15,7 +17,7 @@ const pending = new Set<string>();
 export const isFavorited = (s: Status) => changes()[s.id] ?? s.favorited;
 
 /** Saves the post, or takes it out, at once; if Weibo refuses, as it was. */
-async function toggle(s: Status) {
+export async function toggleFavorite(s: Status) {
   if (pending.has(s.id)) return;
   const was = isFavorited(s);
   const show = (v: boolean) => changes.update((m) => ({ ...m, [s.id]: v }));
@@ -24,6 +26,7 @@ async function toggle(s: Status) {
   try {
     await favorite(s, !was);
     s.favorited = !was;
+    if (!was) showSavedToast();
   } catch {
     show(was);
   } finally {
@@ -31,17 +34,48 @@ async function toggle(s: Status) {
   }
 }
 
-export function FavoriteButton(props: { status: Status; class?: string }) {
+/** The post page's header button. */
+export function FavoriteButton(props: { status: Status }) {
   const on = () => isFavorited(props.status);
   return (
-    <Button
-      accessibilityLabel={t(on() ? "favorite.remove" : "favorite.add")}
-      selected={on()}
-      hitSlop={8}
-      onPress={() => toggle(props.status)}
-      class={`active:opacity-60 ${props.class ?? ""}`}
-    >
-      <Icon name={on() ? "bookmark-filled" : "bookmark"} class={`size-4 ${on() ? LINK_TINT : "tint-muted-foreground"}`} />
-    </Button>
+    <GlassButton label={t(on() ? "favorite.remove" : "favorite.add")} selected={on()} onPress={() => toggleFavorite(props.status)}>
+      <Icon name={on() ? "bookmark-filled" : "bookmark"} class={`size-[22px] ${on() ? "tint-weibo" : "tint-ink"}`} />
+    </GlassButton>
+  );
+}
+
+const toast = signal(0);
+let hide: ReturnType<typeof setTimeout> | undefined;
+
+function showSavedToast() {
+  clearTimeout(hide);
+  toast.update((n) => n + 1);
+  hide = setTimeout(() => toast.set(0), 3000);
+}
+
+/** "已收藏 · 查看收藏", for three seconds after a post is saved. One for the app. */
+export function SavedToast() {
+  return (
+    <If when={toast()}>
+      <View
+        role="alert"
+        class="absolute inset-x-4 h-[52px] flex-row items-center gap-2.5 rounded-full bg-toast pl-4 pr-2 backdrop-blur-xl shadow-[0_12px_32px_#00000033]"
+        style={{ bottom: safeArea().bottom + 14 }}
+      >
+        <Icon name="bookmark-filled" class="size-5 tint-weibo" />
+        <Text class="flex-1 text-body leading-5 font-medium text-white">{t("favorite.saved")}</Text>
+        <If when={nav.routes().at(-1)?.name !== "favorites"}>
+          <Button
+            onPress={() => {
+              toast.set(0);
+              openFavorites();
+            }}
+            class="h-9 justify-center rounded-full bg-white/12 px-3.5 active:opacity-70"
+          >
+            <Text class="text-meta font-semibold text-white">{t("favorite.view")}</Text>
+          </Button>
+        </If>
+      </View>
+    </If>
   );
 }

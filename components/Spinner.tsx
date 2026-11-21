@@ -10,7 +10,7 @@ export function Spinner(props: { class?: string }) {
       role="progressbar"
       accessibilityLabel={t("common.loading")}
       style={motion.style}
-      class={`size-6 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground ${props.class ?? ""}`}
+      class={`size-6 rounded-full border-2 border-hairline border-t-weibo ${props.class ?? ""}`}
     />
   );
 }

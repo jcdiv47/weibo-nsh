@@ -1,5 +1,5 @@
-// A post's video full screen, playing with the platform's controls. One player for the app,
-// opened with `openVideo`.
+// A post's video in a sheet, playing with the platform's controls: a swipe down closes it, as the
+// controls' close button does. One player for the app, opened with `openVideo`.
 import { signal, Text, Video, View } from "nsh";
 import { Dialog } from "nsh/base";
 import { t } from "nsh/i18n";
@@ -16,12 +16,12 @@ export function VideoPlayer() {
   return (
     <Dialog
       open={!!shown()}
-      animation="fade"
-      presentation="fullScreen"
+      // A sheet, so a swipe down closes it (`closeOnSwipe`, on by default).
+      presentation="pageSheet"
       statusBar={{ hidden: true, animated: true }}
       onOpenChange={(e) => !e.open && close()}
-      // The player's own close button (the system controls') dismisses the dialog natively, with no
-      // `onOpenChange`: `onClose` hears every way it goes, so the state follows.
+      // The player's own close button (the system controls') dismisses the dialog natively: `onClose`
+      // hears every way it goes, so the state follows and the video stops.
       onClose={() => {
         error.set(null);
         close();
