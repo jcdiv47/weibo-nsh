@@ -5,7 +5,7 @@ import { computed, List, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
-import { type Comment, comments, likes, longText, reposts, type Status, status as loadStatus, type User } from "../api";
+import { type Comment, comments, likes, reposts, type Status, status as loadStatus, type User } from "../api";
 import { CommentBody, CommentFooter, InlineReply } from "../components/CommentBody";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
 import { FavoriteButton } from "../components/FavoriteButton";
@@ -18,7 +18,7 @@ import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
-import { keepPost, openPost, openProfile, openReplies, postById } from "../nav";
+import { keepPost, openPost, openProfile, openReplies, postById, withFullText } from "../nav";
 
 export function Post(props: { id: string }) {
   const cached = postById(props.id);
@@ -34,7 +34,8 @@ export function Post(props: { id: string }) {
   const error = signal<string | null>(null);
   const load = () => {
     error.set(null);
-    loadStatus(props.id).then(
+    // The whole text before the post shows, so that it does not grow under the reader.
+    loadStatus(props.id).then(withFullText).then(
       (s) => {
         keepPost(props.id, s);
         loaded.set(s);
@@ -81,12 +82,8 @@ const likeOf = (r: Row) => ("like" in r ? r.like : undefined);
 function PostBody(props: { status: Status }) {
   const status = props.status;
   const full = signal<Status>(status);
-  if (status.isLongText && status.mblogid) {
-    longText(status.mblogid).then(
-      (t) => t && full.set({ ...status, text: t.text, links: { ...status.links, ...t.links } }),
-      () => {},
-    );
-  }
+  // Opened before its whole text came (`openPost` gave up waiting): it takes the cut text's place.
+  if (status.isLongText) withFullText(status).then((s) => s !== status && full.set(s));
   const feeds = {
     comments: createFeed((cursor?: string) => comments(status, cursor), { saveAs: () => `comments:${status.id}` }),
     // Not saved on the device: the saved store keeps few pages, and these are worth less offline

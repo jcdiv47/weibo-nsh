@@ -1,7 +1,8 @@
 // The navigation stack and the posts pages pass along: a post page reads the post the timeline
 // already has instead of fetching it again.
+import { signal } from "nsh";
 import { createNavStack } from "nsh/base";
-import type { Comment, Status, User } from "./api";
+import { type Comment, longText, type Status, type User } from "./api";
 
 export type Route =
   | { name: "timeline" }
@@ -33,9 +34,53 @@ export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
 const posts = new Map<string, Status>();
 
+const fullTexts = new Map<string, Promise<Status>>();
+
+/**
+ * A long post (`isLongText`, its `text` cut) with its whole text and that text's links, asked
+ * once per post; any other post as it is. If the request fails, the post comes back with its cut
+ * text, which still reads, and the next call asks again.
+ */
+export function withFullText(status: Status): Promise<Status> {
+  if (!status.isLongText || !status.mblogid) return Promise.resolve(status);
+  let full = fullTexts.get(status.id);
+  if (!full) {
+    full = longText(status.mblogid).then(
+      (t) => (t ? { ...status, text: t.text, links: { ...status.links, ...t.links }, isLongText: false } : status),
+      () => {
+        fullTexts.delete(status.id);
+        return status;
+      },
+    );
+    fullTexts.set(status.id, full);
+  }
+  return full;
+}
+
+/** How long a press on a long post waits for its whole text before opening its page anyway. */
+const FULL_TEXT_WAIT_MS = 1500;
+
+/** The post whose page is about to open, while it waits for its whole text: its card stays pressed. */
+export const opening = signal<string | null>(null);
+
+/**
+ * Opens a post's page. A long post's page waits for the whole text first: if the text came in
+ * while the page slides in, it would grow and push the pictures down mid-slide. Other presses on
+ * posts do nothing until it opens.
+ */
 export function openPost(status: Status) {
-  posts.set(status.id, status);
-  nav.push({ name: "post", id: status.id });
+  if (opening()) return;
+  const push = (s: Status) => {
+    posts.set(s.id, s);
+    nav.push({ name: "post", id: s.id });
+  };
+  if (!status.isLongText || !status.mblogid) return push(status);
+  opening.set(status.id);
+  const late = new Promise<Status>((resolve) => setTimeout(() => resolve(status), FULL_TEXT_WAIT_MS));
+  Promise.race([withFullText(status), late]).then((s) => {
+    opening.set(null);
+    push(s);
+  });
 }
 
 /**
