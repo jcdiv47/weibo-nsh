@@ -145,6 +145,7 @@ function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
         text={props.status.text}
         links={props.status.links}
         onVideo={props.status.video ? () => openVideo(props.status.video!) : undefined}
+        more={props.lines && props.status.isLongText ? t("post.full_text") : undefined}
         class={`${props.selectable ? "select-text " : ""}text-body text-ink ${props.lines === 8 ? "line-clamp-8" : props.lines === 6 ? "line-clamp-6" : ""}`}
       />
       <Pictures pics={props.status.pics} />
