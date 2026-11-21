@@ -34,27 +34,29 @@ export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
 const posts = new Map<string, Status>();
 
-const fullTexts = new Map<string, Promise<Status>>();
+const fullTexts = new Map<string, Promise<Awaited<ReturnType<typeof longText>>>>();
 
 /**
  * A long post (`isLongText`, its `text` cut) with its whole text and that text's links, asked
- * once per post; any other post as it is. If the request fails, the post comes back with its cut
- * text, which still reads, and the next call asks again.
+ * once per post (only the text is kept: the rest is the post as given); any other post as it is.
+ * If none comes, the post comes back with its cut text, which still reads, and the next call asks
+ * again.
  */
 export function withFullText(status: Status): Promise<Status> {
   if (!status.isLongText || !status.mblogid) return Promise.resolve(status);
-  let full = fullTexts.get(status.id);
-  if (!full) {
-    full = longText(status.mblogid).then(
-      (t) => (t ? { ...status, text: t.text, links: { ...status.links, ...t.links }, isLongText: false } : status),
-      () => {
-        fullTexts.delete(status.id);
-        return status;
-      },
-    );
-    fullTexts.set(status.id, full);
+  let text = fullTexts.get(status.id);
+  if (!text) {
+    text = longText(status.mblogid).catch(() => null);
+    fullTexts.set(status.id, text);
   }
-  return full;
+  const asked = text;
+  return asked.then((t) => {
+    if (!t) {
+      if (fullTexts.get(status.id) === asked) fullTexts.delete(status.id);
+      return status;
+    }
+    return { ...status, text: t.text, links: { ...status.links, ...t.links }, isLongText: false };
+  });
 }
 
 /** How long a press on a long post waits for its whole text before opening its page anyway. */
