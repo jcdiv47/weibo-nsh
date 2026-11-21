@@ -148,6 +148,11 @@ export class Channel {
     web.load({ src: this.revivalUrl() });
   }
 
+  /** Loads `src` in the web view; requests wait until it is back on the idle page. */
+  load(src: string) {
+    this.web?.load({ src });
+  }
+
   /** The web view's `onMessage`: replies of the postMessage transport. */
   onMessage(data: string) {
     let reply: { id?: number; v?: PageAnswer; error?: string };
@@ -222,12 +227,56 @@ export class Channel {
   }
 }
 
-/** weibo.com's API; idles on a plain text file, so the web view runs none of weibo.com's app. */
+/**
+ * weibo.com's API; idles on a plain text file, so the web view runs none of weibo.com's app. A web
+ * view that died while signing out runs the sign-out again.
+ */
 export const weibo = new Channel(`${WEIBO_ORIGIN}/robots.txt`, () =>
-  session() === "login" ? LOGIN_URL : `${WEIBO_ORIGIN}/robots.txt`,
+  signingOut() ? LOGOUT_URL : session() === "login" ? LOGIN_URL : `${WEIBO_ORIGIN}/robots.txt`,
 );
 /** s.weibo.com's search pages; idles on its icon, the one plain file it serves. */
 export const search = new Channel("https://s.weibo.com/favicon.ico");
+
+/**
+ * weibo.com's own sign-out, as its menu's 退出 runs it (`logout()` in its app): Sina's SSO ends the
+ * session and clears its cookies, which the app cannot touch itself. Its pages pass the browser on
+ * with scripts (`logout.php`, `crossdomain2.php?action=logout`, ...) and end on a sign-in page,
+ * `passport.weibo.com/sso/signin`; weibo.com then answers its feeds with 403 "请登录后使用".
+ */
+const LOGOUT_URL = "https://login.sina.com.cn/sso/logout.php?entry=miniblog&r=";
+/** A sign-in page: where the sign-out chain ends (weibo.com's own sends to `/newlogin`). */
+const signInPage = (url: string) => /passport\.weibo\.com\/sso\/signin|weibo\.com\/newlogin/i.test(url);
+/** How long the sign-out page may take before the app asks for a sign-in anyway. */
+const SIGN_OUT_WAIT_MS = 15_000;
+
+/** True from a sign-out until its page has run: the pages are gone, the sign-in page next. */
+export const signingOut = signal(false);
+let signOutTimer: number | undefined;
+
+/** Signs out: runs weibo.com's sign-out page in the bridge, then asks for a sign-in. */
+export function signOut() {
+  if (signingOut() || session() !== "ready") return;
+  signingOut.set(true);
+  signOutTimer = setTimeout(signedOutNow, SIGN_OUT_WAIT_MS);
+  weibo.load(LOGOUT_URL);
+}
+
+/**
+ * The bridge's `onLoad` and `onError` while signing out: the sign-in page the chain ends on means
+ * it ran; an error ends it too (as does `SIGN_OUT_WAIT_MS`). Either way the app's sign-in page comes
+ * next: if the session somehow survived, signing in shows it.
+ */
+export function signOutLoaded(url: string | null) {
+  if (!signingOut() || (url !== null && !signInPage(url))) return;
+  signedOutNow();
+}
+
+function signedOutNow() {
+  if (!signingOut()) return;
+  clearTimeout(signOutTimer);
+  signingOut.set(false);
+  session.set("login");
+}
 
 const signedOut = (answer: PageAnswer) =>
   /passport\.weibo|login\.sina/.test(answer.url) || answer.status === 401 || answer.status === 403;

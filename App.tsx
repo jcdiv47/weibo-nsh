@@ -4,9 +4,18 @@ import { effect, mount, signal, Text, View, WebView, type WebViewRef } from "nsh
 import { NavStack } from "nsh/base";
 import { t } from "nsh/i18n";
 import { emoticonList, forgetAccount } from "./api";
-import { DESKTOP_UA, get, LOGIN_URL, NotSignedIn, search, session, weibo } from "./bridge";
+import {
+  DESKTOP_UA,
+  get,
+  LOGIN_URL,
+  NotSignedIn,
+  search,
+  session,
+  signingOut,
+  signOutLoaded,
+  weibo,
+} from "./bridge";
 import { SavedToast } from "./components/FavoriteButton";
-import { Icon } from "./components/Icon";
 import { ImageViewer } from "./components/ImageViewer";
 import { ReplySheet } from "./components/ReplySheet";
 import { Spinner } from "./components/Spinner";
@@ -50,15 +59,21 @@ function Bridge() {
   }
 
   // Any request that finds the session gone asks for a sign-in again, and forgets the account:
-  // whoever signs in next must not see its saved posts.
+  // whoever signs in next must not see its saved posts. Not while signing out: the sign-out's
+  // pages run to their end first.
   effect(() => {
-    if (session() === "login") {
+    if (session() === "login" && !signingOut()) {
       web?.load({ src: LOGIN_URL });
       forgetAccount();
     }
   });
 
-  const visible = () => session() === "login";
+  const visible = () => session() === "login" && !signingOut();
+  // Only the sign-in pages are for the eye: the idle page (before them, after a sign-out) and
+  // weibo.com's own app (after a sign-in, until the timeline shows) are not. The startup screen
+  // covers the web view from each page's start, while it still shows the page before, until a
+  // page off weibo.com has loaded.
+  const showPage = signal(false);
   return (
     <View
       class={
@@ -67,15 +82,6 @@ function Bridge() {
           : "pointer-events-none absolute left-0 top-0 h-px w-px opacity-0"
       }
     >
-      <If when={visible()}>
-        <View class="gap-1.5 border-b-[0.5px] border-hairline px-5 pb-4 pt-2">
-          <Text class="text-title font-bold tracking-tight text-ink">{t("app.sign_in_title")}</Text>
-          <View class="flex-row items-start gap-1.5">
-            <Icon name="lock" class="mt-0.5 size-3.5 shrink-0 tint-ink-2" />
-            <Text class="flex-1 text-meta text-ink-2">{t("app.sign_in_note")}</Text>
-          </View>
-        </View>
-      </If>
       <WebView
         ref={(r) => {
           web = r;
@@ -84,16 +90,39 @@ function Bridge() {
         src={BRIDGE_URL}
         userAgent={DESKTOP_UA}
         class="flex-1"
-        onLoadStart={() => weibo.onLoadStart()}
+        onLoadStart={(e) => {
+          showPage.set(false);
+          weibo.onLoadStart();
+        }}
         onLoad={(e) => {
+          showPage.set(!onWeibo(e.url));
           weibo.onLoad(e.url);
+          signOutLoaded(e.url);
           probe(e.url);
         }}
         onMessage={(e) => weibo.onMessage(e.data)}
         onError={(e) => {
-          if (!weibo.onError(e)) problem.set(e.message);
+          if (weibo.onError(e)) return;
+          if (signingOut()) signOutLoaded(null);
+          else {
+            problem.set(e.message);
+            showPage.set(true); // What the web view shows now (the form, or its error) beats a spinner.
+          }
         }}
       />
+      <If when={visible() && !showPage()}>
+        <Connecting />
+      </If>
+    </View>
+  );
+}
+
+/** The startup screen: a spinner and what the app is doing. */
+function Connecting() {
+  return (
+    <View class="absolute inset-0 items-center justify-center gap-3 bg-ground">
+      <Spinner />
+      <Text class="text-sm text-ink-2">{signingOut() ? t("app.signing_out") : t("app.connecting")}</Text>
     </View>
   );
 }
@@ -117,23 +146,24 @@ function SearchBridge() {
 }
 
 function App() {
-  // Pages mount once the first sign-in succeeds and stay through later re-sign-ins.
+  // Pages mount once the first sign-in succeeds and stay through later re-sign-ins (a session
+  // that ran out). A sign-out ends them: whoever signs in next starts on a timeline of their own.
   const started = signal(false);
   effect(() => {
     if (session() !== "ready") return;
     started.set(true);
     emoticonList();
   });
+  effect(() => {
+    if (!signingOut()) return;
+    started.set(false);
+    nav.setRoutes([{ name: "timeline" }]);
+  });
   return (
     <View class="flex-1 bg-ground">
       <If
         when={started()}
-        else={
-          <View class="flex-1 items-center justify-center gap-3">
-            <Spinner />
-            <Text class="text-sm text-ink-2">{t("app.connecting")}</Text>
-          </View>
-        }
+        else={<Connecting />}
       >
         <NavStack state={nav} class="flex-1">
           {(route) => {

@@ -28,6 +28,10 @@ What it does now:
   (`/ajax/friendships/create`, `/ajax/friendships/destory`) and **Block / Unblock**
   (`/ajax/statuses/filterUser` with every box of weibo.com's dialog ticked,
   `/ajax/statuses/deleteFilters`). Blocking ends the follow; unblocking does not restore it.
+- **Sign out**, from the "我" menu on the timeline or the menu of my own profile, asking first: the
+  session web view runs weibo.com's own sign-out (Sina SSO's `login.sina.com.cn/sso/logout.php`),
+  which ends the session and clears its cookies; the saved pages are cleared, the pages close and the sign-in page shows. Whoever
+  signs in next starts on a timeline of their own.
 - **Pictures** full screen (swipe, pinch, double tap), **videos** in the system player, `@mentions`
   to profiles, `#topics#` to their posts (read from s.weibo.com's search page through a second
   hidden web view), short links labelled as Weibo labels them. A link to a Weibo post ("微博正文",

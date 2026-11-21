@@ -21,6 +21,7 @@ import hash from "../icons/hash.svg";
 import history from "../icons/history.svg";
 import link from "../icons/link.svg";
 import lock from "../icons/lock.svg";
+import logout from "../icons/logout.svg";
 import mapPin from "../icons/map-pin.svg";
 import messageCircle from "../icons/message-circle.svg";
 import pencil from "../icons/pencil.svg";
@@ -57,6 +58,7 @@ const ICONS = {
   history,
   link,
   lock,
+  logout,
   "map-pin": mapPin,
   "message-circle": messageCircle,
   pencil,
