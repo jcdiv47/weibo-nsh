@@ -60,15 +60,16 @@ function Bridge() {
   }
 
   // Any request that finds the session gone asks for a sign-in again, and forgets the account:
-  // whoever signs in next must not see its saved posts.
+  // whoever signs in next must not see its saved posts. Not while signing out: the sign-out's
+  // pages run to their end first.
   effect(() => {
-    if (session() === "login") {
+    if (session() === "login" && !signingOut()) {
       web?.load({ src: LOGIN_URL });
       forgetAccount();
     }
   });
 
-  const visible = () => session() === "login";
+  const visible = () => session() === "login" && !signingOut();
   return (
     <View
       class={

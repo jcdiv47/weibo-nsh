@@ -227,9 +227,12 @@ export class Channel {
   }
 }
 
-/** weibo.com's API; idles on a plain text file, so the web view runs none of weibo.com's app. */
+/**
+ * weibo.com's API; idles on a plain text file, so the web view runs none of weibo.com's app. A web
+ * view that died while signing out runs the sign-out again.
+ */
 export const weibo = new Channel(`${WEIBO_ORIGIN}/robots.txt`, () =>
-  session() === "login" ? LOGIN_URL : `${WEIBO_ORIGIN}/robots.txt`,
+  signingOut() ? LOGOUT_URL : session() === "login" ? LOGIN_URL : `${WEIBO_ORIGIN}/robots.txt`,
 );
 /** s.weibo.com's search pages; idles on its icon, the one plain file it serves. */
 export const search = new Channel("https://s.weibo.com/favicon.ico");
