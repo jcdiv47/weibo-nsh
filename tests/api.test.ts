@@ -133,6 +133,11 @@ test("favorites: saved posts, wrapped or not, a deleted one left out", () => {
   expect(() => parseFavorites({ ok: 1, data: {} }, 1)).toThrow(WeiboChanged);
 });
 
+test("text: Weibo's escaped &, <, > read as themselves", () => {
+  const s = parseStatus({ ...copy(statusShow), text_raw: "《Fix &amp; Fax》 1 &lt; 2 &gt; 0 &amp;lt;" });
+  expect(s.text).toBe("《Fix & Fax》 1 < 2 > 0 &lt;");
+});
+
 test("a post says whether I saved it", () => {
   expect(parseStatus({ ...copy(statusShow), favorited: true }).favorited).toBe(true);
   expect(parseStatus(statusShow).favorited).toBe(false);

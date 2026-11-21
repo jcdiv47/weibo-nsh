@@ -109,15 +109,22 @@ export interface Page<T, C = string> {
 
 const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const num = (v: unknown) => (typeof v === "number" ? v : Number(v) || 0);
-const stripTags = (html: string) =>
-  html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<img[^>]*alt="([^"]*)"[^>]*>/gi, "$1")
-    .replace(/<[^>]+>/g, "")
+// Weibo escapes `&`, `<`, `>` and quotes even in its plain text (`text_raw`, the long text):
+// "Fix & Fax" comes as "Fix &amp; Fax". `&amp;` goes last, or "&amp;lt;" would read as "<".
+const decodeEntities = (text: string) =>
+  text
     .replace(/&quot;/g, '"')
+    .replace(/&#0*39;|&apos;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
+const stripTags = (html: string) =>
+  decodeEntities(
+    html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<img[^>]*alt="([^"]*)"[^>]*>/gi, "$1")
+      .replace(/<[^>]+>/g, ""),
+  );
 
 /**
  * Weibo's verification badges: `personal` an individual's orange V (`verified_type` 0), `gold`
@@ -235,7 +242,7 @@ function toStatus(s: any): Status {
   return {
     id: str(s?.idstr ?? s?.id),
     mblogid: str(s?.mblogid),
-    text: str(s?.text_raw) || stripTags(str(s?.text)),
+    text: decodeEntities(str(s?.text_raw)) || stripTags(str(s?.text)),
     isLongText: !!s?.isLongText,
     createdAt: str(s?.created_at),
     source: stripTags(str(s?.source)) || undefined,
@@ -255,7 +262,7 @@ function toStatus(s: any): Status {
 
 function toComment(c: any): Comment {
   learnFromHtml(str(c?.text));
-  const text = str(c?.text_raw) || stripTags(str(c?.text));
+  const text = decodeEntities(str(c?.text_raw)) || stripTags(str(c?.text));
   // A reply's `url_struct` repeats the links of the comment it replies to: keep its own, those
   // its text has, or the parent's pictures show again under each reply.
   const links = Object.fromEntries(Object.entries(toLinks(c?.url_struct)).filter(([short]) => text.includes(short)));
@@ -380,7 +387,7 @@ export function parseLongText(json: any): { text: string; links: Record<string, 
     return null;
   }
   // The full text has links the cut one does not: they come with it.
-  return { text: str(json.data.longTextContent), links: toLinks(json.data.url_struct) };
+  return { text: decodeEntities(str(json.data.longTextContent)), links: toLinks(json.data.url_struct) };
 }
 
 /** A post's comments, hottest first; `maxId` continues an earlier page. */
@@ -615,7 +622,7 @@ export function parseEditHistory(json: any, mid: string, page: number): Page<Ver
   const versions = items(EP, raw, shapes.version).map((v: any): Version => {
     const s = toStatus(v);
     // `text_raw` is the whole text today, long or not; `longText.content` too, in case it is cut.
-    const long = str(v?.longText?.content);
+    const long = decodeEntities(str(v?.longText?.content));
     return {
       id: `${mid}@${s.createdAt}`,
       text: long.length > s.text.length ? long : s.text,
