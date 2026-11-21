@@ -1,27 +1,54 @@
 // A post's pictures full screen: swipe between them, pinch or double tap to zoom, drag to pan
 // when zoomed, tap or drag up or down to close. One viewer for the app, opened with `openViewer`.
+//
+// It is an overlay over the app's pages, not a `Dialog`: a native modal ignores touches while it
+// comes in and goes, so a drag to close right after opening (or a tap on the feed right after
+// closing) was lost. Here the fades are the app's own and touches work throughout them.
 import { createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
-import { Dialog } from "nsh/base";
+import { BackHandler } from "nsh/mobile";
 import type { Status } from "../api";
 
 type Pics = Status["pics"];
 
 const shown = signal<{ pics: Pics; index: number } | null>(null);
+/** Going away: it fades out letting touches through to the pages under it. */
+const closing = signal(false);
 const page = signal(0);
 /** The picture shown is zoomed in: a drag pans it rather than closing the viewer. */
 const zoomed = signal(false);
 /** How far the pictures are dragged down (or up) to close them. */
 const dragY = createAnimatedValue(0);
+/** The whole viewer's opacity, 0 to 1, as it comes in and goes. */
+const fade = createAnimatedValue(0);
+
+const FADE_IN_MS = 180;
+const FADE_OUT_MS = 200;
 
 export function openViewer(pics: Pics, index: number) {
   if (!pics.length) return;
   page.set(index);
   zoomed.set(false);
+  closing.set(false);
   dragY.set(0);
+  // Opened again while the last one fades out: the pager remounts at the new picture.
+  shown.set(null);
   shown.set({ pics, index });
+  fade.timing(1, { duration: FADE_IN_MS });
 }
 
-const close = () => shown.set(null);
+/** Fades the viewer out; `away` also carries the pictures off screen that way (a drag's fling). */
+function close(away = 0) {
+  if (!shown() || closing()) return;
+  closing.set(true);
+  if (away) dragY.timing(Math.sign(away) * windowSize().height, { duration: FADE_OUT_MS + 20 });
+  fade.timing(0, { duration: FADE_OUT_MS }).then(({ finished }) => {
+    // Not finished: opened again meanwhile, which stopped this fade.
+    if (finished && closing()) {
+      shown.set(null);
+      closing.set(false);
+    }
+  });
+}
 
 const MAX_ZOOM = 4;
 const DOUBLE_TAP_MS = 280;
@@ -36,8 +63,7 @@ function endDrag(e: { value?: { y?: number }; velocity: { y: number } }) {
     dragY.spring(0, { velocity: e.velocity.y });
     return;
   }
-  close();
-  dragY.timing(Math.sign(projected) * windowSize().height, { duration: 220 });
+  close(projected);
 }
 
 /** One picture, zoomable on its own: zoom resets as it scrolls out of the pager and back. */
@@ -75,7 +101,7 @@ function ZoomPage(props: { src: string }) {
             return;
           }
           lastTap = now;
-          pending = setTimeout(close, DOUBLE_TAP_MS);
+          pending = setTimeout(() => close(), DOUBLE_TAP_MS);
         }}
         style={{ width: windowSize().width, height: windowSize().height }}
       >
@@ -88,18 +114,20 @@ function ZoomPage(props: { src: string }) {
 export function ImageViewer() {
   const height = () => windowSize().height;
   return (
-    <Dialog
-      open={!!shown()}
-      animation="fade"
-      presentation="fullScreen"
-      statusBar={{ hidden: true, animated: true }}
-      closeOnSwipe
-      onOpenChange={(e) => !e.open && close()}
-      class="flex-1"
-    >
-      <If when={shown()}>
-        {(v) => (
-          <View class="flex-1">
+    <If when={shown()}>
+      {(v) => {
+        // Android's back button closes it, as it closed the dialog it was.
+        BackHandler.on("press", () => {
+          if (closing()) return false;
+          close();
+          return true;
+        });
+        return (
+          <View
+            role="dialog"
+            class={`absolute inset-0 ${closing() ? "pointer-events-none" : ""}`}
+            style={{ opacity: fade }}
+          >
             {/* The black behind the pictures fades as they are dragged away. */}
             <View
               class="pointer-events-none absolute inset-0 bg-black"
@@ -141,8 +169,8 @@ export function ImageViewer() {
               </View>
             </If>
           </View>
-        )}
-      </If>
-    </Dialog>
+        );
+      }}
+    </If>
   );
 }
