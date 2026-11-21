@@ -235,10 +235,14 @@ export const weibo = new Channel(`${WEIBO_ORIGIN}/robots.txt`, () =>
 export const search = new Channel("https://s.weibo.com/favicon.ico");
 
 /**
- * weibo.com's own sign-out, as its menu's 退出 runs it: Weibo ends the session and clears its
- * cookies, which the app cannot touch itself.
+ * weibo.com's own sign-out, as its menu's 退出 runs it (`logout()` in its app): Sina's SSO ends the
+ * session and clears its cookies, which the app cannot touch itself. Its pages pass the browser on
+ * with scripts (`logout.php`, `crossdomain2.php?action=logout`, ...) and end on a sign-in page,
+ * `passport.weibo.com/sso/signin`; weibo.com then answers its feeds with 403 "请登录后使用".
  */
-const LOGOUT_URL = `${WEIBO_ORIGIN}/logout.php?backurl=${encodeURIComponent("/")}`;
+const LOGOUT_URL = "https://login.sina.com.cn/sso/logout.php?entry=miniblog&r=";
+/** A sign-in page: where the sign-out chain ends (weibo.com's own sends to `/newlogin`). */
+const signInPage = (url: string) => /passport\.weibo\.com\/sso\/signin|weibo\.com\/newlogin/i.test(url);
 /** How long the sign-out page may take before the app asks for a sign-in anyway. */
 const SIGN_OUT_WAIT_MS = 15_000;
 
@@ -255,12 +259,12 @@ export function signOut() {
 }
 
 /**
- * The bridge's `onLoad` and `onError` while signing out: a page past the sign-out page (where it
- * sends the browser after) means it ran. Either way the sign-in page comes next: if the session
- * somehow survived, signing in shows it.
+ * The bridge's `onLoad` and `onError` while signing out: the sign-in page the chain ends on means
+ * it ran; an error ends it too (as does `SIGN_OUT_WAIT_MS`). Either way the app's sign-in page comes
+ * next: if the session somehow survived, signing in shows it.
  */
 export function signOutLoaded(url: string | null) {
-  if (!signingOut() || (url !== null && /\/logout/i.test(url))) return;
+  if (!signingOut() || (url !== null && !signInPage(url))) return;
   signedOutNow();
 }
 
