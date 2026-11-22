@@ -87,8 +87,8 @@ device. Differences handled already:
   saved-page logic. When Weibo changes an endpoint, put its new answer (the drift log's sample)
   in the fixture, see which test fails, fix the parser.
 - The first page of each list (except a post's reposts and likes) and each profile are saved on the device (`saved.ts`, the newest
-  40): a page opens on its saved copy while it loads and keeps it, marked as saved, when the load
-  fails. Signing out clears them.
+  40): a page opens on its saved copy while it loads (a page that pulls to refresh turning its
+  refresh indicator meanwhile) and keeps it, marked as saved with a retry, when the load fails. Signing out clears them.
 - The look follows the "Weibo for iPhone" design (Paper): its tokens are `theme.json`, light and
   dark, named as the design names them (`ground`, `well`, `hairline`, `ink`, `ink-2`, `weibo`,
   `link`, ...), its type scale `nsh.json`'s `tailwind`. Every page draws its own header

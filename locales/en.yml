@@ -127,7 +127,6 @@ people:
 error:
   weibo_changed: "Weibo changed how it answers (%{endpoint}): this can't be shown until the app is updated."
 saved:
-  updating: "Showing a saved copy (%{time}) · updating…"
   stale: "Couldn't refresh: showing a saved copy (%{time})."
 menu:
   my_profile: "My profile"

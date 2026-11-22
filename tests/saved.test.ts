@@ -40,11 +40,13 @@ test("the saved page shows while the first page loads, then gives way to it", as
   expect(feed.items()).toEqual([{ id: "old" }]);
   expect(feed.savedAt()).toBeGreaterThan(0);
   expect(feed.loading()).toBe(true);
+  expect(feed.refreshing()).toBe(true);
 
   l.resolve({ items: [{ id: "new" }], next: "c2" });
   await until(() => !feed.loading());
   expect(feed.items()).toEqual([{ id: "new" }]);
   expect(feed.savedAt()).toBeNull();
+  expect(feed.refreshing()).toBe(false);
   await until(() => true);
   expect((await loadSaved<Page<Item>>("feed"))?.data).toEqual({ items: [{ id: "new" }], next: "c2" });
 });
@@ -59,10 +61,12 @@ test("a failed first load keeps the saved page, with the error; a retry loads th
   expect(feed.items()).toEqual([{ id: "old" }]);
   expect(feed.error()).toBe("offline");
   expect(feed.savedAt()).toBeGreaterThan(0);
+  expect(feed.refreshing()).toBe(false);
 
   // Not the saved cursor: the saved items are not continued from.
   feed.more();
   expect(l.calls).toEqual([undefined, undefined]);
+  expect(feed.refreshing()).toBe(true);
   l.resolve({ items: [{ id: "new" }], next: null });
   await until(() => !feed.loading());
   expect(feed.items()).toEqual([{ id: "new" }]);

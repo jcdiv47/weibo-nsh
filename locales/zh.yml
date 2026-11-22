@@ -127,7 +127,6 @@ people:
 error:
   weibo_changed: "微博更改了接口返回格式（%{endpoint}），需更新应用后才能显示。"
 saved:
-  updating: "正在显示保存的内容（%{time}）· 更新中…"
   stale: "刷新失败，正在显示保存的内容（%{time}）。"
 menu:
   my_profile: "我的主页"
