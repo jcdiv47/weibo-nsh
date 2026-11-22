@@ -1,7 +1,7 @@
 // A post's video full screen, playing with the platform's controls: drag it up or down, or press
 // the close button, to close it. One player for the app, opened with `openVideo`. The close button
-// sits in the row of the platform's top controls, after them: iOS puts picture in picture (or full
-// screen) and AirPlay in a capsule at the top left, the volume at the right.
+// has a bar of its own above the video, where a page's back button is, so the platform's controls
+// (iOS puts picture in picture at the top left) never lie under it.
 //
 // As the image viewer, it is an overlay over the app's pages, not a `Dialog`: a native modal
 // ignores touches while it comes in and goes, so a drag to close right after opening (or a tap on
@@ -10,7 +10,7 @@ import { createAnimatedValue, safeArea, signal, Text, Video, View, windowSize } 
 import { t } from "nsh/i18n";
 import { BackHandler } from "nsh/mobile";
 import type { Video as VideoData } from "../api";
-import { GlassButton } from "./Header";
+import { BAR, GlassButton } from "./Header";
 import { Icon } from "./Icon";
 
 const shown = signal<VideoData | null>(null);
@@ -26,12 +26,6 @@ const FADE_IN_MS = 180;
 const FADE_OUT_MS = 200;
 /** A drag released past this far (counting the fling) closes the player. */
 const CLOSE_DISTANCE = 120;
-/** Where the close button sits, in the row of iOS's top controls (measured on iOS 26 and 27): its
- * capsule ends about 104 points from the left, centered 26 points below the video's top, and is
- * 36 to 38 tall; the close button follows it at the capsule's height. */
-const CLOSE_LEFT = 112;
-const CLOSE_SIZE = 40;
-const CLOSE_CENTER = 26;
 
 export function openVideo(video: VideoData) {
   closing.set(false);
@@ -100,7 +94,7 @@ export function VideoPlayer() {
               onPanEnd={endDrag}
               class="flex-1"
               style={{
-                paddingTop: safeArea().top,
+                paddingTop: safeArea().top + BAR,
                 paddingBottom: safeArea().bottom,
                 translate: [0, dragY],
                 scale: dragY.interpolate({ inputRange: [-height(), 0, height()], outputRange: [0.75, 1, 0.75] }),
@@ -119,8 +113,8 @@ export function VideoPlayer() {
                 <Text class="text-center text-sm text-white">{t("video.error", { error: error() })}</Text>
               </View>
             </If>
-            <View class="absolute" style={{ top: safeArea().top + CLOSE_CENTER - CLOSE_SIZE / 2, left: CLOSE_LEFT }}>
-              <GlassButton kind="media" size="size-10" label={t("common.close")} onPress={() => close()}>
+            <View class="absolute inset-x-0 h-[54px] flex-row items-center px-4" style={{ top: safeArea().top }}>
+              <GlassButton kind="media" label={t("common.close")} onPress={() => close()}>
                 <Icon name="x" class="size-6 tint-white" />
               </GlassButton>
             </View>
