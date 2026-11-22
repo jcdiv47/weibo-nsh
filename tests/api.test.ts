@@ -286,6 +286,17 @@ test("an account's posts: the ones they commented on or liked say so, and when",
   expect(liked.activity).toEqual({ kind: "like", at: Date.UTC(2026, 10, 17, 16) }); // 11-18 00:00 in Beijing.
 });
 
+test("a post the account pinned says so; their other posts and inserted ones do not", () => {
+  const json = copy(mymblog);
+  json.data.list[0].isTop = 1;
+  json.data.list[0].title = { text: "置顶" };
+  json.data.list[1].isTop = 1; // An inserted post is told as what they did, not pinned.
+  expect(parseUserPosts(json, 1, NOW).items.map((s) => s.pinned)).toEqual([true, undefined, undefined]);
+  delete json.data.list[0].isTop; // Its title alone says it.
+  expect(parseUserPosts(json, 1, NOW).items[0].pinned).toBe(true);
+  expect(parseUserPosts(mymblog, 1, NOW).items[0].pinned).toBeUndefined();
+});
+
 test("an inserted post Weibo no longer marks in analysis_extra is told by its title", () => {
   const json = copy(mymblog);
   for (const s of json.data.list) delete s.analysis_extra;

@@ -36,6 +36,7 @@ post:
   full_text: "More"
   activity_comment: "Commented"
   activity_like: "Liked"
+  pinned: "Pinned"
 replies:
   title: "%{n} replies"
 reply:

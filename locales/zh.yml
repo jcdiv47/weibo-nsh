@@ -36,6 +36,7 @@ post:
   full_text: "全文"
   activity_comment: "评论过"
   activity_like: "赞过"
+  pinned: "置顶"
 replies:
   title: "%{n} 条回复"
 reply:

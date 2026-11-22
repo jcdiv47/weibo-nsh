@@ -32,6 +32,8 @@ What it does now:
   (`/ajax/friendships/create`, `/ajax/friendships/destory`) and **Block / Unblock**
   (`/ajax/statuses/filterUser` with every box of weibo.com's dialog ticked,
   `/ajax/statuses/deleteFilters`). Blocking ends the follow; unblocking does not restore it.
+  A post they pinned (`isTop`, or the `title` "置顶") says so above it, a pin and "置顶" in Weibo's
+  orange.
 - **Sign out**, from the "我" menu on the timeline or the menu of my own profile, asking first: the
   session web view runs weibo.com's own sign-out (Sina SSO's `login.sina.com.cn/sso/logout.php`),
   which ends the session and clears its cookies; the saved pages are cleared, the pages close and the sign-in page shows. Whoever

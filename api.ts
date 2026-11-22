@@ -54,6 +54,8 @@ export interface Status {
   /** Not their post: one the account commented on or liked, which Weibo mixes into their profile's
    * posts ("她1小时前评论过的微博"). */
   activity?: Activity;
+  /** The account pinned it to the top of their profile's posts (置顶, `isTop`). */
+  pinned?: boolean;
 }
 
 export interface Activity {
@@ -646,10 +648,16 @@ export function parseUserPosts(json: any, page: number, now = Date.now()): Page<
     items: items(EP, raw, shapes.status).map((s: any) => {
       const status = toStatus(s);
       const activity = toActivity(s, now);
-      return activity ? { ...status, activity } : status;
+      if (activity) return { ...status, activity };
+      return isPinned(s) ? { ...status, pinned: true } : status;
     }),
     next: raw.length ? page + 1 : null,
   };
+}
+
+/** A post the account pinned to the top of their profile: `isTop` (1), or its `title` "置顶". */
+export function isPinned(s: any): boolean {
+  return s?.isTop === 1 || s?.isTop === true || str(s?.title?.text) === "置顶";
 }
 
 /**
