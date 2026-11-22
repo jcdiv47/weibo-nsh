@@ -7,7 +7,7 @@ import { t } from "nsh/i18n";
 import { favorites, type Status } from "../api";
 import { isFavorited, toggleFavorite } from "../components/FavoriteButton";
 import { FeedFooter } from "../components/FeedFooter";
-import { Page } from "../components/Header";
+import { createPageScroll, Page } from "../components/Header";
 import { Icon } from "../components/Icon";
 import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
@@ -49,10 +49,12 @@ export function Favorites() {
   feed.more();
 
   const empty = () => feed.done() && !feed.loading() && !feed.error() && !feed.items().length;
+  const scroll = createPageScroll({ refreshing: () => feed.refreshing() });
   return (
-    <Page title={t("favorite.title")}>
+    <Page title={t("favorite.title")} scroll={scroll}>
       <If when={!empty()} else={<Empty />}>
         <List
+          {...scroll.list()}
           each={feed.items()}
           keyExtractor={(s) => s.id}
           estimatedItemSize={220}

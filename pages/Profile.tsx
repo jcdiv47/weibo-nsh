@@ -16,7 +16,7 @@ import {
 } from "../api";
 import { NotSignedIn, signOut } from "../bridge";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
-import { GlassButton, Page } from "../components/Header";
+import { createPageScroll, GlassButton, Page } from "../components/Header";
 import { PopMenu } from "../components/PopMenu";
 import { Spinner } from "../components/Spinner";
 import { Icon } from "../components/Icon";
@@ -314,10 +314,12 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
     );
   };
 
+  const scroll = createPageScroll();
   return (
     // The name is the header's below: none in the bar.
-    <Page title={title()} hideTitle right={more()}>
+    <Page title={title()} hideTitle right={more()} scroll={scroll}>
       <List
+        {...scroll.list()}
         each={blocked() ? [] : posts.items()}
         keyExtractor={(s) => s.id}
         estimatedItemSize={220}

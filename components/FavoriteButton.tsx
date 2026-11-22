@@ -5,6 +5,7 @@ import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { favorite, type Status } from "../api";
 import { nav, openFavorites } from "../nav";
+import { glass } from "./Glass";
 import { GlassButton } from "./Header";
 import { Icon } from "./Icon";
 
@@ -59,8 +60,8 @@ export function SavedToast() {
     <If when={toast()}>
       <View
         role="alert"
-        class="absolute inset-x-4 h-[52px] flex-row items-center gap-2.5 rounded-full bg-toast pl-4 pr-2 backdrop-blur-xl shadow-[0_12px_32px_#00000033]"
-        style={{ bottom: safeArea().bottom + 14 }}
+        class={`absolute inset-x-4 h-[52px] flex-row items-center gap-2.5 rounded-full pl-4 pr-2 ${glass("toast").class}`}
+        style={{ ...glass("toast").style, bottom: safeArea().bottom + 14 }}
       >
         <Icon name="bookmark-filled" class="size-5 tint-weibo" />
         <Text class="flex-1 text-body leading-5 font-medium text-white">{t("favorite.saved")}</Text>

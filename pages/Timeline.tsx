@@ -4,7 +4,7 @@ import { Image, List, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import { friendsTimeline, myUid, profile, type User } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
-import { GlassButton, Page } from "../components/Header";
+import { createPageScroll, GlassButton, LargeTitle, Page } from "../components/Header";
 import { PopMenu } from "../components/PopMenu";
 import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
@@ -41,16 +41,23 @@ function MeMenu() {
 export function Timeline() {
   const feed = createFeed(friendsTimeline, { saveAs: () => "timeline" });
   feed.more();
+  const scroll = createPageScroll({ large: true, refreshing: () => feed.refreshing() });
   return (
-    <Page title={t("timeline.title")} large right={<MeMenu />}>
+    <Page title={t("timeline.title")} scroll={scroll} right={<MeMenu />}>
       <List
+        {...scroll.list()}
         each={feed.items()}
         keyExtractor={(s) => s.id}
         estimatedItemSize={220}
         refreshing={feed.refreshing()}
         onRefresh={() => feed.refresh()}
         onLoadMore={() => feed.more()}
-        header={<SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />}
+        header={
+          <View>
+            <LargeTitle title={t("timeline.title")} />
+            <SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />
+          </View>
+        }
         footer={
           <FeedFooter
             loading={feed.loading()}
