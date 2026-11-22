@@ -3,8 +3,8 @@
 // the post's comments. An edited post says so; on its own page, its versions open from below it.
 import { Image, type JSX, Text, View } from "nsh";
 import { t } from "nsh/i18n";
-import type { Pic, Status, User, VerifiedKind, Video } from "../api";
-import { count, relativeTime } from "../format";
+import type { Activity, Pic, Status, User, VerifiedKind, Video } from "../api";
+import { count, relativeTime, timeAgo } from "../format";
 import { openEdits, opening, openPost, openProfile } from "../nav";
 import { Icon, type IconName } from "./Icon";
 import { openViewer } from "./ImageViewer";
@@ -182,6 +182,24 @@ export function Byline(props: { user: User; meta: string; edited?: boolean }) {
 }
 
 /**
+ * Above a post the profile's account commented on or liked (not theirs, though among their
+ * posts): what they did and when, its icon at the card's left edge.
+ */
+function ActivityLine(props: { activity: Activity }) {
+  const a = () => props.activity;
+  const text = () =>
+    [t(a().kind === "comment" ? "post.activity_comment" : "post.activity_like"), a().at !== undefined && timeAgo(a().at!)]
+      .filter(Boolean)
+      .join(" · ");
+  return (
+    <View class="h-[18px] shrink-0 flex-row items-center gap-2.5">
+      <Icon name={a().kind === "comment" ? "message-circle" : "thumb-up"} class="size-3.5 shrink-0 tint-ink-2" />
+      <Text class="shrink text-meta font-medium text-ink-2 line-clamp-1">{text()}</Text>
+    </View>
+  );
+}
+
+/**
  * A post. In a list (`full` unset) a press opens its page and its counts close it; on its page
  * (`full`) the text is selectable and its edit history and region close it instead. `trailing`:
  * at the counts' right end (my favorites: when it was saved).
@@ -196,8 +214,9 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
     <View
       role={props.full ? undefined : "button"}
       onPress={props.full ? undefined : () => openPost(s())}
-      class={`gap-2.5 px-4 pb-3 ${props.full ? "bg-ground pt-1" : `border-b-[0.5px] border-hairline pt-3.5 active:bg-well ${opening() === s().id ? "bg-well" : "bg-ground"}`}`}
+      class={`gap-2.5 px-4 pb-3 ${props.full ? "bg-ground pt-1" : `border-b-[0.5px] border-hairline ${s().activity ? "pt-2.5" : "pt-3.5"} active:bg-well ${opening() === s().id ? "bg-well" : "bg-ground"}`}`}
     >
+      <If when={props.full ? undefined : s().activity}>{(a) => <ActivityLine activity={a()} />}</If>
       <Byline user={s().user} meta={meta()} edited={!props.full && !!s().editCount} />
       <Body status={s()} lines={props.full ? undefined : 8} selectable={props.full} />
       <If when={s().retweeted}>

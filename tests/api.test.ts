@@ -17,6 +17,7 @@ import {
   parseTimeline,
   parseUserPosts,
   postIdOf,
+  weiboWhen,
   repostText,
   verifiedKind,
 } from "../api";
@@ -267,9 +268,36 @@ test("profile: blocked, with weibo.com's message", () => {
 
 test("an account's posts, by page", () => {
   const page = parseUserPosts(mymblog, 1);
-  expect(page.items.map((s) => s.text)).toEqual(["早安"]);
+  expect(page.items.map((s) => s.text)).toEqual(["早安", "周末去了那家新开的书店", "风把网球吹到了隔壁球场"]);
   expect(page.next).toBe(2);
   expect(parseUserPosts({ ok: 1, data: { list: [] } }, 3).next).toBeNull();
+});
+
+// 2026-11-22 14:30 in Beijing.
+const NOW = Date.UTC(2026, 10, 22, 6, 30);
+
+test("an account's posts: the ones they commented on or liked say so, and when", () => {
+  const [own, commented, liked] = parseUserPosts(mymblog, 1, NOW).items;
+  expect(own.activity).toBeUndefined();
+  expect(commented.user.name).toBe("书店旁边");
+  expect(commented.activity).toEqual({ kind: "comment", at: NOW - 3_600_000 });
+  expect(liked.activity).toEqual({ kind: "like", at: Date.UTC(2026, 10, 17, 16) }); // 11-18 00:00 in Beijing.
+});
+
+test("an inserted post Weibo no longer marks in analysis_extra is told by its title", () => {
+  const json = copy(mymblog);
+  for (const s of json.data.list) delete s.analysis_extra;
+  expect(parseUserPosts(json, 1, NOW).items.map((s) => s.activity?.kind)).toEqual([undefined, "comment", "like"]);
+});
+
+test("Weibo's short times", () => {
+  expect(weiboWhen("刚刚", NOW)).toBe(NOW);
+  expect(weiboWhen("5分钟前", NOW)).toBe(NOW - 300_000);
+  expect(weiboWhen("今天 09:30", NOW)).toBe(Date.UTC(2026, 10, 22, 1, 30));
+  expect(weiboWhen("昨天 21:40", NOW)).toBe(Date.UTC(2026, 10, 21, 13, 40));
+  expect(weiboWhen("2025-11-18", NOW)).toBe(Date.UTC(2025, 10, 17, 16));
+  expect(weiboWhen("12-30", NOW)).toBe(Date.UTC(2025, 11, 29, 16)); // Later than today: last year.
+  expect(weiboWhen("不久前", NOW)).toBeUndefined();
 });
 
 test("one post", () => {
