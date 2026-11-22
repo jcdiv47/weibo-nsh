@@ -108,7 +108,7 @@ export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
   );
 }
 
-function VideoCard(props: { video: Video }) {
+function VideoCard(props: { video: Video; status: Status }) {
   const v = () => props.video;
   const length = () => {
     const d = Math.round(v().duration);
@@ -118,7 +118,7 @@ function VideoCard(props: { video: Video }) {
     <View
       role="button"
       accessibilityLabel={t("post.play_video", { title: v().title })}
-      onPress={() => openVideo(v())}
+      onPress={() => openVideo(v(), props.status)}
       class={`${v().portrait ? "h-72 w-52" : "aspect-video w-full"} overflow-hidden rounded-pic bg-black active:opacity-80`}
     >
       <If when={v().poster}>
@@ -145,12 +145,12 @@ function Body(props: { status: Status; lines?: number; selectable?: boolean }) {
         text={props.status.text}
         links={props.status.links}
         pics={props.status.pics}
-        onVideo={props.status.video ? () => openVideo(props.status.video!) : undefined}
+        onVideo={props.status.video ? () => openVideo(props.status.video!, props.status) : undefined}
         more={props.lines && props.status.isLongText ? t("post.full_text") : undefined}
         class={`${props.selectable ? "select-text " : ""}text-body text-ink ${props.lines === 8 ? "line-clamp-8" : props.lines === 6 ? "line-clamp-6" : ""}`}
       />
       <Pictures pics={props.status.pics} />
-      <If when={props.status.video}>{(v) => <VideoCard video={v()} />}</If>
+      <If when={props.status.video}>{(v) => <VideoCard video={v()} status={props.status} />}</If>
     </>
   );
 }

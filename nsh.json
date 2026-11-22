@@ -52,7 +52,8 @@
         "*.sina.com.cn",
         "*.sina.cn",
         "*.sinaimg.cn",
-        "*.geetest.com"
+        "*.geetest.com",
+        "*.weibocdn.com"
       ]
     },
     "network": {
@@ -68,6 +69,23 @@
         "http",
         "https"
       ]
+    },
+    "share": true,
+    "homeDir": true,
+    "fs": {
+      "read": [
+        "${dataDir}/downloads",
+        "${homeDir}/Downloads"
+      ],
+      "write": [
+        "${dataDir}/downloads",
+        "${homeDir}/Downloads"
+      ]
+    }
+  },
+  "ios": {
+    "infoPlist": {
+      "NSPhotoLibraryAddUsageDescription": "Weibo saves the pictures and videos you choose to your photo library."
     }
   }
 }

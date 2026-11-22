@@ -72,6 +72,21 @@ edits:
   hide_changes: "隐藏改动"
 video:
   error: "无法播放此视频：%{error}"
+save:
+  label: "保存"
+  saved_downloads: "已保存到“下载”"
+  failed: "保存失败：%{error}"
+  share: "分享"
+  share_failed: "分享失败：%{error}"
+player:
+  play: "播放"
+  pause: "暂停"
+  position: "播放进度"
+  speed: "倍速"
+  normal: "正常"
+  quality: "清晰度"
+  landscape: "横屏"
+  portrait: "竖屏"
 profile:
   title: "主页"
   me: "我"
