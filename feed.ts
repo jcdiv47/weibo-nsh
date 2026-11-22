@@ -86,8 +86,12 @@ export function createFeed<T extends { id: string }, C = string>(
     },
     more() {
       if (loading()) return;
-      // Past the saved items, or retrying after they showed: load the first page again.
-      if (savedAt() !== null) return fetchPage(undefined, true);
+      // Past the saved items, or retrying after they showed: load the first page again, the
+      // refresh indicator turning as it does over them.
+      if (savedAt() !== null) {
+        refreshing.set(true);
+        return fetchPage(undefined, true);
+      }
       const cursor = next();
       if (cursor === null) return;
       return fetchPage(cursor ?? undefined, cursor === undefined);

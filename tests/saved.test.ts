@@ -66,6 +66,7 @@ test("a failed first load keeps the saved page, with the error; a retry loads th
   // Not the saved cursor: the saved items are not continued from.
   feed.more();
   expect(l.calls).toEqual([undefined, undefined]);
+  expect(feed.refreshing()).toBe(true);
   l.resolve({ items: [{ id: "new" }], next: null });
   await until(() => !feed.loading());
   expect(feed.items()).toEqual([{ id: "new" }]);
