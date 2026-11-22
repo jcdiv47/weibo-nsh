@@ -44,6 +44,9 @@ test("a download clicks once, then takes the file the click made", async () => {
   expect(job()).not.toBeNull();
   downloader.onMessage(JSON.stringify({ clicked: true }));
   downloader.onDownload({ state: "started", id: "1", url: URL_, filename: "abc.mp4", path: "/d/1/abc.mp4", source: "transfer" });
+  // Another download that ends meanwhile is not this one's.
+  downloader.onDownload({ state: "finished", id: "9", url: "x", filename: "x", path: "/d/9/x", source: "transfer" });
+  expect(job()).not.toBeNull();
   downloader.onDownload({ state: "finished", id: "1", url: URL_, filename: "abc.mp4", path: "/d/1/abc.mp4", source: "transfer", bytes: 50_000_000 });
   expect(await saved).toBe("/d/1/abc.mp4");
   expect(job()).toBeNull();
@@ -62,6 +65,7 @@ test("a failed download fails the save; one at a time", async () => {
   await expect(download(URL_, "video")).rejects.toThrow("already");
   downloader.onLoad(() => {});
   downloader.onMessage(JSON.stringify({ clicked: true }));
+  downloader.onDownload({ state: "started", id: "2", url: URL_, filename: "abc.mp4", path: "", source: "transfer" });
   downloader.onDownload({ state: "failed", id: "2", url: URL_, filename: "abc.mp4", path: "", source: "transfer", message: "network lost" });
   await expect(saved).rejects.toThrow("network lost");
 });

@@ -186,7 +186,8 @@ function Player(props: { video: VideoData; status?: Status }) {
   };
   const setQuality = (i: number) => {
     if (i === quality()) return;
-    resumeAt = time();
+    // Switched again before the last one loaded: it still goes where the first switch was.
+    if (!resumeAt) resumeAt = time();
     buffering.set(true);
     quality.set(i);
   };

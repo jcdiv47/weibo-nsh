@@ -85,6 +85,8 @@ export interface Job {
   injected: boolean;
   /** The link was clicked: downloads that come before are not this one's. */
   clicked: boolean;
+  /** The download the click started (the first to start after it): only its end counts. */
+  id?: string;
   done(path: string): void;
   fail(error: Error): void;
 }
@@ -141,6 +143,8 @@ export const downloader = {
   onDownload(d: WebViewDownload) {
     const j = job();
     if (!j || !j.clicked) return;
+    if (d.state === "started" && !j.id) j.id = d.id;
+    if (d.id !== j.id) return;
     if (d.state === "finished") j.done(d.path);
     else if (d.state === "failed" || d.state === "cancelled") j.fail(new Error(d.message || d.code || d.state));
   },
