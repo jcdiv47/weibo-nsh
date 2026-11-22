@@ -49,11 +49,12 @@ function PersonRow(props: { user: User }) {
 /** The height of the tabs under the header, their hairline included. */
 const TABS = 44;
 
-/** Two tabs under the header, as a post's: the count large, then what it counts; the chosen one
+/** Two tabs under the header, as a post's, on the page's ground (the list scrolls under them, not
+ * through them): the count large, then what it counts; the chosen one
  * in ink over Weibo's orange bar. */
 function Tabs(props: { value: Kind; onChange: (k: Kind) => void; n: (k: Kind) => number | undefined }) {
   return (
-    <View role="tablist" class="h-[44px] flex-row items-end gap-7 border-b-[0.5px] border-hairline px-4">
+    <View role="tablist" class="h-[44px] flex-row items-end gap-7 border-b-[0.5px] border-hairline bg-ground px-4">
       <Each of={["following", "followers"] as Kind[]}>
         {(k) => {
           const on = () => props.value === k();
