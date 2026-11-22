@@ -7,6 +7,9 @@ import type { Page } from "./api";
 import { NotSignedIn } from "./bridge";
 import { loadSaved, save } from "./saved";
 
+/** How long a list takes to spring back from a pull to the refresh indicator's room. */
+const PULL_SETTLE_MS = 600;
+
 export interface FeedOptions {
   /** The key its first page is saved under; `null` (or none): not saved. Read at each first load. */
   saveAs?: () => string | null;
@@ -25,7 +28,8 @@ export function createFeed<T extends { id: string }, C = string>(
   const savedAt = signal<number | null>(null);
   let generation = 0;
 
-  async function fetchPage(cursor: C | undefined, replace: boolean) {
+  /** `settled`: what a pull to refresh waits for before it shows its page (`refresh`). */
+  async function fetchPage(cursor: C | undefined, replace: boolean, settled?: Promise<void>) {
     const mine = ++generation;
     loading.set(true);
     error.set(null);
@@ -45,6 +49,7 @@ export function createFeed<T extends { id: string }, C = string>(
     try {
       const page = await load(cursor);
       loaded = true;
+      await settled;
       if (mine !== generation) return; // A refresh started since.
       if (replace) savedAt.set(null);
       if (key) save(key, page);
@@ -59,6 +64,7 @@ export function createFeed<T extends { id: string }, C = string>(
       // Loaders return `next: null` at the end; a page may be empty after filtering yet not last.
       next.set(page.next);
     } catch (e) {
+      await settled;
       await saved; // The error shows with the saved items, not before them.
       if (mine === generation && !(e instanceof NotSignedIn)) error.set(String((e as Error)?.message ?? e));
     } finally {
@@ -80,9 +86,12 @@ export function createFeed<T extends { id: string }, C = string>(
     update(fn: (list: T[]) => T[]) {
       items.update(fn);
     },
+    /** A pull to refresh. Its page shows, and the indicator's room closes, once the list has
+     * sprung back from the pull to that room (`PULL_SETTLE_MS`): on iOS, ending the refresh while
+     * the list still moves leaves it scrolled past its top, the first post under the header. */
     refresh() {
       refreshing.set(true);
-      return fetchPage(undefined, true);
+      return fetchPage(undefined, true, new Promise((done) => setTimeout(done, PULL_SETTLE_MS)));
     },
     more() {
       if (loading()) return;
