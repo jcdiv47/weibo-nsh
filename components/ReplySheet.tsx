@@ -2,7 +2,7 @@
 // opened with `openComment` to comment on the post itself, with `openReply` on the comment (or the
 // reply in a thread) to answer, or with `openRepost` to repost the post with the comment quoted, as
 // weibo.com's repost box for a comment.
-import { keyboardFrame, safeArea, signal, Text, View } from "nsh";
+import { type InputRef, safeArea, signal, Text, View } from "nsh";
 import { Button, Input, Sheet } from "nsh/base";
 import { t } from "nsh/i18n";
 import { type Comment, commentPost, replyComment, repostComment, repostText, type Status } from "../api";
@@ -17,6 +17,11 @@ type Target = (
 };
 
 const target = signal<Target | null>(null);
+/** What the box shows: the target, kept while the box slides out after it closed, so that its
+ * title, quote and placeholder do not change under the closing panel. */
+const shown = signal<Target | null>(null);
+/** The text field: focused once the box is in, not while it slides in (see `onOpen`). */
+let input: InputRef | undefined;
 const text = signal("");
 const sending = signal(false);
 /** 同时转发 (a reply) or 同时评论 (a repost). */
@@ -31,6 +36,7 @@ function open(cur: Target, initial: string) {
   error.set(null);
   also.set(false);
   target.set(cur);
+  shown.set(cur);
 }
 
 /** Comments on the post itself. */
@@ -93,10 +99,10 @@ function ToolButton(props: { label: string; icon: IconName; onPress: () => void 
 }
 
 export function ReplySheet() {
-  const repost = () => target()?.kind === "repost";
-  const onPost = () => target()?.kind === "comment";
+  const repost = () => shown()?.kind === "repost";
+  const onPost = () => shown()?.kind === "comment";
   const title = () => {
-    const cur = target();
+    const cur = shown();
     if (!cur) return "";
     if (cur.kind === "comment") return t("comment.title", { name: cur.status.user.name });
     return t(cur.kind === "repost" ? "repost.title" : "reply.to", { name: cur.comment.user.name });
@@ -105,10 +111,16 @@ export function ReplySheet() {
     <Sheet
       open={!!target()}
       onOpenChange={(e) => !e.open && close()}
+      onClose={() => !target() && shown.set(null)}
+      // The keyboard comes up once the box is in: rising together, the sheet went past its place
+      // over the keyboard and fell back to it (with the Chinese keyboards).
+      onOpen={() => input?.focus()}
       closeOnSwipe
       backdropClass="bg-black/30"
       popupClass="rounded-t-sheet bg-ground px-4 pt-2.5 shadow-[0_-8px_30px_#00000014]"
-      popupStyle={{ paddingBottom: Math.max(keyboardFrame().height, safeArea().bottom) + 14 }}
+      // The sheet stands on the software keyboard itself, the bottom inset behind its edge: no
+      // padding of the app's for the keyboard (that lifted the box twice its height).
+      popupStyle={{ paddingBottom: safeArea().bottom + 14 }}
     >
       <View class="gap-3">
         <View class="h-[5px] w-9 self-center rounded-full bg-sheet-grabber" />
@@ -135,11 +147,12 @@ export function ReplySheet() {
             </Text>
           </Button>
         </View>
-        {/* A repost quotes the comment in its text already; a comment quotes the post. */}
-        <If when={!repost()}>
+        {/* A reply quotes the comment it answers. A repost quotes it in its text already, and a
+            comment on the post has the post in view behind the box. */}
+        <If when={!repost() && !onPost()}>
           <View class="flex-row gap-2 pl-0.5">
             <View class="w-0.5 rounded-full bg-hairline" />
-            <Text class="flex-1 text-meta text-ink-2 line-clamp-2">{(target()?.comment ?? target()?.status)?.text.trim() ?? ""}</Text>
+            <Text class="flex-1 text-meta text-ink-2 line-clamp-2">{shown()?.comment?.text.trim() ?? ""}</Text>
           </View>
         </If>
         <Input
@@ -147,7 +160,7 @@ export function ReplySheet() {
           onChange={(e) => text.set(e.value)}
           placeholder={t(repost() ? "repost.placeholder" : onPost() ? "comment.placeholder" : "reply.placeholder")}
           multiline
-          autoFocus
+          ref={(r: InputRef) => (input = r)}
           maxLength={2000}
           readonly={sending()}
           class="min-h-[88px] max-h-40 rounded-well bg-well px-3 py-2.5 text-body leading-[22px] text-ink placeholder:text-ink-3"
