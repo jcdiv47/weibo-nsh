@@ -28,6 +28,9 @@ export function RetryButton(props: { onPress: () => void }) {
   );
 }
 
+/** One height whether it shows the spinner or the end (`min-h`): a list pulled to refresh springs
+ * back to its top while its footer changes, and on iOS a footer that changes height then leaves
+ * it scrolled past its top, the first post under the header. */
 export function FeedFooter(props: {
   loading: boolean;
   error: string | null;
@@ -36,7 +39,7 @@ export function FeedFooter(props: {
   onRetry: () => void;
 }) {
   return (
-    <View class="items-center gap-2 px-4 py-6">
+    <View class="min-h-[72px] items-center justify-center gap-2 px-4 py-6">
       <If when={props.error}>
         <ErrorText error={props.error!} />
         <RetryButton onPress={props.onRetry} />
