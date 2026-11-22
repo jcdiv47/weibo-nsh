@@ -26,6 +26,7 @@ import logout from "../icons/logout.svg";
 import mapPin from "../icons/map-pin.svg";
 import messageCircle from "../icons/message-circle.svg";
 import pencil from "../icons/pencil.svg";
+import pinnedFilled from "../icons/pinned-filled.svg";
 import playerPlayFilled from "../icons/player-play-filled.svg";
 import playerPauseFilled from "../icons/player-pause-filled.svg";
 import playerPlay from "../icons/player-play.svg";
@@ -66,6 +67,7 @@ const ICONS = {
   "map-pin": mapPin,
   "message-circle": messageCircle,
   pencil,
+  "pinned-filled": pinnedFilled,
   "player-pause-filled": playerPauseFilled,
   "player-play": playerPlay,
   "player-play-filled": playerPlayFilled,

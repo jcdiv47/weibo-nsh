@@ -201,6 +201,17 @@ function ActivityLine(props: { activity: Activity }) {
   );
 }
 
+/** Above a post the profile's account pinned to the top of their posts: a pin and "置顶", in
+ * Weibo's orange, in the activity line's place. */
+function PinnedLine() {
+  return (
+    <View class="h-[18px] shrink-0 flex-row items-center gap-2.5">
+      <Icon name="pinned-filled" class="size-3.5 shrink-0 tint-weibo" />
+      <Text class="shrink text-meta font-medium text-weibo line-clamp-1">{t("post.pinned")}</Text>
+    </View>
+  );
+}
+
 /**
  * A post. In a list (`full` unset) a press opens its page and its counts close it; on its page
  * (`full`) the text is selectable and its edit history and region close it instead. `trailing`:
@@ -216,9 +227,12 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
     <View
       role={props.full ? undefined : "button"}
       onPress={props.full ? undefined : () => openPost(s())}
-      class={`gap-2.5 px-4 pb-3 ${props.full ? "bg-ground pt-1" : `border-b-[0.5px] border-hairline ${s().activity ? "pt-2.5" : "pt-3.5"} active:bg-well ${opening() === s().id ? "bg-well" : "bg-ground"}`}`}
+      class={`gap-2.5 px-4 pb-3 ${props.full ? "bg-ground pt-1" : `border-b-[0.5px] border-hairline ${s().activity || s().pinned ? "pt-2.5" : "pt-3.5"} active:bg-well ${opening() === s().id ? "bg-well" : "bg-ground"}`}`}
     >
       <If when={props.full ? undefined : s().activity}>{(a) => <ActivityLine activity={a()} />}</If>
+      <If when={!props.full && s().pinned}>
+        <PinnedLine />
+      </If>
       <Byline user={s().user} meta={meta()} edited={!props.full && !!s().editCount} />
       <Body status={s()} lines={props.full ? undefined : 8} selectable={props.full} />
       <If when={s().retweeted}>
