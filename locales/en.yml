@@ -46,6 +46,7 @@ reply:
   failed: "Couldn't send: %{error}"
   also_repost: "Also repost"
 repost:
+  title_post: "Repost @%{name}'s post"
   title: "Repost @%{name}'s comment"
   placeholder: "Say something…"
   failed: "Repost failed: %{error}"

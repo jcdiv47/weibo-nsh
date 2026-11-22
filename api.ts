@@ -40,6 +40,8 @@ export interface Status {
   reposts: number;
   comments: number;
   likes: number;
+  /** I liked it (`attitudes_status`). */
+  liked: boolean;
   pics: Pic[];
   video?: Video;
   /** What the post's short links (`http://t.cn/...`) stand for, by short link. */
@@ -281,6 +283,7 @@ function toStatus(s: any): Status {
     reposts: num(s?.reposts_count),
     comments: num(s?.comments_count),
     likes: num(s?.attitudes_count),
+    liked: num(s?.attitudes_status) === 1,
     pics,
     video,
     links: toLinks(s?.url_struct),
@@ -492,6 +495,11 @@ export async function replyComment(status: Status, comment: Comment, text: strin
   return parseReply(json);
 }
 
+/** Likes a post, or takes the like back, as weibo.com's like button under a post does. */
+export async function likeStatus(status: Status, like: boolean): Promise<void> {
+  await post(`/ajax/statuses/${like ? "setLike" : "cancelLike"}`, { id: status.id });
+}
+
 /** Likes a comment, or takes the like back, as weibo.com's comment like button does. */
 export async function likeComment(comment: Comment, like: boolean): Promise<void> {
   await post(`/ajax/statuses/${like ? "updateLike" : "destroyLike"}`, { object_id: comment.id, object_type: "comment" });
@@ -516,10 +524,24 @@ export function repostText(status: Status, comment: Comment, parent?: Comment): 
 /** Reposts the post (`status`) with a comment on it quoted in `text`, as weibo.com's repost box for a
  * comment does. `alsoComment`: post `text` as a comment on it too (同时评论). */
 export async function repostComment(status: Status, comment: Comment, text: string, alsoComment = false): Promise<void> {
+  await repostStatus(status, text, alsoComment, comment.id);
+}
+
+/**
+ * What weibo.com's repost box for a post starts with: nothing for an original post; for a repost,
+ * its own text as "//@author:text", so the chain carries on.
+ */
+export function repostStatusText(status: Status): string {
+  return status.retweeted ? `//@${status.user.name}:${status.text.trim()}` : "";
+}
+
+/** Reposts the post, as weibo.com's repost box does; empty `text` sends Weibo's own "转发微博".
+ * `alsoComment`: post `text` as a comment on it too (同时评论). */
+export async function repostStatus(status: Status, text: string, alsoComment = false, cid?: string): Promise<void> {
   await post("/ajax/statuses/normal_repost", {
     id: status.id,
-    cid: comment.id,
-    comment: text,
+    ...(cid ? { cid } : {}),
+    comment: text.trim() || "转发微博",
     pic_id: "",
     is_repost: "0",
     comment_ori: "0",

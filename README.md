@@ -8,7 +8,11 @@ What it does now:
 
 - **Following timeline**, strictly newest first: the "最新微博" group (`/ajax/feed/allGroups` for its
   gid, then `/ajax/feed/friendstimeline`), with ads and posts from accounts you don't follow
-  filtered out. Pull to refresh, more on scroll.
+  filtered out. Pull to refresh, more on scroll. Under each post (here, on profiles and in favorites),
+  the repost count opens the box at the bottom to repost it (`/ajax/statuses/normal_repost`, the box
+  starting with "//@author:text" for a repost, empty text sending "转发微博"), the like count likes it
+  or takes the like back (`/ajax/statuses/setLike`, `cancelLike`; filled while liked, from the post's
+  `attitudes_status`), and the comment count, as the rest of the post, opens its comments.
 - **Post page** with its full text (`/ajax/statuses/longtext`) and, in three tabs under it, its
   reposts (`/ajax/statuses/repostTimeline`), comments (`/ajax/statuses/buildComments`, the tab
   it opens on) and who liked it (`/ajax/statuses/likeShow`); a tab loads its list when first
