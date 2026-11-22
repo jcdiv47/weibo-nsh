@@ -12,7 +12,7 @@ import { type AnimatedValue, createAnimatedValue, type JSX, safeArea, Text, toke
 import { Button, NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
 import { nav } from "../nav";
-import { GLASS_PRESS, glass } from "./Glass";
+import { GLASS_PRESS, type GlassKind, glass } from "./Glass";
 import { Icon } from "./Icon";
 import { Spinner } from "./Spinner";
 
@@ -25,8 +25,10 @@ export function GlassButton(props: {
   children: JSX.Element;
   selected?: boolean;
   size?: string;
+  /** Its glass: the header's (`"control"`, the default), or `"media"` over pictures and video. */
+  kind?: GlassKind;
 }) {
-  const look = glass("control");
+  const look = glass(props.kind ?? "control");
   const cls = () => `${props.size ?? "size-11"} items-center justify-center rounded-full ${GLASS_PRESS} ${look.class}`;
   return (
     <If
@@ -59,7 +61,7 @@ export function BackButton() {
 }
 
 /** The bar's height; a large title's row is as tall. */
-const BAR = 54;
+export const BAR = 54;
 const LARGE_ROW = 57;
 /** How far the edge fades out below the header. */
 const EDGE_FADE = 20;

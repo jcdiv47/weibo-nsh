@@ -7,6 +7,7 @@
 import { cleanup, createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
 import { BackHandler } from "nsh/mobile";
 import type { Status } from "../api";
+import { glass } from "./Glass";
 
 type Pics = Status["pics"];
 
@@ -165,9 +166,11 @@ export function ImageViewer() {
             </View>
             <If when={v().pics.length > 1}>
               <View class="pointer-events-none absolute inset-x-0 h-11 items-center justify-center" style={{ top: safeArea().top + 4 }}>
-                <Text class="rounded-full bg-white/15 px-3 py-1 text-sm font-medium text-white">
-                  {`${Math.min(page(), v().pics.length - 1) + 1} / ${v().pics.length}`}
-                </Text>
+                <View class={`rounded-full px-3 py-1 ${glass("media").class}`} style={glass("media").style}>
+                  <Text class="text-sm font-medium text-white">
+                    {`${Math.min(page(), v().pics.length - 1) + 1} / ${v().pics.length}`}
+                  </Text>
+                </View>
               </View>
             </If>
           </View>

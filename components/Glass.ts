@@ -19,7 +19,10 @@ export type GlassKind =
   /** A menu's card (`PopMenu`): more opaque, for the rows' legibility. */
   | "menu"
   /** The toast (`SavedToast`): dark in either appearance, white text on it. */
-  | "toast";
+  | "toast"
+  /** Over pictures and video (the viewers' close button and counter): dark-tinted, white on it,
+   * legible over any picture. */
+  | "media";
 
 /** The frosted surfaces where the system draws no glass. */
 const FROSTED: Record<GlassKind, string> = {
@@ -27,6 +30,7 @@ const FROSTED: Record<GlassKind, string> = {
     "bg-glass backdrop-blur-xl shadow-[0_0_0_0.5px_#0000001a,0_4px_14px_#0000000f] dark:shadow-[0_0_0_0.5px_#ffffff1f,0_4px_14px_#00000040]",
   menu: "bg-menu backdrop-blur-xl shadow-[0_0_0_0.5px_#0000001a,0_12px_40px_#00000026] dark:shadow-[0_0_0_0.5px_#ffffff1f,0_12px_40px_#00000026]",
   toast: "bg-toast backdrop-blur-xl shadow-[0_12px_32px_#00000033]",
+  media: "bg-white/15 backdrop-blur-xl",
 };
 
 /** The tint of the system's glass, by kind: `null` is the system's own, which follows the
@@ -35,6 +39,7 @@ const TINT: Record<GlassKind, (() => string) | null> = {
   control: null,
   menu: null,
   toast: () => token("toast-glass"),
+  media: () => token("media-glass"),
 };
 
 /** The look of a floating surface: its classes, and the native glass's style where it is drawn.

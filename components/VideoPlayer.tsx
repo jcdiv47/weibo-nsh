@@ -1,5 +1,7 @@
 // A post's video full screen, playing with the platform's controls: drag it up or down, or press
-// the close button, to close it. One player for the app, opened with `openVideo`.
+// the close button, to close it. One player for the app, opened with `openVideo`. The close button
+// has a bar of its own above the video, where a page's back button is, so the platform's controls
+// (iOS puts picture in picture at the top left) never lie under it.
 //
 // As the image viewer, it is an overlay over the app's pages, not a `Dialog`: a native modal
 // ignores touches while it comes in and goes, so a drag to close right after opening (or a tap on
@@ -8,6 +10,7 @@ import { createAnimatedValue, safeArea, signal, Text, Video, View, windowSize } 
 import { t } from "nsh/i18n";
 import { BackHandler } from "nsh/mobile";
 import type { Video as VideoData } from "../api";
+import { BAR, GlassButton } from "./Header";
 import { Icon } from "./Icon";
 
 const shown = signal<VideoData | null>(null);
@@ -91,7 +94,7 @@ export function VideoPlayer() {
               onPanEnd={endDrag}
               class="flex-1"
               style={{
-                paddingTop: safeArea().top,
+                paddingTop: safeArea().top + BAR,
                 paddingBottom: safeArea().bottom,
                 translate: [0, dragY],
                 scale: dragY.interpolate({ inputRange: [-height(), 0, height()], outputRange: [0.75, 1, 0.75] }),
@@ -110,14 +113,10 @@ export function VideoPlayer() {
                 <Text class="text-center text-sm text-white">{t("video.error", { error: error() })}</Text>
               </View>
             </If>
-            <View
-              role="button"
-              accessibilityLabel={t("common.close")}
-              onPress={() => close()}
-              style={{ top: safeArea().top + 8 }}
-              class="absolute left-4 size-9 items-center justify-center rounded-full bg-white/15 active:opacity-60"
-            >
-              <Icon name="x" class="size-5 tint-white" />
+            <View class="absolute inset-x-0 h-[54px] flex-row items-center px-4" style={{ top: safeArea().top }}>
+              <GlassButton kind="media" label={t("common.close")} onPress={() => close()}>
+                <Icon name="x" class="size-6 tint-white" />
+              </GlassButton>
             </View>
           </View>
         );
