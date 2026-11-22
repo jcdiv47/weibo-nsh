@@ -58,3 +58,12 @@ export function count(n: number): string {
   if (n >= 10_000) return `${short(n / 1_000)}K`;
   return n.toLocaleString("en-US");
 }
+
+/** A length of video as a player shows it: `m:ss`, `h:mm:ss` from an hour; whole seconds, never
+ * negative. */
+export function clock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  const ss = String(s % 60).padStart(2, "0");
+  if (s >= 3600) return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${ss}`;
+  return `${Math.floor(s / 60)}:${ss}`;
+}

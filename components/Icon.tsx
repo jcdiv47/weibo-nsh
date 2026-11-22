@@ -24,10 +24,13 @@ import logout from "../icons/logout.svg";
 import mapPin from "../icons/map-pin.svg";
 import messageCircle from "../icons/message-circle.svg";
 import pencil from "../icons/pencil.svg";
+import playerPauseFilled from "../icons/player-pause-filled.svg";
 import playerPlayFilled from "../icons/player-play-filled.svg";
 import playerPlay from "../icons/player-play.svg";
 import refresh from "../icons/refresh.svg";
 import repeat from "../icons/repeat.svg";
+import rewindBackward10 from "../icons/rewind-backward-10.svg";
+import rewindForward10 from "../icons/rewind-forward-10.svg";
 import send from "../icons/send.svg";
 import thumbUpFilled from "../icons/thumb-up-filled.svg";
 import thumbUp from "../icons/thumb-up.svg";
@@ -35,6 +38,8 @@ import userCheck from "../icons/user-check.svg";
 import userMinus from "../icons/user-minus.svg";
 import userPlus from "../icons/user-plus.svg";
 import user from "../icons/user.svg";
+import volumeOff from "../icons/volume-off.svg";
+import volume from "../icons/volume.svg";
 import x from "../icons/x.svg";
 
 const ICONS = {
@@ -61,9 +66,12 @@ const ICONS = {
   "message-circle": messageCircle,
   pencil,
   "player-play": playerPlay,
+  "player-pause-filled": playerPauseFilled,
   "player-play-filled": playerPlayFilled,
   refresh,
   repeat,
+  "rewind-backward-10": rewindBackward10,
+  "rewind-forward-10": rewindForward10,
   send,
   "thumb-up": thumbUp,
   "thumb-up-filled": thumbUpFilled,
@@ -71,6 +79,8 @@ const ICONS = {
   "user-check": userCheck,
   "user-minus": userMinus,
   "user-plus": userPlus,
+  volume,
+  "volume-off": volumeOff,
   x,
 };
 

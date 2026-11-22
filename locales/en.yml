@@ -70,6 +70,14 @@ edits:
   hide_changes: "Hide changes"
 video:
   error: "Can't play this video: %{error}"
+  play: "Play"
+  pause: "Pause"
+  back: "Back %{n} seconds"
+  forward: "Forward %{n} seconds"
+  mute: "Mute"
+  unmute: "Unmute"
+  speed: "Playback speed"
+  position: "Position"
 profile:
   title: "Profile"
   me: "Me"

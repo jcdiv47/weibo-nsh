@@ -32,7 +32,7 @@ What it does now:
   session web view runs weibo.com's own sign-out (Sina SSO's `login.sina.com.cn/sso/logout.php`),
   which ends the session and clears its cookies; the saved pages are cleared, the pages close and the sign-in page shows. Whoever
   signs in next starts on a timeline of their own.
-- **Pictures** full screen (swipe, pinch, double tap), **videos** in the system player, `@mentions`
+- **Pictures** full screen (swipe, pinch, double tap), **videos** full screen with the app's own glass controls (play / pause, ±10 s, speed, mute, a scrubber; a tap shows or hides them), `@mentions`
   to profiles, `#topics#` to their posts (read from s.weibo.com's search page through a second
   hidden web view), short links labelled as Weibo labels them. A link to a Weibo post ("微博正文",
   `weibo.com/<uid>/<id>`, `m.weibo.cn/status/<id>`) opens its page in the app, loading it by id

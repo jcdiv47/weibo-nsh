@@ -4,7 +4,7 @@
 import { Image, type JSX, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import type { Pic, Status, User, VerifiedKind, Video } from "../api";
-import { count, relativeTime } from "../format";
+import { clock, count, relativeTime } from "../format";
 import { openEdits, opening, openPost, openProfile } from "../nav";
 import { Icon, type IconName } from "./Icon";
 import { openViewer } from "./ImageViewer";
@@ -112,7 +112,7 @@ function VideoCard(props: { video: Video }) {
   const v = () => props.video;
   const length = () => {
     const d = Math.round(v().duration);
-    return d ? `${Math.floor(d / 60)}:${String(d % 60).padStart(2, "0")}` : "";
+    return d ? clock(d) : "";
   };
   return (
     <View
