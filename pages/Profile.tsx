@@ -93,58 +93,69 @@ function createActions(data: () => ProfileData | null, reload: () => Promise<voi
 }
 type Actions = ReturnType<typeof createActions>;
 
-const BUTTON = "h-10 flex-row items-center justify-center gap-1.5 rounded-full active:opacity-70 disabled:opacity-50";
+const BUTTON = "h-8 shrink-0 flex-row items-center justify-center gap-1 rounded-full px-3.5 active:opacity-70 disabled:opacity-50";
 
-/** Follow (orange) or 已关注 (grey, a press unfollows); blocked, 解除拉黑 beside it. */
-function ActionButtons(props: { data: ProfileData; actions: Actions }) {
+/**
+ * A compact pill at the end of the counts row: Follow (orange) or 已关注 (grey, a press unfollows); while
+ * blocked, 解除拉黑 in its place.
+ */
+function ActionButton(props: { data: ProfileData; actions: Actions }) {
   const u = () => props.data.user;
   const blocked = () => props.data.block.blocked === true;
   const busy = () => props.actions.busy();
-  const following = () => !!u().following && !blocked();
+  const following = () => !!u().following;
   return (
-    <View class="gap-2 pt-0.5">
-      <View class="flex-row gap-2.5">
-        <Button
-          onPress={() => props.actions.run(following() ? "unfollow" : "follow")}
-          disabled={!!busy()}
-          class={`${BUTTON} flex-1 ${following() ? "bg-well" : "bg-weibo"}`}
-        >
-          <Icon
-            name={busy() === "unfollow" ? "user-minus" : following() ? "user-check" : "user-plus"}
-            class={`size-[17px] ${following() ? "tint-ink" : "tint-white"}`}
-          />
-          <Text class={`text-body leading-5 font-semibold ${following() ? "text-ink" : "text-white"}`}>
-            {busy() === "follow"
-              ? t("profile.following_busy")
-              : busy() === "unfollow"
-                ? t("profile.unfollow_busy")
-                : following()
-                  ? t("profile.following")
-                  : t("profile.follow")}
+    <If
+      when={!blocked()}
+      else={
+        <Button onPress={() => props.actions.run("unblock")} disabled={!!busy()} class={`${BUTTON} bg-well`}>
+          <Icon name="ban" class="size-[15px] tint-ink" />
+          <Text class="text-sm leading-[18px] font-semibold text-ink">
+            {busy() === "unblock" ? t("profile.unblock_busy") : t("profile.unblock")}
           </Text>
         </Button>
-        <If when={blocked()}>
-          <Button onPress={() => props.actions.run("unblock")} disabled={!!busy()} class={`${BUTTON} w-[120px] bg-well`}>
-            <Icon name="ban" class="size-[17px] tint-ink" />
-            <Text class="text-body leading-5 font-semibold text-ink">
-              {busy() === "unblock" ? t("profile.unblock_busy") : t("profile.unblock")}
-            </Text>
-          </Button>
-        </If>
-      </View>
-      <If when={props.actions.error()}>
-        <Text class="text-xs text-danger">{props.actions.error()}</Text>
-      </If>
-    </View>
+      }
+    >
+      <Button
+        onPress={() => props.actions.run(following() ? "unfollow" : "follow")}
+        disabled={!!busy()}
+        class={`${BUTTON} ${following() ? "bg-well" : "bg-weibo"}`}
+      >
+        <Icon
+          name={busy() === "unfollow" ? "user-minus" : following() ? "user-check" : "user-plus"}
+          class={`size-[15px] ${following() ? "tint-ink" : "tint-white"}`}
+        />
+        <Text class={`text-sm leading-[18px] font-semibold ${following() ? "text-ink" : "text-white"}`}>
+          {busy() === "follow"
+            ? t("profile.following_busy")
+            : busy() === "unfollow"
+              ? t("profile.unfollow_busy")
+              : following()
+                ? t("profile.following")
+                : t("profile.follow")}
+        </Text>
+      </Button>
+    </If>
   );
 }
 
-/** A count: the number in ink and bold, its label after it; a press opens the list, if any. */
+/**
+ * A count: the number large and bold, its label small under it (as narrow as the wider of the two,
+ * leaving the line room for the follow button); a press opens the list, if any.
+ */
 function Count(props: { n: number; label: string; onPress?: () => void }) {
+  const body = (
+    <>
+      <Text class="text-headline leading-[22px] font-bold text-ink">{count(props.n)}</Text>
+      <Text class="text-xs leading-4 text-ink-2">{props.label}</Text>
+    </>
+  );
   return (
-    <Text role={props.onPress ? "link" : undefined} onPress={props.onPress} class="text-sm leading-5 text-ink-2 active:opacity-60">
-      <Text class="font-semibold text-ink">{count(props.n)}</Text> {props.label}
-    </Text>
+    <If when={props.onPress} else={<View>{body}</View>}>
+      <Button onPress={props.onPress!} accessibilityLabel={`${count(props.n)} ${props.label}`} class="active:opacity-60">
+        {body}
+      </Button>
+    </If>
   );
 }
 
@@ -167,25 +178,30 @@ function ProfileHeader(props: { data: ProfileData; actions: Actions; mine: boole
               <Text class="text-meta text-ink-2">{u().location}</Text>
             </View>
           </If>
+          <If when={u().followsMe && !props.mine}>
+            <View class="mt-0.5 flex-row items-center gap-1 self-start rounded-full bg-weibo-wash px-2 py-[3px]">
+              <Icon name="arrows-left-right" class="size-[13px] tint-weibo" />
+              <Text class="text-xs font-medium text-weibo-ink">{t("profile.follows_you")}</Text>
+            </View>
+          </If>
         </View>
       </View>
       <If when={u().description}>
         <RichText text={u().description!} class="select-text text-body leading-[22px] text-ink" />
       </If>
-      <View class="flex-row items-center gap-5">
-        <Count n={u().followingCount ?? 0} label={t("people.following")} onPress={() => openPeople(u(), "following")} />
-        <Count n={u().followersCount ?? 0} label={t("people.followers")} onPress={() => openPeople(u(), "followers")} />
-        <Count n={u().posts ?? 0} label={t("profile.posts")} />
-        <View class="flex-1" />
-        <If when={u().followsMe && !props.mine}>
-          <View class="flex-row items-center gap-1 rounded-full bg-weibo-wash px-2 py-[3px]">
-            <Icon name="arrows-left-right" class="size-[13px] tint-weibo" />
-            <Text class="text-xs font-medium text-weibo-ink">{t("profile.follows_you")}</Text>
-          </View>
+      {/* The button at the end of the counts' line; on its own line below them if they leave no room. */}
+      <View class="flex-row flex-wrap items-center justify-between gap-x-3 gap-y-2.5">
+        <View class="flex-row items-center gap-5">
+          <Count n={u().followingCount ?? 0} label={t("people.following")} onPress={() => openPeople(u(), "following")} />
+          <Count n={u().followersCount ?? 0} label={t("people.followers")} onPress={() => openPeople(u(), "followers")} />
+          <Count n={u().posts ?? 0} label={t("profile.posts")} />
+        </View>
+        <If when={!props.mine}>
+          <ActionButton data={props.data} actions={props.actions} />
         </If>
       </View>
-      <If when={!props.mine}>
-        <ActionButtons data={props.data} actions={props.actions} />
+      <If when={props.actions.error()}>
+        <Text class="text-xs text-danger">{props.actions.error()}</Text>
       </If>
       {/* The answer said nothing of a block: what it was read from, and the answer itself. */}
       <If when={unknownBlock()}>
