@@ -157,6 +157,7 @@ test("timeline: a repost shows the reposted post's video once, at 720p", () => {
     title: "城市夜景延时",
     duration: 64,
     portrait: false,
+    qualities: [{ label: "720p", url: "https://f.video.weibocdn.com/720/video0001.mp4", height: 720 }],
   });
   // A `sinaweibo://` link opens its web address.
   expect(s.retweeted?.links["http://t.cn/A6vid1"]).toMatchObject({ url: "https://video.weibo.com/show?fid=1", video: true });

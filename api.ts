@@ -59,6 +59,16 @@ export interface Video {
   /** Seconds. */
   duration: number;
   portrait: boolean;
+  /** The sizes Weibo has it in, best first (`src` among them): the player switches between them,
+   * saving takes the best. */
+  qualities: Quality[];
+}
+
+/** A size of a video: its label ("1080p"), its mp4, its shorter side in pixels (0: unknown). */
+export interface Quality {
+  label: string;
+  url: string;
+  height: number;
 }
 
 export interface Link {
@@ -173,6 +183,16 @@ function toVideo(info: any): Video | undefined {
   )[0] ?? plays[0];
   const src = str(best?.url || media.mp4_720p_mp4 || media.mp4_hd_url || media.stream_url_hd || media.mp4_sd_url || media.stream_url);
   if (!src) return undefined;
+  const side = (p: any) => Math.min(num(p.width), num(p.height));
+  // Each size once, the best first; the old single fields when Weibo lists none.
+  const qualities: Quality[] = [];
+  for (const p of [...plays].sort((a, b) => side(b) - side(a))) {
+    const height = side(p);
+    if (qualities.some((q) => q.height === height)) continue;
+    const label = str(p.quality_label) || (height ? `${height}p` : str(p.quality_desc) || "MP4");
+    qualities.push({ label, url: https(str(p.url)), height });
+  }
+  if (!qualities.length) qualities.push({ label: "MP4", url: https(src), height: 0 });
   const w = num(best?.width), h = num(best?.height);
   return {
     src: https(src),
@@ -180,6 +200,7 @@ function toVideo(info: any): Video | undefined {
     title: str(media.kol_title || media.name || info.page_title || info.content1),
     duration: num(media.duration),
     portrait: w && h ? h > w : media.video_orientation === "vertical",
+    qualities,
   };
 }
 

@@ -70,6 +70,21 @@ edits:
   hide_changes: "Hide changes"
 video:
   error: "Can't play this video: %{error}"
+save:
+  label: "Save"
+  saved_downloads: "Saved to Downloads"
+  failed: "Couldn't save: %{error}"
+  share: "Share"
+  share_failed: "Couldn't share: %{error}"
+player:
+  play: "Play"
+  pause: "Pause"
+  position: "Position"
+  speed: "Speed"
+  normal: "Normal"
+  quality: "Quality"
+  landscape: "Landscape"
+  portrait: "Portrait"
 profile:
   title: "Profile"
   me: "Me"

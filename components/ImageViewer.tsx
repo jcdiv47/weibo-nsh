@@ -1,5 +1,7 @@
 // A post's pictures full screen: swipe between them, pinch or double tap to zoom, drag to pan
-// when zoomed, tap or drag up or down to close. One viewer for the app, opened with `openViewer`.
+// when zoomed, tap or drag up or down to close; the buttons at the top right share the picture shown
+// to another app (WeChat, X...: the system's share sheet) or save it.
+// One viewer for the app, opened with `openViewer`.
 //
 // It is an overlay over the app's pages, not a `Dialog`: a native modal ignores touches while it
 // comes in and goes, so a drag to close right after opening (or a tap on the feed right after
@@ -8,6 +10,7 @@ import { cleanup, createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, 
 import { BackHandler } from "nsh/mobile";
 import type { Status } from "../api";
 import { glass } from "./Glass";
+import { SaveButton, ShareButton } from "./SaveMedia";
 
 type Pics = Status["pics"];
 
@@ -173,6 +176,10 @@ export function ImageViewer() {
                 </View>
               </View>
             </If>
+            <View class="absolute right-4 h-11 flex-row items-center gap-3" style={{ top: safeArea().top + 4 }}>
+              <ShareButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
+              <SaveButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
+            </View>
           </View>
         );
       }}

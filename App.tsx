@@ -18,6 +18,7 @@ import {
 import { SavedToast } from "./components/FavoriteButton";
 import { ImageViewer } from "./components/ImageViewer";
 import { ReplySheet } from "./components/ReplySheet";
+import { Downloader, SaveToast } from "./components/SaveMedia";
 import { Spinner } from "./components/Spinner";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { nav } from "./nav";
@@ -200,6 +201,8 @@ function App() {
       <ReplySheet />
       <ImageViewer />
       <VideoPlayer />
+      <SaveToast />
+      <Downloader />
       <Bridge />
       <If when={started()}>
         <SearchBridge />

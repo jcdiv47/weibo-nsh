@@ -32,7 +32,21 @@ What it does now:
   session web view runs weibo.com's own sign-out (Sina SSO's `login.sina.com.cn/sso/logout.php`),
   which ends the session and clears its cookies; the saved pages are cleared, the pages close and the sign-in page shows. Whoever
   signs in next starts on a timeline of their own.
-- **Pictures** full screen (swipe, pinch, double tap), **videos** in the system player, `@mentions`
+- **Pictures** full screen (swipe, pinch, double tap), with **share** (the system's share sheet:
+  WeChat, X, Messages... whichever apps are installed) and **save** at the top right.
+- **Videos** in the app's own player (`components/VideoPlayer.tsx`): tap for the controls (they
+  hide while it plays), play / pause, a scrubber, speed (0.5× to 2×), quality (the sizes Weibo
+  lists, switching keeps the position), landscape (the player turns a quarter turn in the app),
+  and the post's favorite, save and share. Upright, a drag up or down closes it.
+- **Saving and sharing** at any size (`download.ts`): a hidden web view opens a page on the file's
+  host and clicks a same-origin `download` link to it, so the web engine streams the file to disk
+  (the app's JS never holds it). On iOS and Android the file then goes to the share sheet; on the
+  desktops into `~/Downloads`, or to the share sheet where the system keeps the app out of it
+  (macOS). iOS offers "Save Image / Save Video" (to Photos) because `nsh.json`'s `ios.infoPlist`
+  declares `NSPhotoLibraryAddUsageDescription`; the development host (`nsh run`) does not carry
+  it, so there the sheet has "Save to Files" and other apps only. Sharing files on iOS needs an NSH
+  newer than 0.6.1, which has no file system there (`ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`).
+- `@mentions`
   to profiles, `#topics#` to their posts (read from s.weibo.com's search page through a second
   hidden web view), short links labelled as Weibo labels them. A link to a Weibo post ("微博正文",
   `weibo.com/<uid>/<id>`, `m.weibo.cn/status/<id>`) opens its page in the app, loading it by id

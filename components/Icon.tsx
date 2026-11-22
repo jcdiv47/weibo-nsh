@@ -15,7 +15,9 @@ import chevronUp from "../icons/chevron-up.svg";
 import circleCheckFilled from "../icons/circle-check-filled.svg";
 import cloudDownload from "../icons/cloud-download.svg";
 import cloudOff from "../icons/cloud-off.svg";
+import deviceMobileRotated from "../icons/device-mobile-rotated.svg";
 import dots from "../icons/dots.svg";
+import download from "../icons/download.svg";
 import hash from "../icons/hash.svg";
 import history from "../icons/history.svg";
 import link from "../icons/link.svg";
@@ -25,10 +27,12 @@ import mapPin from "../icons/map-pin.svg";
 import messageCircle from "../icons/message-circle.svg";
 import pencil from "../icons/pencil.svg";
 import playerPlayFilled from "../icons/player-play-filled.svg";
+import playerPauseFilled from "../icons/player-pause-filled.svg";
 import playerPlay from "../icons/player-play.svg";
 import refresh from "../icons/refresh.svg";
 import repeat from "../icons/repeat.svg";
 import send from "../icons/send.svg";
+import share from "../icons/share.svg";
 import thumbUpFilled from "../icons/thumb-up-filled.svg";
 import thumbUp from "../icons/thumb-up.svg";
 import userCheck from "../icons/user-check.svg";
@@ -51,7 +55,9 @@ const ICONS = {
   "circle-check-filled": circleCheckFilled,
   "cloud-download": cloudDownload,
   "cloud-off": cloudOff,
+  "device-mobile-rotated": deviceMobileRotated,
   dots,
+  download,
   hash,
   history,
   link,
@@ -60,11 +66,13 @@ const ICONS = {
   "map-pin": mapPin,
   "message-circle": messageCircle,
   pencil,
+  "player-pause-filled": playerPauseFilled,
   "player-play": playerPlay,
   "player-play-filled": playerPlayFilled,
   refresh,
   repeat,
   send,
+  share,
   "thumb-up": thumbUp,
   "thumb-up-filled": thumbUpFilled,
   user,
