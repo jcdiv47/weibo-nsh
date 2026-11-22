@@ -70,14 +70,6 @@ edits:
   hide_changes: "隐藏改动"
 video:
   error: "无法播放此视频：%{error}"
-  play: "播放"
-  pause: "暂停"
-  back: "后退 %{n} 秒"
-  forward: "前进 %{n} 秒"
-  mute: "静音"
-  unmute: "取消静音"
-  speed: "播放速度"
-  position: "播放位置"
 profile:
   title: "主页"
   me: "我"
