@@ -18,6 +18,7 @@ import {
   parseUserPosts,
   postIdOf,
   weiboWhen,
+  repostStatusText,
   repostText,
   verifiedKind,
 } from "../api";
@@ -434,4 +435,16 @@ test("repost text: the comment quoted, then the one it replies to, then the post
   expect(repostText(post, reply, first)).toBe(`//@${reply.user.name}:${reply.text} //@${first.user.name}:${first.text.trim()}`);
   const repost = { ...post, retweeted: post };
   expect(repostText(repost, first)).toBe(`//@${first.user.name}:${first.text.trim()} //@${post.user.name}:${post.text.trim()}`);
+});
+
+test("a post I liked says so (attitudes_status 1); one I didn't, or without the field, doesn't", () => {
+  expect(parseStatus({ ...copy(statusShow), attitudes_status: 1 }).liked).toBe(true);
+  expect(parseStatus({ ...copy(statusShow), attitudes_status: 0 }).liked).toBe(false);
+  expect(parseStatus(statusShow).liked).toBe(false);
+});
+
+test("a post's repost text: empty for an original post, its own text quoted for a repost", () => {
+  const post = parseStatus(statusShow);
+  expect(repostStatusText({ ...post, retweeted: undefined })).toBe("");
+  expect(repostStatusText({ ...post, retweeted: post })).toBe(`//@${post.user.name}:${post.text.trim()}`);
 });

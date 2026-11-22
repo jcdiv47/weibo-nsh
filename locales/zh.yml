@@ -46,6 +46,7 @@ reply:
   failed: "发送失败：%{error}"
   also_repost: "同时转发"
 repost:
+  title_post: "转发 @%{name} 的微博"
   title: "转发 @%{name} 的评论"
   placeholder: "说说分享心得…"
   failed: "转发失败：%{error}"

@@ -1,13 +1,15 @@
 // One post: author, text, pictures, the post it reposts, counts. Pressing the author opens
 // their profile, a picture the viewer, a video the player, the reposted post that post, elsewhere
-// the post's comments. An edited post says so; on its own page, its versions open from below it.
-import { Image, type JSX, Text, View } from "nsh";
+// the post's comments; its repost count opens the box to repost it, its likes like it.
+// An edited post says so; on its own page, its versions open from below it.
+import { Image, type JSX, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
-import type { Activity, Pic, Status, User, VerifiedKind, Video } from "../api";
+import { type Activity, likeStatus, type Pic, type Status, type User, type VerifiedKind, type Video } from "../api";
 import { count, relativeTime, timeAgo } from "../format";
 import { openEdits, opening, openPost, openProfile } from "../nav";
 import { Icon, type IconName } from "./Icon";
 import { openViewer } from "./ImageViewer";
+import { openRepostStatus } from "./ReplySheet";
 import { RichText } from "./RichText";
 import { openVideo } from "./VideoPlayer";
 
@@ -261,9 +263,14 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
       {/* On the post's page the tabs under it carry the counts. */}
       <If when={!props.full}>
         <View class="flex-row items-center pt-0.5">
-          <Stat icon="repeat" n={s().reposts} label={t("post.reposts", { n: count(s().reposts) })} />
+          <Stat
+            icon="repeat"
+            n={s().reposts}
+            label={t("post.reposts", { n: count(s().reposts) })}
+            onPress={() => openRepostStatus(s())}
+          />
           <Stat icon="message-circle" n={s().comments} label={t("post.comments", { n: count(s().comments) })} />
-          <Stat icon="thumb-up" n={s().likes} label={t("post.likes", { n: count(s().likes) })} />
+          <LikeStat status={s()} />
           <View class="flex-1 flex-row justify-end">{props.trailing}</View>
         </View>
       </If>
@@ -271,10 +278,64 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
   );
 }
 
-/** A post's count: its icon, then the number (none for 0). `label` is what screen readers say. */
-export function Stat(props: { icon: IconName; n: number; label: string }) {
+// Likes given or taken back here, by post id. The lists hold plain objects, and a recycled row
+// shows another post: the row reads its post's like from here first.
+const likeChanges = signal<Record<string, { liked: boolean; likes: number }>>({});
+const likeOf = (s: Status) => likeChanges()[s.id] ?? { liked: s.liked, likes: s.likes };
+const liking = new Set<string>();
+
+/** Likes the post, or takes the like back, at once; if Weibo refuses, as it was. */
+async function toggleLike(s: Status) {
+  if (liking.has(s.id)) return;
+  const before = likeChanges()[s.id];
+  const was = likeOf(s);
+  const now = { liked: !was.liked, likes: Math.max(0, was.likes + (was.liked ? -1 : 1)) };
+  likeChanges.update((m) => ({ ...m, [s.id]: now }));
+  liking.add(s.id);
+  try {
+    await likeStatus(s, now.liked);
+    s.liked = now.liked;
+    s.likes = now.likes;
+  } catch {
+    // As it was: no change of its own left, so the post's own counts show, fresh ones after a refresh.
+    likeChanges.update(({ [s.id]: _, ...rest }) => (before ? { ...rest, [s.id]: before } : rest));
+  } finally {
+    liking.delete(s.id);
+  }
+}
+
+/** The post's likes, a button that likes it or takes the like back; filled while liked. */
+function LikeStat(props: { status: Status }) {
+  const like = () => likeOf(props.status);
   return (
-    <View accessibilityLabel={props.label} class="w-[88px] shrink-0 flex-row items-center gap-[5px]">
+    <View
+      role="button"
+      accessibilityLabel={`${t(like().liked ? "comment.unlike" : "comment.like")}, ${t("post.likes", { n: count(like().likes) })}`}
+      onPress={() => toggleLike(props.status)}
+      hitSlop={8}
+      class="w-[88px] shrink-0 flex-row items-center gap-[5px] active:opacity-60"
+    >
+      <Icon name={like().liked ? "thumb-up-filled" : "thumb-up"} class={`size-[18px] ${like().liked ? "tint-link" : "tint-ink-2"}`} />
+      <If when={like().likes}>
+        <Text class={`text-meta leading-4 ${like().liked ? "text-link" : "text-ink-2"}`}>{count(like().likes)}</Text>
+      </If>
+    </View>
+  );
+}
+
+/**
+ * A post's count: its icon, then the number (none for 0). `label` is what screen readers say.
+ * `onPress`: a button (it takes the press from the card it is in).
+ */
+export function Stat(props: { icon: IconName; n: number; label: string; onPress?: () => void }) {
+  return (
+    <View
+      role={props.onPress ? "button" : undefined}
+      accessibilityLabel={props.label}
+      onPress={props.onPress}
+      hitSlop={props.onPress ? 8 : undefined}
+      class={`w-[88px] shrink-0 flex-row items-center gap-[5px] ${props.onPress ? "active:opacity-60" : ""}`}
+    >
       <Icon name={props.icon} class="size-[18px] tint-ink-2" />
       <If when={props.n}>
         <Text class="text-meta leading-4 text-ink-2">{count(props.n)}</Text>
