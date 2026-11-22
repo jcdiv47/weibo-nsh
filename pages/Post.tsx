@@ -10,7 +10,7 @@ import { CommentBody, CommentFooter, InlineReply } from "../components/CommentBo
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
 import { FavoriteButton } from "../components/FavoriteButton";
 import { Icon } from "../components/Icon";
-import { Page } from "../components/Header";
+import { createPageScroll, Page, type PageScroll } from "../components/Header";
 import { Spinner } from "../components/Spinner";
 import { openReply, openRepost } from "../components/ReplySheet";
 import { RichText } from "../components/RichText";
@@ -22,10 +22,11 @@ import { keepPost, openPost, openProfile, openReplies, postById, withFullText } 
 
 export function Post(props: { id: string }) {
   const cached = postById(props.id);
+  const scroll = createPageScroll();
   if (cached) {
     return (
-      <Page title={t("post.title")} right={<FavoriteButton status={cached} />}>
-        <PostBody status={cached} />
+      <Page title={t("post.title")} right={<FavoriteButton status={cached} />} scroll={scroll}>
+        <PostBody status={cached} scroll={scroll} />
       </Page>
     );
   }
@@ -48,11 +49,15 @@ export function Post(props: { id: string }) {
   load();
   // One page, there from the start: the post takes the spinner's place when it comes.
   return (
-    <Page title={t("post.title")} right={<If when={loaded()}>{(s) => <FavoriteButton status={s()} />}</If>}>
+    <Page
+      title={t("post.title")}
+      right={<If when={loaded()}>{(s) => <FavoriteButton status={s()} />}</If>}
+      scroll={scroll}
+    >
       <If
         when={loaded()}
         else={
-          <View class="items-center gap-3 p-8">
+          <View class="items-center gap-3 p-8" style={{ paddingTop: scroll.inset() + 32 }}>
             <If when={error()} else={<Spinner />}>
               <ErrorText error={error()!} />
               <RetryButton onPress={load} />
@@ -60,7 +65,7 @@ export function Post(props: { id: string }) {
           </View>
         }
       >
-        {(s) => <PostBody status={s()} />}
+        {(s) => <PostBody status={s()} scroll={scroll} />}
       </If>
     </Page>
   );
@@ -79,7 +84,7 @@ const likeOf = (r: Row) => ("like" in r ? r.like : undefined);
  * first) and who liked it, each list below them. A tab's list loads when it is first opened, and
  * stays loaded while the page is open: switching back shows it at once.
  */
-function PostBody(props: { status: Status }) {
+function PostBody(props: { status: Status; scroll: PageScroll }) {
   const status = props.status;
   const full = signal<Status>(status);
   // Opened before its whole text came (`openPost` gave up waiting): it takes the cut text's place.
@@ -133,6 +138,7 @@ function PostBody(props: { status: Status }) {
 
   return (
     <List
+      {...props.scroll.list()}
       each={rows()}
       keyExtractor={(r) => r.id}
       estimatedItemSize={tab() === "likes" ? 52 : 96}

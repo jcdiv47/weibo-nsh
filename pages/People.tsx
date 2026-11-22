@@ -5,7 +5,8 @@ import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { people, type User } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
-import { Page } from "../components/Header";
+import { glass } from "../components/Glass";
+import { createPageScroll, Page } from "../components/Header";
 import { Icon } from "../components/Icon";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar } from "../components/StatusCard";
@@ -44,11 +45,14 @@ function PersonRow(props: { user: User }) {
   );
 }
 
-/** Two segments in a capsule, the chosen one raised. */
+/** The height of the segments under the header, their margins included. */
+const SEGMENTED = 56;
+
+/** Two segments in a glass capsule under the header, the chosen one raised. */
 function Segmented(props: { value: Kind; onChange: (k: Kind) => void; label: (k: Kind) => string }) {
   return (
     <View class="px-4 pb-3 pt-1">
-      <View role="tablist" class="flex-row rounded-full bg-well p-[3px]">
+      <View role="tablist" class={`flex-row rounded-full p-[3px] ${glass("control").class}`} style={glass("control").style}>
         <Each of={["following", "followers"] as Kind[]}>
           {(k) => {
             const on = () => props.value === k();
@@ -99,10 +103,11 @@ export function People(props: {
     return n === undefined ? name : `${name} ${count(n)}`;
   };
   const title = props.name ?? t(props.kind === "followers" ? "people.followers" : "people.following");
+  const scroll = createPageScroll({ accessory: SEGMENTED, refreshing: () => feed().refreshing() });
   return (
-    <Page title={title}>
-      <Segmented value={kind()} onChange={show} label={label} />
+    <Page title={title} scroll={scroll} accessory={<Segmented value={kind()} onChange={show} label={label} />}>
       <List
+        {...scroll.list()}
         each={feed().items()}
         keyExtractor={(u) => u.id}
         estimatedItemSize={84}
@@ -119,7 +124,7 @@ export function People(props: {
             onRetry={() => feed().more()}
           />
         }
-        class="flex-1 border-t-[0.5px] border-hairline"
+        class="flex-1"
       >
         {(u) => <PersonRow user={u()} />}
       </List>

@@ -5,7 +5,7 @@ import { t } from "nsh/i18n";
 import { type Comment, replies, type Status } from "../api";
 import { CommentBody, CommentFooter } from "../components/CommentBody";
 import { FeedFooter } from "../components/FeedFooter";
-import { Page } from "../components/Header";
+import { createPageScroll, Page } from "../components/Header";
 import { openReply, openRepost } from "../components/ReplySheet";
 import { Avatar } from "../components/StatusCard";
 import { createFeed } from "../feed";
@@ -56,9 +56,11 @@ export function Replies(props: { postId: string; commentId: string }) {
       if (sent) feed.update((list) => (list.some((c) => c.id === sent.id) ? list : [...list, sent]));
     });
 
+  const scroll = createPageScroll();
   return (
-    <Page title={title()}>
+    <Page title={title()} scroll={scroll}>
       <List
+        {...scroll.list()}
         each={feed.items()}
         keyExtractor={(c) => c.id}
         estimatedItemSize={80}

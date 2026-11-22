@@ -2,7 +2,7 @@
 import { List } from "nsh";
 import { type Status, topicPosts } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
-import { Page } from "../components/Header";
+import { createPageScroll, Page } from "../components/Header";
 import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
@@ -13,9 +13,11 @@ export function Topic(props: { topic: string }) {
   });
   feed.more();
   const title = `#${props.topic}#`;
+  const scroll = createPageScroll({ refreshing: () => feed.refreshing() });
   return (
-    <Page title={title}>
+    <Page title={title} scroll={scroll}>
       <List
+        {...scroll.list()}
         each={feed.items()}
         keyExtractor={(s) => s.id}
         estimatedItemSize={220}

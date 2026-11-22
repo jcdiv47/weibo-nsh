@@ -5,7 +5,8 @@ import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { editHistory, type Version } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
-import { GLASS, Page } from "../components/Header";
+import { GLASS_PRESS, glass } from "../components/Glass";
+import { createPageScroll, Page } from "../components/Header";
 import { Icon } from "../components/Icon";
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
@@ -31,6 +32,7 @@ export function Edits(props: { id: string }) {
   });
   feed.more();
   const changes = signal(true);
+  const scroll = createPageScroll({ refreshing: () => feed.refreshing() });
 
   // Versions there are: the post's own count, or more if it was edited since it loaded.
   const total = () => Math.max(status.editCount + 1, feed.items().length);
@@ -40,11 +42,13 @@ export function Edits(props: { id: string }) {
   return (
     <Page
       title={t("edits.title")}
+      scroll={scroll}
       right={
         <Button
           selected={changes()}
           onPress={() => changes.update((v) => !v)}
-          class={`h-11 flex-row items-center gap-1 rounded-full px-3.5 active:opacity-70 ${GLASS}`}
+          class={`h-11 flex-row items-center gap-1 rounded-full px-3.5 ${GLASS_PRESS} ${glass("control").class}`}
+          style={glass("control").style}
         >
           <Icon name={changes() ? "chevron-up" : "chevron-down"} class="size-4 tint-ink" />
           <Text class="text-sm leading-[18px] font-medium text-ink">
@@ -54,6 +58,7 @@ export function Edits(props: { id: string }) {
       }
     >
       <List
+        {...scroll.list()}
         each={feed.items()}
         keyExtractor={(v) => v.id}
         estimatedItemSize={200}

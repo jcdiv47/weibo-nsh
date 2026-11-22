@@ -78,7 +78,17 @@ device. Differences handled already:
 - The look follows the "Weibo for iPhone" design (Paper): its tokens are `theme.json`, light and
   dark, named as the design names them (`ground`, `well`, `hairline`, `ink`, `ink-2`, `weibo`,
   `link`, ...), its type scale `nsh.json`'s `tailwind`. Every page draws its own header
-  (`components/Header.tsx`): glass back and action buttons, the system header hidden.
+  (`components/Header.tsx`): glass back and action buttons, the system header hidden. The header
+  floats: a page's list starts below it and scrolls under it (`createPageScroll`, spread into the
+  `List` with `{...scroll.list()}`), a soft edge behind the header once something is under it, the
+  timeline's large title scrolling away into the bar. Pull-to-refresh is the app's own indicator
+  under the header (`refreshIndicator` + `pullValue`), the same on every platform.
+- What floats over content (the header's buttons and capsules, the drop-down menu, the toast) takes
+  its material from `components/Glass.ts`: Apple's Liquid Glass (`glassEffect`) on iOS 26 and
+  macOS 26 and later, the design's frosted surface (`glass` / `menu` / `toast` fills, a blur, a
+  hairline and a shadow) on earlier iOS, Android and Linux. Shapes, sizes, icons and colors are the
+  same everywhere; only the material differs, so an Android build looks like the same app. A new
+  floating surface asks `glass(kind)` for its look rather than drawing its own.
 - Icons are [Tabler Icons](https://tabler.io/icons) (MIT, `icons/LICENSE`): only the SVGs the app
   uses, in `icons/`, named in `components/Icon.tsx`. To add one, copy it from `@tabler/icons`'
   `icons/outline/` (or `filled/`) and list it there; give each use a `tint-*` class.

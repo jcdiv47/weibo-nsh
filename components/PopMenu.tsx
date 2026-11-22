@@ -1,7 +1,8 @@
-// A short menu that drops from a header button, as the design draws it: a frosted card of rows,
+// A short menu that drops from a header button, as the design draws it: a glass card of rows,
 // each a label and its icon at the right; a destructive row in red. Choosing a row closes it.
 import { type JSX, signal, Text } from "nsh";
 import { Button, Popover } from "nsh/base";
+import { glass } from "./Glass";
 import type { IconName } from "./Icon";
 import { Icon } from "./Icon";
 
@@ -14,6 +15,7 @@ export interface PopMenuItem {
 
 export function PopMenu(props: { trigger: JSX.Element; items: PopMenuItem[] }) {
   const open = signal(false);
+  const look = glass("menu");
   return (
     <Popover
       open={open()}
@@ -23,7 +25,8 @@ export function PopMenu(props: { trigger: JSX.Element; items: PopMenuItem[] }) {
       offset={8}
       margin={16}
       trigger={props.trigger}
-      popupClass="w-[232px] rounded-[24px] bg-menu p-1.5 backdrop-blur-xl shadow-[0_0_0_0.5px_#0000001a,0_12px_40px_#00000026] dark:shadow-[0_0_0_0.5px_#ffffff1f,0_12px_40px_#00000026] transition duration-150"
+      popupClass={`w-[232px] rounded-[24px] p-1.5 ${look.class} transition duration-150`}
+      popupStyle={look.style}
       popupStartingClass="opacity-0 scale-95"
       popupEndingClass="opacity-0 scale-95"
     >
