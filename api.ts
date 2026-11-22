@@ -49,6 +49,15 @@ export interface Status {
   editCount: number;
   /** I saved it to my favorites (收藏, `favorited`). */
   favorited: boolean;
+  /** Not their post: one the account commented on or liked, which Weibo mixes into their profile's
+   * posts ("她1小时前评论过的微博"). */
+  activity?: Activity;
+}
+
+export interface Activity {
+  kind: "comment" | "like";
+  /** When (ms since the epoch), as near as Weibo says it ("1小时前", "11-18"), if it says. */
+  at?: number;
 }
 
 export interface Video {
@@ -587,10 +596,62 @@ export async function userPosts(uid: string, page = 1): Promise<Page<Status, num
   return parseUserPosts(await get(`/ajax/statuses/mymblog?uid=${encodeURIComponent(uid)}&page=${page}&feature=0`), page);
 }
 
-export function parseUserPosts(json: any, page: number): Page<Status, number> {
+export function parseUserPosts(json: any, page: number, now = Date.now()): Page<Status, number> {
   const EP = "/ajax/statuses/mymblog";
   const raw = list(EP, json, "data.list");
-  return { items: items(EP, raw, shapes.status).map(toStatus), next: raw.length ? page + 1 : null };
+  return {
+    items: items(EP, raw, shapes.status).map((s: any) => {
+      const status = toStatus(s);
+      const activity = toActivity(s, now);
+      return activity ? { ...status, activity } : status;
+    }),
+    next: raw.length ? page + 1 : null,
+  };
+}
+
+/**
+ * A post Weibo put among an account's own because they commented on it or liked it: its
+ * `analysis_extra` says which (`profile_insert_type:comment_status` / `like_status`), its `title`
+ * when, as weibo.com shows it above the post ("她1小时前评论过的微博(2)", "她11-18赞过的微博").
+ */
+export function toActivity(s: any, now = Date.now()): Activity | undefined {
+  const insert = /(?:^|\|)profile_insert_type:(\w+)/.exec(str(s?.analysis_extra))?.[1];
+  const title = str(s?.title?.text);
+  const kind =
+    insert === "comment_status" ? "comment"
+    : insert === "like_status" ? "like"
+    : /评论过的微博/.test(title) ? "comment"
+    : /赞过的微博/.test(title) ? "like"
+    : undefined;
+  if (!kind) return undefined;
+  const when = /^(?:她|他|TA|你|我)?\s*(.*?)\s*(?:评论|赞)过的微博/.exec(title)?.[1];
+  const at = when ? weiboWhen(when, now) : undefined;
+  return at === undefined ? { kind } : { kind, at };
+}
+
+/** Weibo's short times in Beijing time ("刚刚", "5分钟前", "1小时前", "今天 09:30", "昨天 21:40",
+ * "11-18", "2025-11-18") as ms since the epoch; undefined for any other. */
+export function weiboWhen(when: string, now = Date.now()): number | undefined {
+  const BEIJING = 8 * 3_600_000;
+  if (when === "刚刚") return now;
+  let m = /^(\d+)\s*(秒|分钟|小时|天)前$/.exec(when);
+  if (m) return now - Number(m[1]) * { 秒: 1_000, 分钟: 60_000, 小时: 3_600_000, 天: 86_400_000 }[m[2] as "秒"];
+  // Beijing's calendar date of `now`, as a UTC date at its midnight.
+  const today = new Date(now + BEIJING);
+  const day = (y: number, mo: number, d: number, h = 0, mi = 0) => Date.UTC(y, mo, d, h, mi) - BEIJING;
+  m = /^(今天|昨天)\s*(\d{1,2}):(\d{2})$/.exec(when);
+  if (m) {
+    const back = m[1] === "昨天" ? 1 : 0;
+    return day(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - back, Number(m[2]), Number(m[3]));
+  }
+  m = /^(?:(\d{4})[-年])?(\d{1,2})[-月](\d{1,2})日?$/.exec(when);
+  if (m) {
+    const y = m[1] ? Number(m[1]) : today.getUTCFullYear();
+    const at = day(y, Number(m[2]) - 1, Number(m[3]));
+    // No year and later than today: last year's.
+    return !m[1] && at > now ? day(y - 1, Number(m[2]) - 1, Number(m[3])) : at;
+  }
+  return undefined;
 }
 
 /** One post by id (`mid`). */
