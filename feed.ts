@@ -1,6 +1,7 @@
 // A paged list's state: its items, the next page's cursor, and whether a load runs or failed.
 // With `saveAs`, its first page is kept on the device (`saved.ts`): the next time it opens on it
-// while the first page loads, and keeps it, marked by `savedAt`, if that load fails.
+// while the first page loads, as if refreshing it (`refreshing`), and keeps it, marked by
+// `savedAt`, if that load fails.
 import { signal } from "nsh";
 import type { Page } from "./api";
 import { NotSignedIn } from "./bridge";
@@ -38,6 +39,7 @@ export function createFeed<T extends { id: string }, C = string>(
             items.set(s.data.items);
             next.set(s.data.next ?? null);
             savedAt.set(s.at);
+            refreshing.set(true); // The page's refresh indicator turns until the new page is in.
           }, () => {})
         : undefined;
     try {
