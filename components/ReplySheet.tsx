@@ -37,11 +37,24 @@ const error = signal<string | null>(null);
 const drafts = new Map<string, string>();
 const draftKey = (cur: Target) => `${cur.kind}:${cur.comment ? cur.comment.id : `post:${cur.status.id}`}`;
 
+/** The box's input, while it is there. */
+let input: InputRef | undefined;
+/**
+ * How long after the box starts to slide in its input takes the focus, bringing the keyboard up:
+ * near the end of the slide, so that the two move as one. Any sooner, and on a phone the keyboard
+ * stands the box a moment far too high before it drops into place; at the slide's very end (the
+ * sheet's `onOpen`), the two show as two steps.
+ */
+const FOCUS_DELAY_MS = 150;
+let focusing: ReturnType<typeof setTimeout> | undefined;
+
 function open(cur: Target, initial: string) {
   text.set(drafts.get(draftKey(cur)) ?? initial);
   error.set(null);
   also.set(false);
   target.set(cur);
+  clearTimeout(focusing);
+  focusing = setTimeout(() => input?.focus(), FOCUS_DELAY_MS);
 }
 
 export function openReply(status: Status, comment: Comment, onSent?: (reply: Comment | null) => void) {
@@ -67,6 +80,7 @@ export function openRepostStatus(status: Status) {
 const canSend = (cur: Target | null, body: string) => !!cur && (!!body || (cur.kind === "repost" && !cur.comment));
 
 function close() {
+  clearTimeout(focusing);
   const cur = target();
   if (cur) drafts.set(draftKey(cur), text());
   target.set(null);
@@ -113,7 +127,6 @@ function ToolButton(props: { label: string; icon: IconName; onPress: () => void 
 }
 
 export function ReplySheet() {
-  let input: InputRef | undefined;
   const repost = () => target()?.kind === "repost";
   const title = () => {
     const cur = target();
@@ -132,8 +145,7 @@ export function ReplySheet() {
       open={!!target()}
       onOpenChange={(e) => !e.open && close()}
       closeOnSwipe
-      // The keyboard comes once the box is all there, not while it slides in: on a phone, the two
-      // at once stand the box a moment too high before it drops into place.
+      // Should the slide outlast the delay, the box is all there now.
       onOpen={() => input?.focus()}
       backdropClass="bg-black/30"
       popupClass="rounded-t-sheet bg-ground px-4 pt-2.5 shadow-[0_-8px_30px_#00000014]"
@@ -177,7 +189,7 @@ export function ReplySheet() {
           onChange={(e) => text.set(e.value)}
           placeholder={t(repost() ? "repost.placeholder" : target()?.comment ? "reply.placeholder" : "reply.post_placeholder")}
           multiline
-          ref={(r) => (input = r)}
+          ref={(r) => (input = r ?? undefined)}
           maxLength={2000}
           readonly={sending()}
           class="min-h-[88px] max-h-40 rounded-well bg-well px-3 py-2.5 text-body leading-[22px] text-ink placeholder:text-ink-3"
