@@ -8,7 +8,7 @@
 // a blur) keeps the title and the status bar legible; a large title scrolls away with the list and
 // the bar shows it small. The pull-to-refresh indicator is the app's, under the header, the same on
 // every platform.
-import { type AnimatedValue, createAnimatedValue, type JSX, safeArea, Text, token, View } from "nsh";
+import { type AnimatedValue, createAnimatedValue, type JSX, type ListRef, safeArea, Text, token, View } from "nsh";
 import { Button, NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
 import { nav } from "../nav";
@@ -78,12 +78,17 @@ export interface PageScroll {
   readonly accessory: number;
   /** Whether the list is refreshing, for a list the user pulls to refresh. */
   readonly refreshing?: () => boolean;
+  /** Refreshes the list: with it, the page has a button centered at its bottom that scrolls the list
+   * back to its top, or refreshes it when it is there (`TopButton`). */
+  readonly refresh?: () => void;
   /** The list's scroll offset, fed natively: `-inset()` at its top. */
   readonly offset: AnimatedValue;
   /** How far the list is pulled past its top, fed natively. */
   readonly pull: AnimatedValue;
   /** The room the header takes over the top of the page (the status bar's included). */
   inset(): number;
+  /** Scrolls the list back to its top; refreshes it (`refresh`) when it is there already. */
+  toTop(): Promise<void>;
   /** The list's props: it starts under the header and scrolls under it; a list that refreshes
    * draws the page's indicator. */
   list(): {
@@ -92,10 +97,16 @@ export interface PageScroll {
     scrollValue: AnimatedValue;
     pullValue: AnimatedValue;
     refreshIndicator?: { height: number };
+    ref: (list: ListRef) => void;
   };
 }
 
-export function createPageScroll(options: { large?: boolean; accessory?: number; refreshing?: () => boolean } = {}): PageScroll {
+/** How near its top, in points, the list counts as there: a press of the top button refreshes. */
+const AT_TOP = 4;
+
+export function createPageScroll(
+  options: { large?: boolean; accessory?: number; refreshing?: () => boolean; refresh?: () => void } = {},
+): PageScroll {
   const offset = createAnimatedValue(0);
   const pull = createAnimatedValue(0);
   const large = options.large ?? false;
@@ -103,19 +114,29 @@ export function createPageScroll(options: { large?: boolean; accessory?: number;
   // A large title is the list's first row, the bar's action beside it: the list starts at the
   // status bar.
   const inset = () => safeArea().top + (large ? 0 : BAR) + accessory;
+  let ref: ListRef | undefined;
   return {
     large,
     accessory,
     refreshing: options.refreshing,
+    refresh: options.refresh,
     offset,
     pull,
     inset,
+    async toTop() {
+      const top = -inset();
+      if ((await offset.getValue()) > top + AT_TOP) ref?.scrollTo({ y: top, animated: true });
+      else if (!options.refreshing?.()) options.refresh?.();
+    },
     list: () => ({
       contentInset: { top: inset() },
       contentOffset: { y: -inset() },
       scrollValue: offset,
       pullValue: pull,
       ...(options.refreshing ? { refreshIndicator: { height: PULL } } : {}),
+      ref: (list: ListRef) => {
+        ref = list;
+      },
     }),
   };
 }
@@ -213,6 +234,28 @@ function PullIndicator(props: { scroll: PageScroll; refreshing: () => boolean })
   );
 }
 
+/** Over the page's list, centered at its bottom, clear of the home indicator's swipe: an arrow up
+ * while the list is scrolled away from its top, which scrolls it back there, and the refresh glyph
+ * once it is at the top, which refreshes it. The two cross-fade with the list's offset, natively. */
+function TopButton(props: { scroll: PageScroll }) {
+  const top = () => -props.scroll.inset();
+  const away = () => props.scroll.offset.interpolate({ inputRange: [top() + AT_TOP, top() + 48], outputRange: [0, 1] });
+  return (
+    <View class="absolute inset-x-0 items-center" style={{ bottom: safeArea().bottom + 24, pointerEvents: "box-none" }}>
+      <GlassButton label={t("timeline.top")} onPress={() => void props.scroll.toTop()}>
+        <View class="size-[22px]">
+          <View class="absolute inset-0" style={{ opacity: away().interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
+            <Icon name="refresh" class="size-[22px] tint-ink" />
+          </View>
+          <View class="absolute inset-0" style={{ opacity: away() }}>
+            <Icon name="arrow-up" class="size-[22px] tint-ink" />
+          </View>
+        </View>
+      </GlassButton>
+    </View>
+  );
+}
+
 /** A page of the stack with the app's header over its content. With `scroll`, its list fills the
  * page and scrolls under the header (`createPageScroll`); without, the content starts below the
  * header. */
@@ -240,6 +283,9 @@ export function Page(props: {
               <ScrollEdge scroll={scroll()} height={header()} />
               <If when={scroll().refreshing}>
                 {(refreshing) => <PullIndicator scroll={scroll()} refreshing={refreshing()} />}
+              </If>
+              <If when={scroll().refresh}>
+                <TopButton scroll={scroll()} />
               </If>
             </>
           )}

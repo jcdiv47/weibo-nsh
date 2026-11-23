@@ -4,6 +4,7 @@
 import { Image } from "nsh";
 import alertTriangle from "../icons/alert-triangle.svg";
 import arrowRight from "../icons/arrow-right.svg";
+import arrowUp from "../icons/arrow-up.svg";
 import arrowsLeftRight from "../icons/arrows-left-right.svg";
 import at from "../icons/at.svg";
 import ban from "../icons/ban.svg";
@@ -48,6 +49,7 @@ import x from "../icons/x.svg";
 const ICONS = {
   "alert-triangle": alertTriangle,
   "arrow-right": arrowRight,
+  "arrow-up": arrowUp,
   "arrows-left-right": arrowsLeftRight,
   at,
   ban,
