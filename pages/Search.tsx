@@ -43,7 +43,7 @@ function Field(props: { children: JSX.Element }) {
 }
 
 /** The bar: the field, then 取消, which leaves search (`depth` pages: results over search, two). */
-function SearchBar(props: { children: JSX.Element; depth?: number }) {
+export function SearchBar(props: { children: JSX.Element; depth?: number }) {
   return (
     <View class="flex-row items-center gap-3.5 px-4" style={{ height: BAR }}>
       <Field>{props.children}</Field>

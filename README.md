@@ -39,7 +39,8 @@ What it does now:
   suggests (`/ajax/side/search`: accounts by that name, searches that start so). A search opens what it
   finds under two tabs: posts (s.weibo.com's `/weibo?q=`, as topics) and accounts (its `/user?q=`, read
   from the page's cards), each with a follow button; the field brings back the search to change it.
-  Searching one account's posts is not there yet.
+  On a profile, a magnifier beside its menu searches that account's own posts
+  (`/ajax/statuses/searchProfile`, as the search box of weibo.com's profile page), newest first.
 - **Sign out**, from the "我" menu on the timeline or the menu of my own profile, asking first: the
   session web view runs weibo.com's own sign-out (Sina SSO's `login.sina.com.cn/sso/logout.php`),
   which ends the session and clears its cookies; the saved pages are cleared, the pages close and the sign-in page shows. Whoever

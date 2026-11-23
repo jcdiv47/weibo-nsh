@@ -135,6 +135,11 @@ search:
   edit: "Change the search “%{q}”"
   tab_posts: "Posts"
   tab_users: "People"
+  profile_title: "Search posts"
+  profile_placeholder: "Search %{name}'s posts"
+  profile_placeholder_any: "Search their posts"
+  profile_hint: "Find their posts by a word in them."
+  profile_search: "Search %{name}'s posts"
 error:
   weibo_changed: "Weibo changed how it answers (%{endpoint}): this can't be shown until the app is updated."
 saved:
