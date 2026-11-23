@@ -45,7 +45,7 @@ let input: InputRef | undefined;
  * stands the box a moment far too high before it drops into place; at the slide's very end (the
  * sheet's `onOpen`), the two show as two steps.
  */
-const FOCUS_DELAY_MS = 150;
+const FOCUS_DELAY_MS = 60;
 let focusing: ReturnType<typeof setTimeout> | undefined;
 
 function open(cur: Target, initial: string) {
