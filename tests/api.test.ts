@@ -7,6 +7,7 @@ import {
   parseEditHistory,
   parseFavorites,
   parseGroups,
+  parseHotSearch,
   parseLikes,
   parseLongText,
   parsePeople,
@@ -14,8 +15,10 @@ import {
   parseReply,
   parseReposts,
   parseStatus,
+  parseSuggest,
   parseTimeline,
   parseUserPosts,
+  parseUserSearch,
   postIdOf,
   weiboWhen,
   repostStatusText,
@@ -30,6 +33,7 @@ import editHistory from "./fixtures/editHistory.json";
 import favoritesFixture from "./fixtures/favorites.json";
 import friends from "./fixtures/friends.json";
 import friendstimeline from "./fixtures/friendstimeline.json";
+import hotSearch from "./fixtures/hotSearch.json";
 import longtext from "./fixtures/longtext.json";
 import mymblog from "./fixtures/mymblog.json";
 import profileInfo from "./fixtures/profileInfo.json";
@@ -37,7 +41,9 @@ import profileInfoBlocked from "./fixtures/profileInfoBlocked.json";
 import likeShow from "./fixtures/likeShow.json";
 import replies from "./fixtures/replies.json";
 import repostTimeline from "./fixtures/repostTimeline.json";
+import sideSearch from "./fixtures/sideSearch.json";
 import statusShow from "./fixtures/statusShow.json";
+import userSearchHtml from "./fixtures/userSearch";
 
 const GID = "110001000000001"; // 11000 + my uid, as allGroups names it.
 const copy = <T>(v: T): any => JSON.parse(JSON.stringify(v));
@@ -458,4 +464,51 @@ test("a post's repost text: empty for an original post, its own text quoted for 
   const post = parseStatus(statusShow);
   expect(repostStatusText({ ...post, retweeted: undefined })).toBe("");
   expect(repostStatusText({ ...post, retweeted: post })).toBe(`//@${post.user.name}:${post.text.trim()}`);
+});
+
+// Search.
+
+test("user search: each card's account, verification, description, followers and follow state", () => {
+  const page = parseUserSearch(userSearchHtml, 1);
+  expect(page.items.map((u) => u.id)).toEqual(["1000000011", "1000000012", "1000000013"]);
+  expect(page.next).toBe(2);
+  const [lei, mi, fan] = page.items;
+  expect(lei.name).toBe("雷军");
+  expect(lei.avatar).toBe("https://tvax4.sinaimg.cn/crop.0.0.1080.1080.180/aaaa.jpg?KID=imgbed,tva&Expires=1795410551&ssig=x");
+  expect(lei.verifiedKind).toBe("gold");
+  expect(lei.description).toBe("小米创办人，董事长兼CEO；金山软件董事长；天使投资人。");
+  expect(lei.followersCount).toBe(27335000);
+  expect(lei.following).toBe(false);
+  expect(mi.name).toBe("小米公司 & 生态"); // The match's highlight and entities gone.
+  expect(mi.verifiedKind).toBe("org");
+  expect(mi.following).toBe(true);
+  expect(fan.verified).toBe(undefined);
+  expect(fan.description).toBe(undefined);
+  expect(fan.followersCount).toBe(812);
+  expect(fan.avatar.startsWith("https://")).toBe(true);
+  expect(fan.following && fan.followsMe).toBe(true);
+});
+
+test("user search: the last page has no next; a pager without cards is a changed page", () => {
+  expect(parseUserSearch(userSearchHtml, 3).next).toBe(null);
+  expect(parseUserSearch("<div>nothing</div>", 1)).toEqual({ items: [], next: null });
+  expect(() => parseUserSearch('<a href="/user?q=x&page=2">2</a>', 1)).toThrow(WeiboChanged);
+});
+
+test("hot searches: in order, ads out, topics searched as #topic#, marks with their colors", () => {
+  const words = parseHotSearch(hotSearch);
+  expect(words.map((w) => w.word)).toEqual(["官方通报百万粉丝主播被指私闯果园", "许昌外卖小哥一句脆脆的带火炸鸡", "某部委员工泄密被判"]);
+  expect(words[0].query).toBe("#官方通报百万粉丝主播被指私闯果园#");
+  expect(words[0].label).toBe(undefined);
+  expect(words[1]).toEqual({ word: "许昌外卖小哥一句脆脆的带火炸鸡", query: "许昌外卖小哥一句脆脆的带火炸鸡", count: 638922, label: { text: "热", color: "#ff9406" } });
+  expect(() => parseHotSearch({ ok: 1, data: {} })).toThrow(WeiboChanged);
+});
+
+test("suggestions: whole accounts first, then those only named; searches once each", () => {
+  const s = parseSuggest(sideSearch);
+  expect(s.users.map((u) => [u.id, u.name])).toEqual([["1000000011", "雷军"], ["1000000014", "雷军的朋友"]]);
+  expect(s.users[0].following).toBe(true);
+  expect(s.users[0].verifiedKind).toBe("gold");
+  expect(s.words).toEqual(["雷军回应小米售后锦旗", "雷军APEC", "雷军超话"]);
+  expect(parseSuggest({ ok: 1, data: { hotquery: [], user: [], users: [] } })).toEqual({ users: [], words: [] });
 });

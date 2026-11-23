@@ -225,6 +225,8 @@ export function Page(props: {
   scroll?: PageScroll;
   /** Under the bar, floating with it (People's segments): `scroll.accessory` points tall. */
   accessory?: JSX.Element;
+  /** The bar itself, `BAR` points tall, instead of back, title and action (search's field). */
+  bar?: JSX.Element;
   children?: JSX.Element;
 }) {
   const header = () => safeArea().top + (props.scroll?.large ? LARGE_ROW : BAR) + (props.scroll?.accessory ?? 0);
@@ -243,8 +245,12 @@ export function Page(props: {
           )}
         </If>
         <View class="absolute inset-x-0" style={{ top: safeArea().top }}>
-          <If when={props.scroll?.large} else={<Header title={props.title} hideTitle={props.hideTitle} right={props.right} />}>
-            <LargeBar title={props.title} right={props.right} scroll={props.scroll!} />
+          <If when={props.bar} else={
+            <If when={props.scroll?.large} else={<Header title={props.title} hideTitle={props.hideTitle} right={props.right} />}>
+              <LargeBar title={props.title} right={props.right} scroll={props.scroll!} />
+            </If>
+          }>
+            {props.bar}
           </If>
           {props.accessory}
         </View>

@@ -126,6 +126,15 @@ people:
   following: "关注"
   followers: "粉丝"
   mutual: "互相关注"
+search:
+  title: "搜索"
+  placeholder: "搜索微博、用户"
+  clear: "清除"
+  hot: "微博热搜"
+  search_for: "搜索“%{q}”"
+  edit: "修改搜索“%{q}”"
+  tab_posts: "微博"
+  tab_users: "用户"
 error:
   weibo_changed: "微博更改了接口返回格式（%{endpoint}），需更新应用后才能显示。"
 saved:

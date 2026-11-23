@@ -766,11 +766,18 @@ async function mapLimit<T, R>(items: T[], limit: number, f: (t: T) => Promise<R>
 
 /**
  * The posts of a topic (`#name#`), as s.weibo.com's search lists them (its default order, real
- * time first); pages count from 1. weibo.com has no JSON for topics: read the posts' ids from the
- * search page, then each post from weibo.com's API, a few at a time.
+ * time first); pages count from 1.
  */
-export async function topicPosts(topic: string, page = 1): Promise<Page<Status, number>> {
-  const q = `#${topic.replace(/^#|#$/g, "")}#`;
+export function topicPosts(topic: string, page = 1): Promise<Page<Status, number>> {
+  return searchPosts(`#${topic.replace(/^#|#$/g, "")}#`, page);
+}
+
+/**
+ * The posts s.weibo.com finds for `q` (a keyword, or a `#topic#`), its default order; pages count
+ * from 1. weibo.com has no JSON for its search: read the posts' ids from the search page, then each
+ * post from weibo.com's API, a few at a time.
+ */
+export async function searchPosts(q: string, page = 1): Promise<Page<Status, number>> {
   const html = await getSearchPage(`/weibo?q=${encodeURIComponent(q)}${page > 1 ? `&page=${page}` : ""}`);
   const ids = [...new Set([...html.matchAll(/\bmid="(\d{10,})"/g)].map((m) => m[1]))];
   // A post that is gone fails alone; a change of shape fails them all, and says so.
@@ -782,9 +789,116 @@ export async function topicPosts(topic: string, page = 1): Promise<Page<Status, 
     }),
   );
   if (changed && !posts.some(Boolean)) throw changed;
-  const pages = [...html.matchAll(/[?&]page=(\d+)/g)].map((m) => Number(m[1]));
-  const last = Math.max(page, ...pages);
-  return { items: posts.filter((p): p is Status => !!p), next: ids.length && page < last ? page + 1 : null };
+  return { items: posts.filter((p): p is Status => !!p), next: ids.length && page < lastPage(html, page) ? page + 1 : null };
+}
+
+/** The last page a search page links to (its pager), or `page` itself. */
+const lastPage = (html: string, page: number) =>
+  Math.max(page, ...[...html.matchAll(/[?&]page=(\d+)/g)].map((m) => Number(m[1])));
+
+/**
+ * The accounts s.weibo.com finds for `q`, best match first, about twenty a page; pages count from
+ * 1. Its search always finds some (names that look alike), so no answer is "nobody".
+ */
+export async function searchUsers(q: string, page = 1): Promise<Page<User, number>> {
+  return parseUserSearch(await getSearchPage(`/user?q=${encodeURIComponent(q)}${page > 1 ? `&page=${page}` : ""}`), page);
+}
+
+/**
+ * The accounts of s.weibo.com's user search page: its cards (`card-user-b`), each with the
+ * account's link (`weibo.com/u/<uid>`), name, picture, verification (the badge's title, gold by
+ * its icon), description, followers ("粉丝：1393.1万") and follow button ("已关注" once followed).
+ * A page with a pager but no card has changed shape.
+ */
+export function parseUserSearch(html: string, page: number): Page<User, number> {
+  const EP = "s.weibo.com/user";
+  const cards = html.split(/<div class="card card-user-b\b/).slice(1);
+  const users: User[] = [];
+  for (const card of cards) {
+    const id = /href="(?:https?:)?\/\/weibo\.com\/u\/(\d+)"/.exec(card)?.[1];
+    const name = stripTags(/class="name"[^>]*>([\s\S]*?)<\/a>/.exec(card)?.[1] ?? "").trim();
+    if (!id || !name) {
+      reportDrift(EP, [id ? "name" : "uid"], card.slice(0, 1500));
+      continue;
+    }
+    const badge = /<span\s+title="([^"]*认证[^"]*)"/.exec(card)?.[1];
+    const info = card.slice(card.indexOf('class="info"'));
+    const paragraphs = [...info.matchAll(/<p>([\s\S]*?)<\/p>/g)].map((m) => stripTags(m[1]).trim());
+    const followers = /粉丝：\s*([\d.]+)\s*(万|亿)?/.exec(info);
+    const button = /woo-button-content">([^<]*)</.exec(card)?.[1]?.trim();
+    users.push({
+      id,
+      name,
+      avatar: https(/<div class="avator">[\s\S]*?<img src="([^"]+)"/.exec(card)?.[1] ?? ""),
+      verified: badge,
+      verifiedKind: badge ? (/官方|机构/.test(badge) ? "org" : /woo_svg_vgold/.test(card) ? "gold" : "personal") : undefined,
+      description: paragraphs.find((p) => p && !/^粉丝：/.test(p)) || undefined,
+      followersCount: followers ? Math.round(Number(followers[1]) * (followers[2] === "亿" ? 1e8 : followers[2] === "万" ? 1e4 : 1)) : undefined,
+      following: button ? button === "已关注" || button === "互相关注" : undefined,
+      followsMe: button === "互相关注" ? true : undefined,
+    });
+  }
+  if (!cards.length && /[?&]page=\d+/.test(html)) {
+    reportDrift(EP, ["card-user-b"], html.slice(0, 4000));
+    throw new WeiboChanged(EP, ["card-user-b"]);
+  }
+  return { items: users, next: cards.length && page < lastPage(html, page) ? page + 1 : null };
+}
+
+/** A word of Weibo's hot search list (微博热搜). */
+export interface HotWord {
+  /** What it shows. */
+  word: string;
+  /** What to search for: a topic's `#name#`, or the word. */
+  query: string;
+  /** How many searched it, when given. */
+  count?: number;
+  /** Weibo's mark ("热", "新", "沸"...) and its color, when it has one. */
+  label?: { text: string; color: string };
+}
+
+/** Weibo's hot searches (微博热搜), in their order; ads left out. */
+export async function hotSearches(): Promise<HotWord[]> {
+  return parseHotSearch(await get("/ajax/side/hotSearch"));
+}
+
+export function parseHotSearch(json: any): HotWord[] {
+  const EP = "/ajax/side/hotSearch";
+  return list(EP, json, "data.realtime")
+    .filter((w: any) => !w?.is_ad && !w?.topic_ad && str(w?.word))
+    .map((w: any): HotWord => {
+      const word = str(w.word);
+      const text = str(w.small_icon_desc || w.label_name);
+      const color = str(w.small_icon_desc_color || w.icon_desc_color);
+      return {
+        word: str(w.note) || word,
+        query: str(w.word_scheme) || word,
+        count: w.num === undefined ? undefined : num(w.num),
+        label: text && /^#[0-9a-f]{6}$/i.test(color) ? { text, color } : undefined,
+      };
+    });
+}
+
+/** What Weibo suggests while a search is typed: accounts by that name, and searches that start so. */
+export interface Suggestions {
+  users: User[];
+  words: string[];
+}
+
+/** weibo.com's suggestions for `q`, as its own search box asks for them. */
+export async function searchSuggest(q: string): Promise<Suggestions> {
+  return parseSuggest(await get(`/ajax/side/search?q=${encodeURIComponent(q)}`));
+}
+
+export function parseSuggest(json: any): Suggestions {
+  const EP = "/ajax/side/search";
+  // `users` carries whole accounts; `user` only uid and name: kept for an account `users` lacks.
+  const full = Array.isArray(json?.data?.users) ? items(EP, json.data.users, shapes.user).map(toUser) : [];
+  const short: User[] = (Array.isArray(json?.data?.user) ? json.data.user : [])
+    .filter((u: any) => str(u?.uid) && !full.some((f) => f.id === str(u.uid)))
+    .map((u: any) => ({ id: str(u.uid), name: str(u.nick) || "(unknown)", avatar: "" }));
+  const words = [...new Set(list(EP, json, "data.hotquery").map((w: any) => str(w?.suggestion).trim()).filter(Boolean))];
+  return { users: [...full, ...short], words };
 }
 
 /**

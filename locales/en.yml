@@ -126,6 +126,15 @@ people:
   following: "Following"
   followers: "Followers"
   mutual: "Mutual"
+search:
+  title: "Search"
+  placeholder: "Search posts and people"
+  clear: "Clear"
+  hot: "Trending on Weibo"
+  search_for: "Search “%{q}”"
+  edit: "Change the search “%{q}”"
+  tab_posts: "Posts"
+  tab_users: "People"
 error:
   weibo_changed: "Weibo changed how it answers (%{endpoint}): this can't be shown until the app is updated."
 saved:

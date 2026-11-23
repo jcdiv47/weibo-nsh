@@ -3,6 +3,7 @@
 // give each a `tint-*` class (and a `size-*`), or it draws black.
 import { Image } from "nsh";
 import alertTriangle from "../icons/alert-triangle.svg";
+import arrowRight from "../icons/arrow-right.svg";
 import arrowsLeftRight from "../icons/arrows-left-right.svg";
 import at from "../icons/at.svg";
 import ban from "../icons/ban.svg";
@@ -13,6 +14,7 @@ import chevronLeft from "../icons/chevron-left.svg";
 import chevronRight from "../icons/chevron-right.svg";
 import chevronUp from "../icons/chevron-up.svg";
 import circleCheckFilled from "../icons/circle-check-filled.svg";
+import circleXFilled from "../icons/circle-x-filled.svg";
 import cloudDownload from "../icons/cloud-download.svg";
 import cloudOff from "../icons/cloud-off.svg";
 import deviceMobileRotated from "../icons/device-mobile-rotated.svg";
@@ -33,6 +35,7 @@ import playerPlay from "../icons/player-play.svg";
 import refresh from "../icons/refresh.svg";
 import repeat from "../icons/repeat.svg";
 import send from "../icons/send.svg";
+import search from "../icons/search.svg";
 import share from "../icons/share.svg";
 import thumbUpFilled from "../icons/thumb-up-filled.svg";
 import thumbUp from "../icons/thumb-up.svg";
@@ -44,6 +47,7 @@ import x from "../icons/x.svg";
 
 const ICONS = {
   "alert-triangle": alertTriangle,
+  "arrow-right": arrowRight,
   "arrows-left-right": arrowsLeftRight,
   at,
   ban,
@@ -54,6 +58,7 @@ const ICONS = {
   "chevron-right": chevronRight,
   "chevron-up": chevronUp,
   "circle-check-filled": circleCheckFilled,
+  "circle-x-filled": circleXFilled,
   "cloud-download": cloudDownload,
   "cloud-off": cloudOff,
   "device-mobile-rotated": deviceMobileRotated,
@@ -73,6 +78,7 @@ const ICONS = {
   "player-play-filled": playerPlayFilled,
   refresh,
   repeat,
+  search,
   send,
   share,
   "thumb-up": thumbUp,
