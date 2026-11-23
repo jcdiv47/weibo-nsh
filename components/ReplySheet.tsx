@@ -1,10 +1,27 @@
-// The reply box: a sheet at the bottom with a text input, over the keyboard. One for the app,
+// The reply box: a panel at the bottom with a text input, standing on the keyboard. One for the app,
 // opened with `openReply` on the comment (or the reply in a thread) to answer, or with
 // `openRepost` to repost the post with the comment quoted, as weibo.com's repost box for a comment.
 // Without a comment it comments on the post itself (`openComment`, the post page's comment field)
 // or reposts it (a post's repost count in a list, the post page's repost button).
-import { type InputRef, safeArea, signal, Text, View } from "nsh";
-import { Button, Input, Sheet } from "nsh/base";
+//
+// The panel rises with the keyboard as one motion: it waits below the screen, and when the keyboard
+// comes it goes to the keyboard's top on the keyboard's own curve and duration, so it grows out of
+// the keyboard's top edge; closing takes them down together. (`Sheet` slid in on its own spring,
+// and a keyboard rising during that slide stood it, on a phone, a moment far too high.)
+import {
+  createAnimatedValue,
+  type InputRef,
+  effect,
+  Keyboard,
+  keyboardFrame,
+  LayoutAnimation,
+  safeArea,
+  signal,
+  Text,
+  untracked,
+  View,
+} from "nsh";
+import { Button, Input } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
   type Comment,
@@ -37,24 +54,29 @@ const error = signal<string | null>(null);
 const drafts = new Map<string, string>();
 const draftKey = (cur: Target) => `${cur.kind}:${cur.comment ? cur.comment.id : `post:${cur.status.id}`}`;
 
-/** The box's input, while it is there. */
+/** The panel is going: it goes down with the keyboard, and leaves the tree once it is down. */
+const leaving = signal(false);
+/** No software keyboard came (a hardware keyboard): the panel stands at the bottom instead. */
+const noKeyboard = signal(false);
+/** How long the panel waits for the keyboard before it stands at the bottom without it. */
+const KEYBOARD_WAIT_MS = 600;
+/** The panel's motion where the keyboard gives none (it is not there, or it reports no duration). */
+const PANEL_MS = 250;
+let waiting: ReturnType<typeof setTimeout> | undefined;
+/** The panel's input, while it is there. */
 let input: InputRef | undefined;
-/**
- * How long after the box starts to slide in its input takes the focus, bringing the keyboard up:
- * near the end of the slide, so that the two move as one. Any sooner, and on a phone the keyboard
- * stands the box a moment far too high before it drops into place; at the slide's very end (the
- * sheet's `onOpen`), the two show as two steps.
- */
-const FOCUS_DELAY_MS = 150;
-let focusing: ReturnType<typeof setTimeout> | undefined;
 
 function open(cur: Target, initial: string) {
   text.set(drafts.get(draftKey(cur)) ?? initial);
   error.set(null);
   also.set(false);
+  leaving.set(false);
+  noKeyboard.set(false);
   target.set(cur);
-  clearTimeout(focusing);
-  focusing = setTimeout(() => input?.focus(), FOCUS_DELAY_MS);
+  clearTimeout(waiting);
+  waiting = setTimeout(() => !keyboardFrame().height && noKeyboard.set(true), KEYBOARD_WAIT_MS);
+  // Opened again while it went down, the panel kept its input, which `autoFocus` does not focus again.
+  setTimeout(() => input?.focus());
 }
 
 export function openReply(status: Status, comment: Comment, onSent?: (reply: Comment | null) => void) {
@@ -80,10 +102,12 @@ export function openRepostStatus(status: Status) {
 const canSend = (cur: Target | null, body: string) => !!cur && (!!body || (cur.kind === "repost" && !cur.comment));
 
 function close() {
-  clearTimeout(focusing);
   const cur = target();
-  if (cur) drafts.set(draftKey(cur), text());
-  target.set(null);
+  if (!cur || leaving()) return;
+  clearTimeout(waiting);
+  drafts.set(draftKey(cur), text());
+  leaving.set(true);
+  Keyboard.dismiss();
 }
 
 async function send() {
@@ -102,7 +126,10 @@ async function send() {
           : await commentStatus(cur.status, body, also());
     drafts.delete(draftKey(cur));
     text.set("");
-    if (target() === cur) target.set(null);
+    if (target() === cur) {
+      leaving.set(true);
+      Keyboard.dismiss();
+    }
     cur.onSent?.(reply);
   } catch (e) {
     error.set(t(cur.kind === "repost" ? "repost.failed" : "reply.failed", { error: String((e as Error)?.message ?? e) }));
@@ -140,81 +167,117 @@ export function ReplySheet() {
     if (!cur || (repost() && cur.comment)) return "";
     return (cur.comment ?? cur.status).text.trim();
   };
+
+  // Where the panel stands: below the screen (`null`), or this far above its bottom (the keyboard's
+  // height, 0 without one). A change animates on the keyboard's curve and duration.
+  const lift = signal<number | null>(null);
+  // Its height, to wait just below the screen (far below before it is first laid out).
+  const height = signal(1000);
+  const backdrop = createAnimatedValue(0);
+  effect(() => {
+    const kb = keyboardFrame();
+    const up = !!target() && !leaving() && (kb.height > 0 || noKeyboard());
+    const to = up ? kb.height : null;
+    untracked(() => {
+      if (to === lift()) return;
+      const duration = kb.duration || PANEL_MS;
+      backdrop.timing(up ? 1 : 0, { duration });
+      LayoutAnimation.configureNext({ duration, update: { type: "keyboard" } }, () => {
+        // Down: the panel leaves the tree.
+        if (!up && leaving() && lift() === null) {
+          target.set(null);
+          leaving.set(false);
+        }
+      });
+      lift.set(to);
+    });
+  });
+
   return (
-    <Sheet
-      open={!!target()}
-      onOpenChange={(e) => !e.open && close()}
-      closeOnSwipe
-      // Should the slide outlast the delay, the box is all there now.
-      onOpen={() => input?.focus()}
-      backdropClass="bg-black/30"
-      popupClass="rounded-t-sheet bg-ground px-4 pt-2.5 shadow-[0_-8px_30px_#00000014]"
-      // The sheet makes room for the keyboard itself, all of it but the home indicator's area: this
-      // padding is that area's, keyboard or not, so the box sits right above the keyboard.
-      popupStyle={{ paddingBottom: safeArea().bottom + 14 }}
-    >
-      <View class="gap-3">
-        <View class="h-[5px] w-9 self-center rounded-full bg-sheet-grabber" />
-        <View class="flex-row items-center gap-2.5">
-          <Button
-            accessibilityLabel={t("common.cancel")}
-            onPress={close}
-            hitSlop={8}
-            class="size-8 items-center justify-center rounded-full bg-well active:opacity-60"
-          >
-            <Icon name="x" class="size-[18px] tint-ink-2" />
-          </Button>
-          <Text class="flex-1 text-body leading-5 font-semibold text-ink line-clamp-1">
-            {title()}
-          </Text>
-          <Button
-            onPress={send}
-            disabled={!canSend(target(), text().trim()) || sending()}
-            class="flex-row items-center gap-1.5 rounded-full bg-weibo px-3.5 py-[7px] active:opacity-70 disabled:opacity-40"
-          >
-            <Icon name={repost() ? "repeat" : "send"} class="size-4 tint-white" />
-            <Text class="text-sm leading-[18px] font-semibold text-white">
-              {sending() ? t("reply.sending") : repost() ? t("repost.action") : t("reply.send")}
-            </Text>
-          </Button>
-        </View>
-        <If when={quoted()}>
-          <View class="flex-row gap-2 pl-0.5">
-            <View class="w-0.5 rounded-full bg-hairline" />
-            <Text class="flex-1 text-meta text-ink-2 line-clamp-2">{quoted()}</Text>
-          </View>
-        </If>
-        <Input
-          value={text()}
-          onChange={(e) => text.set(e.value)}
-          placeholder={t(repost() ? "repost.placeholder" : target()?.comment ? "reply.placeholder" : "reply.post_placeholder")}
-          multiline
-          ref={(r) => (input = r ?? undefined)}
-          maxLength={2000}
-          readonly={sending()}
-          class="min-h-[88px] max-h-40 rounded-well bg-well px-3 py-2.5 text-body leading-[22px] text-ink placeholder:text-ink-3"
+    <If when={target()}>
+      <View class="absolute inset-0">
+        <View
+          accessibilityLabel={t("common.cancel")}
+          onPress={close}
+          class="absolute inset-0 bg-black/30"
+          style={{ opacity: backdrop }}
         />
-        <If when={error()}>
-          <Text class="text-xs text-danger">{error()}</Text>
-        </If>
-        <View class="h-9 flex-row items-center gap-1">
-          <Button
-            role="checkbox"
-            selected={also()}
-            onPress={() => also.update((v) => !v)}
-            class="flex-1 flex-row items-center gap-2 pl-0.5 active:opacity-60"
-          >
-            <If when={also()} else={<View class="size-5 rounded-full border-[1.5px] border-ink-3" />}>
-              <Icon name="circle-check-filled" class="size-5 tint-weibo" />
+        <View
+          role="dialog"
+          accessibilityLabel={title()}
+          onLayout={(e) => height.set(e.bounds.size.height)}
+          class="absolute inset-x-0 rounded-t-sheet bg-ground px-4 pt-4 shadow-[0_-8px_30px_#00000014]"
+          // Above the keyboard it stands right on it; without one, clear of the home indicator. Below
+          // the screen it is as tall as on the keyboard, so that it goes all the way out of sight.
+          style={{
+            bottom: lift() ?? -height(),
+            paddingBottom: (lift() === 0 ? safeArea().bottom : 0) + 14,
+          }}
+        >
+          <View class="gap-3">
+            <View class="flex-row items-center gap-2.5">
+              <Button
+                accessibilityLabel={t("common.cancel")}
+                onPress={close}
+                hitSlop={8}
+                class="size-8 items-center justify-center rounded-full bg-well active:opacity-60"
+              >
+                <Icon name="x" class="size-[18px] tint-ink-2" />
+              </Button>
+              <Text class="flex-1 text-body leading-5 font-semibold text-ink line-clamp-1">
+                {title()}
+              </Text>
+              <Button
+                onPress={send}
+                disabled={!canSend(target(), text().trim()) || sending()}
+                class="flex-row items-center gap-1.5 rounded-full bg-weibo px-3.5 py-[7px] active:opacity-70 disabled:opacity-40"
+              >
+                <Icon name={repost() ? "repeat" : "send"} class="size-4 tint-white" />
+                <Text class="text-sm leading-[18px] font-semibold text-white">
+                  {sending() ? t("reply.sending") : repost() ? t("repost.action") : t("reply.send")}
+                </Text>
+              </Button>
+            </View>
+            <If when={quoted()}>
+              <View class="flex-row gap-2 pl-0.5">
+                <View class="w-0.5 rounded-full bg-hairline" />
+                <Text class="flex-1 text-meta text-ink-2 line-clamp-2">{quoted()}</Text>
+              </View>
             </If>
-            <Text class="text-sm leading-[18px] text-ink">{t(repost() ? "repost.also_comment" : "reply.also_repost")}</Text>
-          </Button>
-          <ToolButton label={t("compose.mention")} icon="at" onPress={() => insert("@")} />
-          <If when={repost()}>
-            <ToolButton label={t("compose.topic")} icon="hash" onPress={() => insert("#")} />
-          </If>
+            <Input
+              value={text()}
+              onChange={(e) => text.set(e.value)}
+              placeholder={t(repost() ? "repost.placeholder" : target()?.comment ? "reply.placeholder" : "reply.post_placeholder")}
+              multiline
+              autoFocus
+          ref={(r) => (input = r ?? undefined)}
+              maxLength={2000}
+              readonly={sending()}
+              class="min-h-[88px] max-h-40 rounded-well bg-well px-3 py-2.5 text-body leading-[22px] text-ink placeholder:text-ink-3"
+            />
+            <If when={error()}>
+              <Text class="text-xs text-danger">{error()}</Text>
+            </If>
+            <View class="h-9 flex-row items-center gap-1">
+              <Button
+                role="checkbox"
+                selected={also()}
+                onPress={() => also.update((v) => !v)}
+                class="flex-1 flex-row items-center gap-2 pl-0.5 active:opacity-60"
+              >
+                <If when={also()} else={<View class="size-5 rounded-full border-[1.5px] border-ink-3" />}>
+                  <Icon name="circle-check-filled" class="size-5 tint-weibo" />
+                </If>
+                <Text class="text-sm leading-[18px] text-ink">{t(repost() ? "repost.also_comment" : "reply.also_repost")}</Text>
+              </Button>
+              <ToolButton label={t("compose.mention")} icon="at" onPress={() => insert("@")} />
+              <If when={repost()}>
+                <ToolButton label={t("compose.topic")} icon="hash" onPress={() => insert("#")} />
+              </If>
+            </View>
+          </View>
         </View>
       </View>
-    </Sheet>
+    </If>
   );
 }
