@@ -22,7 +22,8 @@ import {
 } from "nsh";
 import { Button, NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
-import { PageStack, WIDE } from "../nav";
+import { sidebarShown } from "../layout";
+import { detail, PageStack, WIDE } from "../nav";
 import { GLASS_PRESS, type GlassKind, glass } from "./Glass";
 import { Icon } from "./Icon";
 import { Spinner } from "./Spinner";
@@ -440,6 +441,10 @@ function RefreshButton(props: { scroll: PageScroll }) {
   );
 }
 
+/** The room the traffic lights take at the window's left, over the list column's bar while the
+ * sidebar is hidden. */
+const TRAFFIC_LIGHTS = 72;
+
 /** A page of one of the Mac's columns: the toolbar over it (or the page's own bar, search's
  * field), opaque, with what goes under it (People's segments); the list scrolls below it. */
 function ColumnPage(props: {
@@ -450,6 +455,8 @@ function ColumnPage(props: {
   bar?: JSX.Element;
   children?: JSX.Element;
 }) {
+  const inList = PageStack() !== detail;
+  const lights = () => (inList && !sidebarShown() ? TRAFFIC_LIGHTS : 0);
   return (
     <NavPage title={props.title} headerVisible={false} class="bg-ground">
       <View class="flex-1 bg-ground">
@@ -464,9 +471,11 @@ function ColumnPage(props: {
           )}
         </If>
         <View class="absolute inset-x-0 top-0 border-b-[0.5px] border-hairline bg-ground">
-          <If when={props.bar} else={<Toolbar title={props.title} right={props.right} scroll={props.scroll} />}>
-            <View desktop={{ windowDrag: true }}>{props.bar}</View>
-          </If>
+          <View desktop={{ windowDrag: true }} style={{ paddingLeft: lights() }}>
+            <If when={props.bar} else={<Toolbar title={props.title} right={props.right} scroll={props.scroll} />}>
+              {props.bar}
+            </If>
+          </View>
           {props.accessory}
         </View>
       </View>

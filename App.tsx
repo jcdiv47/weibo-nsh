@@ -2,10 +2,11 @@
 // and the native pages: one navigation stack on a phone; on the Mac a window of three columns,
 // the sidebar's sections, the list column (each section's stack) and the detail column.
 import { effect, type JSX, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
-import { NavStack } from "nsh/base";
+import { NavStack, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { currentWindow, Menu } from "nsh/desktop";
 import { t } from "nsh/i18n";
 import { emoticonList, forgetAccount } from "./api";
+import { DETAIL_MIN, LIST_WIDTH, listWidth, setListWidth, sidebarShown, toggleSidebar } from "./layout";
 import {
   DESKTOP_UA,
   get,
@@ -219,36 +220,41 @@ function NoPost() {
   );
 }
 
-/** The list column's width on the Mac. */
-const LIST = 400;
-
-/** The Mac's window: the sidebar, the list column (each section opened so far keeps its stack,
- * the one chosen shows), the detail column. */
+/** The Mac's window: the sidebar (⌘B hides it), then the list column (each section opened so
+ * far keeps its stack, the one chosen shows) and the detail column, the hairline between them a
+ * handle that resizes them. The list column keeps its width as the window is resized: the detail
+ * column takes the difference. */
 function Columns() {
   return (
     <View class="flex-1 flex-row bg-ground">
-      <Sidebar />
-      <View
-        class="shrink-0 border-r-[0.5px] border-hairline bg-ground"
-        style={{ width: LIST }}
+      <If when={sidebarShown()}>
+        <Sidebar />
+      </If>
+      <ResizablePanelGroup
+        class="flex-1"
+        handleClass="bg-hairline group-hover:bg-ink-3 group-active:bg-weibo"
+        handleAccessibilityLabel={t("mac.resize_columns")}
+        onResize={(e) => e.sizes[0] !== undefined && setListWidth(e.sizes[0])}
       >
-        <Each of={SECTIONS.filter((s) => visited().has(s))} key={(s) => s}>
-          {(s) => (
-            <View class={section() === s() ? "flex-1" : "hidden"}>
-              <NavStack state={stacks[s()]} class="flex-1">
-                {page}
-              </NavStack>
-            </View>
-          )}
-        </Each>
-      </View>
-      <View class="flex-1 bg-ground">
-        <PageStack.Provider value={detail}>
-          <NavStack state={detail} class="flex-1">
-            {page}
-          </NavStack>
-        </PageStack.Provider>
-      </View>
+        <ResizablePanel size={listWidth()} minSize={LIST_WIDTH.min} maxSize={LIST_WIDTH.max} fixed class="bg-ground">
+          <Each of={SECTIONS.filter((s) => visited().has(s))} key={(s) => s}>
+            {(s) => (
+              <View class={section() === s() ? "flex-1" : "hidden"}>
+                <NavStack state={stacks[s()]} class="flex-1">
+                  {page}
+                </NavStack>
+              </View>
+            )}
+          </Each>
+        </ResizablePanel>
+        <ResizablePanel minSize={DETAIL_MIN} class="bg-ground">
+          <PageStack.Provider value={detail}>
+            <NavStack state={detail} class="flex-1">
+              {page}
+            </NavStack>
+          </PageStack.Provider>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </View>
   );
 }
@@ -256,7 +262,8 @@ function Columns() {
 /** Back in the detail column while it has pages over its post, else in the list column. */
 const back = () => (detail.routes().length > 1 ? detail.pop() : nav.pop());
 
-/** The Mac's menu bar: the app's menu, Edit, Go (the sections, back, refresh) and Window. */
+/** The Mac's menu bar: the app's menu, Edit, View (the sidebar), Go (the sections, back,
+ * refresh) and Window. */
 function setMenuBar() {
   Menu.setApplicationMenu([
     {
@@ -286,6 +293,14 @@ function setMenuBar() {
       ],
     },
     {
+      label: t("mac.view"),
+      submenu: [
+        { label: t(sidebarShown() ? "mac.hide_sidebar" : "mac.show_sidebar"), shortcut: "mod+b", onSelect: toggleSidebar },
+        { type: "separator" },
+        { role: "toggleFullScreen" },
+      ],
+    },
+    {
       label: t("mac.go"),
       submenu: [
         { label: t("timeline.title"), shortcut: "mod+1", checked: section() === "timeline", onSelect: () => showSection("timeline") },
@@ -306,7 +321,7 @@ function setMenuBar() {
     },
     {
       label: t("mac.window"),
-      submenu: [{ role: "minimize" }, { role: "zoom" }, { type: "separator" }, { role: "toggleFullScreen" }],
+      submenu: [{ role: "minimize" }, { role: "zoom" }],
     },
   ]);
 }
