@@ -4,32 +4,23 @@
 // hidden web view downloads the file. It opens a page on the file's own host (any page: an error
 // page will do), so a link to the file is same-origin and its `download` attribute holds; a click
 // on it makes the web engine save the file, streamed to disk, in the app's data directory
-// (`downloads/<id>/<name>`, `WebView` `onDownload`). The file is then:
-//
-// - on iOS and Android handed to the system's share sheet, where "Save Image" / "Save Video" put
-//   it in Photos (or "Save to Files", another app...), and removed;
-// - on the desktops moved into the user's Downloads folder, or where the system keeps the app out
-//   of it (macOS, until the user lets it in) handed to the share sheet as on a phone.
-//
-// `shareMedia` downloads the same way and hands the file to the share sheet on every platform that
-// has one: WeChat, X and the other apps installed that take pictures or videos are there.
+// (`downloads/<id>/<name>`, `WebView` `onDownload`). The file is then handed to the system's share
+// sheet, where "Save Image" / "Save Video" put it in Photos (or "Save to Files", WeChat, X,
+// Messages...), and removed.
 //
 // Before the click the page asks for the file's first byte, so an answer that is no picture or
 // video (an expired link, a refusal) fails the save instead of saving an error page.
-import { exists, mkdir, rename, rmdir, unlink } from "fs/promises";
-import { Share, platform, signal, type WebViewDownload } from "nsh";
-import os from "os";
-
-const MOBILE = platform.os === "ios" || platform.os === "android";
+import { rmdir, unlink } from "fs/promises";
+import { Share, signal, type WebViewDownload } from "nsh";
 
 /** How long a download may take, from the page's start to the file's end. */
 const TIMEOUT_MS = 15 * 60_000;
 
 export interface SaveResult {
-  /** `"downloads"`: moved into the Downloads folder (desktops); `"shared"`: the share sheet took
-   * it; `"dismissed"`: the share sheet was closed without taking it. */
-  outcome: "downloads" | "shared" | "dismissed";
-  /** Where the file is (`"downloads"`) or was. */
+  /** `"shared"`: the share sheet took it; `"dismissed"`: the share sheet was closed without taking
+   * it. */
+  outcome: "shared" | "dismissed";
+  /** Where the temporary file was before removal. */
   path: string;
 }
 
@@ -159,42 +150,6 @@ async function remove(path: string) {
   await rmdir(path.slice(0, path.lastIndexOf("/"))).catch(() => {});
 }
 
-/** A name in `dir` no file has yet: `name`, else `name (2)`, `name (3)`... */
-async function freeName(dir: string, name: string): Promise<string> {
-  const dot = name.lastIndexOf(".");
-  const [base, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
-  for (let n = 1; ; n++) {
-    const path = `${dir}/${n === 1 ? name : `${base} (${n})${ext}`}`;
-    if (!(await exists(path))) return path;
-  }
-}
-
-async function toDownloads(path: string): Promise<string> {
-  const dir = `${os.homedir()}/Downloads`;
-  // Not `recursive`: that walks up from the home directory, which the app may not write.
-  if (!(await exists(dir))) await mkdir(dir);
-  const to = await freeName(dir, path.slice(path.lastIndexOf("/") + 1));
-  await rename(path, to);
-  await rmdir(path.slice(0, path.lastIndexOf("/"))).catch(() => {});
-  return to;
-}
-
-/** Saves the picture or video at `url`. */
-export async function saveMedia(url: string, kind: "image" | "video"): Promise<SaveResult> {
-  const path = await download(url, kind);
-  if (!MOBILE) {
-    try {
-      return { outcome: "downloads", path: await toDownloads(path) };
-    } catch (e) {
-      if (!(await Share.available())) {
-        await remove(path);
-        throw e;
-      }
-    }
-  }
-  return shareFile(path);
-}
-
 /** Hands a downloaded file to the share sheet, then removes it: the targets copied it. */
 async function shareFile(path: string): Promise<SaveResult> {
   try {
@@ -203,6 +158,11 @@ async function shareFile(path: string): Promise<SaveResult> {
   } finally {
     await remove(path);
   }
+}
+
+/** Saves the picture or video at `url` through the system's share sheet. */
+export async function saveMedia(url: string, kind: "image" | "video"): Promise<SaveResult> {
+  return shareFile(await download(url, kind));
 }
 
 /** Shares the picture or video at `url` to another app (WeChat, X, Messages...) through the

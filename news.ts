@@ -91,9 +91,9 @@ export function createNews<T extends { id: string }>(
   };
 }
 
-/** The app is in front (or visible beside another, on a desktop). Offline, a check fails quietly
- * and the next one tries again. (`network()`, which would skip checks offline and in Low Data
- * Mode, is not in the runtime the device builds use yet: importing it leaves the app blank.) */
+/** The app is in front. Offline, a check fails quietly and the next one tries again. (`network()`,
+ * which would skip checks offline and in Low Data Mode, is not in the runtime the device builds use
+ * yet: importing it leaves the app blank.) */
 export function mayCheck(): boolean {
   return lifecycle() !== "background";
 }
