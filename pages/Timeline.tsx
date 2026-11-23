@@ -42,7 +42,11 @@ function MeMenu() {
 export function Timeline() {
   const feed = createFeed(friendsTimeline, { saveAs: () => "timeline" });
   feed.more();
-  const scroll = createPageScroll({ large: true, refreshing: () => feed.refreshing() });
+  const scroll = createPageScroll({
+    large: true,
+    refreshing: () => feed.refreshing(),
+    refresh: () => feed.refresh(),
+  });
   return (
     <Page
       title={t("timeline.title")}

@@ -13,6 +13,7 @@ common:
   close: "关闭"
 timeline:
   title: "关注"
+  top: "回到顶部，已在顶部时刷新"
 post:
   title: "微博正文"
   gone: "这条微博已不在内存中。"
