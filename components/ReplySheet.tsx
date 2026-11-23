@@ -5,16 +5,21 @@
 // or reposts it (a post's repost count in a list, the post page's repost button).
 //
 // The panel rises with the keyboard as one motion: it waits below the screen, and when the keyboard
-// comes it goes to the keyboard's top on the keyboard's own curve and duration, so it grows out of
-// the keyboard's top edge; closing takes them down together. (`Sheet` slid in on its own spring,
-// and a keyboard rising during that slide stood it, on a phone, a moment far too high.)
+// comes it moves to the keyboard's top over the keyboard's duration and on its curve, so it grows
+// out of the keyboard's top edge; closing takes them down together. (`Sheet` slid in on a spring of its own,
+// and a keyboard rising during that slide stood it, on a phone, a moment far too high. A
+// `LayoutAnimation` moved the whole page with it as the keyboard went: only the panel moves now.)
+//
+// The panel is laid out above where the keyboard will stand, and moved out of sight only by its
+// transform: the keyboard covers no focused input of its layout, so the page is not pushed up to
+// show it (which pushed it all up, and back down with a jolt as the keyboard went).
 import {
   createAnimatedValue,
+  Easing,
   type InputRef,
   effect,
   Keyboard,
   keyboardFrame,
-  LayoutAnimation,
   safeArea,
   signal,
   Text,
@@ -60,8 +65,16 @@ const leaving = signal(false);
 const noKeyboard = signal(false);
 /** How long the panel waits for the keyboard before it stands at the bottom without it. */
 const KEYBOARD_WAIT_MS = 600;
-/** The panel's motion where the keyboard gives none (it is not there, or it reports no duration). */
-const PANEL_MS = 250;
+/** The curve of iOS's keyboard as it comes and goes, near enough. */
+const KEYBOARD_CURVE = Easing.bezier(0.38, 0.7, 0.125, 1);
+/** The panel's motion where the keyboard gives no duration (it is not there). */
+const PANEL_MS = 300;
+/** The keyboard's height as it last stood, to lay the panel out above it the next time. */
+let lastKeyboard = 0;
+/** The least room the panel is laid out above: a phone's keyboard, its suggestions bar included. */
+const KEYBOARD_ROOM = 360;
+/** How long the dimmed page fades. */
+const BACKDROP_MS = 250;
 let waiting: ReturnType<typeof setTimeout> | undefined;
 /** The panel's input, while it is there. */
 let input: InputRef | undefined;
@@ -168,28 +181,37 @@ export function ReplySheet() {
     return (cur.comment ?? cur.status).text.trim();
   };
 
-  // Where the panel stands: below the screen (`null`), or this far above its bottom (the keyboard's
-  // height, 0 without one). A change animates on the keyboard's curve and duration.
+  // Where the panel stands: below the screen (`null`), or this far above the screen's bottom (the
+  // keyboard's height, 0 without one).
   const lift = signal<number | null>(null);
-  // Its height, to wait just below the screen (far below before it is first laid out).
-  const height = signal(1000);
+  // How far above the screen's bottom it is laid out, set as it opens: at least the keyboard's height.
+  const room = signal(KEYBOARD_ROOM);
+  // Its height: below the screen, it waits just out of sight.
+  let height = 0;
+  // Its offset from where it is laid out, moved natively; far below before it is first laid out.
+  const y = createAnimatedValue(2000);
+  // Laid out anew as it opens (not while it stands, which would move it under the keyboard).
+  effect(() => {
+    if (target() && lift() === null && !leaving()) room.set(Math.max(lastKeyboard, KEYBOARD_ROOM));
+  });
   const backdrop = createAnimatedValue(0);
   effect(() => {
     const kb = keyboardFrame();
     const up = !!target() && !leaving() && (kb.height > 0 || noKeyboard());
     const to = up ? kb.height : null;
+    if (kb.height) lastKeyboard = kb.height;
     untracked(() => {
       if (to === lift()) return;
-      const duration = kb.duration || PANEL_MS;
-      backdrop.timing(up ? 1 : 0, { duration });
-      LayoutAnimation.configureNext({ duration, update: { type: "keyboard" } }, () => {
+      lift.set(to);
+      backdrop.timing(up ? 1 : 0, { duration: BACKDROP_MS });
+      const motion = { duration: kb.duration || PANEL_MS, easing: KEYBOARD_CURVE };
+      y.timing(to === null ? room() + height : room() - to, motion).then(({ finished }) => {
         // Down: the panel leaves the tree.
-        if (!up && leaving() && lift() === null) {
+        if (finished && leaving() && lift() === null) {
           target.set(null);
           leaving.set(false);
         }
       });
-      lift.set(to);
     });
   });
 
@@ -205,13 +227,17 @@ export function ReplySheet() {
         <View
           role="dialog"
           accessibilityLabel={title()}
-          onLayout={(e) => height.set(e.bounds.size.height)}
+          onLayout={(e) => {
+            height = e.bounds.size.height;
+            // Laid out before the keyboard comes: it waits just below the screen.
+            if (lift() === null && !leaving()) y.set(room() + height);
+          }}
           class="absolute inset-x-0 rounded-t-sheet bg-ground px-4 pt-4 shadow-[0_-8px_30px_#00000014]"
-          // Above the keyboard it stands right on it; without one, clear of the home indicator. Below
-          // the screen it is as tall as on the keyboard, so that it goes all the way out of sight.
+          // Above the keyboard it stands right on it; without one, clear of the home indicator.
           style={{
-            bottom: lift() ?? -height(),
-            paddingBottom: (lift() === 0 ? safeArea().bottom : 0) + 14,
+            bottom: room(),
+            transform: [{ translateY: y }],
+            paddingBottom: (noKeyboard() ? safeArea().bottom : 0) + 14,
           }}
         >
           <View class="gap-3">
