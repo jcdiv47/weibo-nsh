@@ -135,6 +135,11 @@ search:
   edit: "修改搜索“%{q}”"
   tab_posts: "微博"
   tab_users: "用户"
+  profile_title: "搜索微博"
+  profile_placeholder: "搜索%{name}的微博"
+  profile_placeholder_any: "搜索TA的微博"
+  profile_hint: "输入关键词，搜索TA发过的微博"
+  profile_search: "搜索%{name}的微博"
 error:
   weibo_changed: "微博更改了接口返回格式（%{endpoint}），需更新应用后才能显示。"
 saved:

@@ -655,6 +655,25 @@ export function parseUserPosts(json: any, page: number, now = Date.now()): Page<
   };
 }
 
+/**
+ * The posts of one account that hold `q`, newest first, as the search box of weibo.com's profile
+ * page finds them (originals and reposts, with or without pictures or video); pages count from 1.
+ */
+export async function searchUserPosts(uid: string, q: string, page = 1): Promise<Page<Status, number>> {
+  const kinds = "&hasori=1&hastext=1&haspic=1&hasvideo=1&hasmusic=1&hasret=1";
+  return parseUserPostSearch(
+    await get(`/ajax/statuses/searchProfile?uid=${encodeURIComponent(uid)}&page=${page}&q=${encodeURIComponent(q)}${kinds}`),
+    page,
+  );
+}
+
+export function parseUserPostSearch(json: any, page: number): Page<Status, number> {
+  const EP = "/ajax/statuses/searchProfile";
+  const raw = list(EP, json, "data.list");
+  // Read on until a page is empty.
+  return { items: items(EP, raw, shapes.status).map(toStatus), next: raw.length ? page + 1 : null };
+}
+
 /** A post the account pinned to the top of their profile: `isTop` (1), or its `title` "置顶". */
 export function isPinned(s: any): boolean {
   return s?.isTop === 1 || s?.isTop === true || str(s?.title?.text) === "置顶";

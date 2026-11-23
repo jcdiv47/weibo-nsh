@@ -25,7 +25,7 @@ import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
-import { openPeople } from "../nav";
+import { openPeople, openProfileSearch } from "../nav";
 import { loadSaved, save } from "../saved";
 
 type Action = "follow" | "unfollow" | "block" | "unblock";
@@ -304,7 +304,7 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
 
   const actions = createActions(data, loadProfile);
   // The header's menu: block (unblock is a button of its own while blocked); on mine, sign out.
-  const more = () => {
+  const menu = () => {
     const d = data();
     if (mine())
       return (
@@ -329,11 +329,29 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
       />
     );
   };
+  // Before the menu, a search of their posts (none while blocked: their posts are hidden).
+  const right = () => {
+    const d = data();
+    const search =
+      d && d.block.blocked !== true ? (
+        <GlassButton label={t("search.profile_search", { name: d.user.name })} onPress={() => openProfileSearch(d.user)}>
+          <Icon name="search" class="size-[22px] tint-ink" />
+        </GlassButton>
+      ) : undefined;
+    const m = menu();
+    if (!search) return m;
+    return (
+      <View class="flex-row items-center gap-2.5">
+        {search}
+        {m}
+      </View>
+    );
+  };
 
   const scroll = createPageScroll();
   return (
     // The name is the header's below: none in the bar.
-    <Page title={title()} hideTitle right={more()} scroll={scroll}>
+    <Page title={title()} hideTitle right={right()} scroll={scroll}>
       <List
         {...scroll.list()}
         each={blocked() ? [] : posts.items()}

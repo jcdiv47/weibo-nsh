@@ -32,7 +32,9 @@ export type Route =
   /** Search: hot searches, then suggestions as a search is typed. */
   | { name: "search" }
   /** What a search found: posts and accounts, under two tabs. */
-  | { name: "search-results"; q: string };
+  | { name: "search-results"; q: string }
+  /** Search within one account's posts, from their profile (their name for the field's hint). */
+  | { name: "profile-search"; uid: string; userName?: string };
 
 export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
@@ -163,4 +165,9 @@ export const openSearch = () => nav.push({ name: "search" });
 export const openSearchResults = (q: string) => {
   const query = q.trim();
   if (query) nav.push({ name: "search-results", q: query });
+};
+
+/** Search within `user`'s posts. */
+export const openProfileSearch = (user: User) => {
+  if (user.id) nav.push({ name: "profile-search", uid: user.id, userName: user.name });
 };

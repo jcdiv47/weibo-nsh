@@ -18,6 +18,7 @@ import {
   parseSuggest,
   parseTimeline,
   parseUserPosts,
+  parseUserPostSearch,
   parseUserSearch,
   postIdOf,
   weiboWhen,
@@ -279,6 +280,15 @@ test("an account's posts, by page", () => {
   expect(page.items.map((s) => s.text)).toEqual(["早安", "周末去了那家新开的书店", "风把网球吹到了隔壁球场"]);
   expect(page.next).toBe(2);
   expect(parseUserPosts({ ok: 1, data: { list: [] } }, 3).next).toBeNull();
+});
+
+test("an account's posts that hold a search, by page", () => {
+  // searchProfile answers as mymblog does: the posts under `data.list`.
+  const page = parseUserPostSearch({ ok: 1, data: { list: copy(mymblog).data.list.slice(0, 1), total: 1 } }, 1);
+  expect(page.items.map((s) => s.text)).toEqual(["早安"]);
+  expect(page.next).toBe(2);
+  expect(parseUserPostSearch({ ok: 1, data: { list: [] } }, 2).next).toBeNull();
+  expect(() => parseUserPostSearch({ ok: 1, data: {} }, 1)).toThrow(WeiboChanged);
 });
 
 // 2026-11-22 14:30 in Beijing.

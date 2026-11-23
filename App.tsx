@@ -27,6 +27,7 @@ import { Favorites } from "./pages/Favorites";
 import { Post } from "./pages/Post";
 import { Profile } from "./pages/Profile";
 import { Replies } from "./pages/Replies";
+import { ProfileSearch } from "./pages/ProfileSearch";
 import { Search, SearchResults } from "./pages/Search";
 import { Timeline } from "./pages/Timeline";
 import { People } from "./pages/People";
@@ -198,6 +199,8 @@ function App() {
                 return <Search />;
               case "search-results":
                 return <SearchResults q={route.q} />;
+              case "profile-search":
+                return <ProfileSearch uid={route.uid} name={route.userName} />;
             }
           }}
         </NavStack>
