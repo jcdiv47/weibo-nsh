@@ -22,15 +22,7 @@ env:
 
 jobs:
   package:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: macos
-            os: macos-latest
-          - target: android
-            os: ubuntu-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,16 +39,7 @@ jobs:
 
       - run: nsh test
 
-      - name: Package macOS
-        if: matrix.target == 'macos'
-        run: |
-          nsh package . --target macos \
-            --app-version "${{ steps.version.outputs.version }}" --build "${{ github.run_number }}" \
-            -o out
-          ditto -c -k --keepParent out/Weibo.app "Weibo-${{ steps.version.outputs.version }}-macos-arm64.zip"
-
       - name: Package Android
-        if: matrix.target == 'android'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -78,4 +61,4 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" Weibo-* --clobber
+        run: gh release upload "$TAG" Weibo-*.apk --clobber

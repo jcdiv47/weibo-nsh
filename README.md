@@ -7,7 +7,7 @@ A lightweight, native cross-platform Weibo client for personal use, built with [
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat)](LICENSE)
 [![Built with NSH](https://img.shields.io/badge/built%20with-NSH-111827?style=flat)](https://nsh.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-TSX-3178C6?style=flat&logo=typescript&logoColor=white)](tsconfig.json)
-[![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20macOS%20%7C%20Android%20%7C%20Linux-555555?style=flat)](#platform-support)
+[![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20Android-555555?style=flat)](#platform-support)
 [![i18n](https://img.shields.io/badge/i18n-EN%20%7C%20%E4%B8%AD%E6%96%87-E67E22?style=flat)](locales)
 [![Issues](https://img.shields.io/github/issues/jcdiv47/weibo-nsh?style=flat)](https://github.com/jcdiv47/weibo-nsh/issues)
 
@@ -28,15 +28,15 @@ Weibo NSH pairs a native UI built in [NSH](https://nsh.dev) with a standard WebV
 - **Profiles & Relationships** — View bios, follower/following lists, pinned posts (`置顶`), and commented/liked activity markers; follow/unfollow and block/unblock directly from profile pages.
 - **Favorites (收藏)** — Bookmark posts from the post header with quick-view toast notifications, and browse saved posts newest-first from the **Me** menu.
 - **Search & Trending** — Timeline search with Weibo trending topics (ads excluded), live account and query suggestions, tabbed post/people results, and per-account profile search.
-- **Native Media Viewer & Downloads** — Full-screen image viewer (swipe, pinch-to-zoom, double-tap), built-in video player (scrubber, 0.5×–2× playback speed, quality selector, landscape rotation, drag-to-dismiss), and streaming save/share to Photos, `~/Downloads`, or the system share sheet.
-- **Offline-Resilient Cache & Polish** — Caches the first page of recent lists and profiles locally (up to 40 entries, wiped on sign-out) so screens open immediately and stay readable when offline. Includes system-matched light/dark themes, English & Chinese (`en` / `zh`) localization, and native Liquid Glass on iOS/macOS 26+.
+- **Native Media Viewer & Downloads** — Full-screen image viewer (swipe, pinch-to-zoom, double-tap), built-in video player (scrubber, 0.5×–2× playback speed, quality selector, landscape rotation, drag-to-dismiss), and streaming save/share to Photos or the system share sheet.
+- **Offline-Resilient Cache & Polish** — Caches the first page of recent lists and profiles locally (up to 40 entries, wiped on sign-out) so screens open immediately and stay readable when offline. Includes system-matched light/dark themes, English & Chinese (`en` / `zh`) localization, and native Liquid Glass on iOS 26+.
 
 ## Architecture
 
 ### WebView Session Bridge (`bridge.ts`)
 
 - **Zero credential handling:** On first launch, the app displays Weibo's standard web sign-in page. Once signed in, the WebView hides on a lightweight same-origin idle page and executes user-initiated requests via `fetch(..., { credentials: "include" })` with Weibo's standard XSRF header.
-- **Cross-platform transport:** Uses native `WebViewRef.evaluate` on iOS, macOS, and Android, and `injectJavaScript` + `window.nsh.postMessage` on Linux.
+- **Bridge transport:** Uses native `WebViewRef.evaluate` on iOS and Android to resolve each request's Promise and decode its JSON directly.
 - **Consistent endpoints:** Pins a desktop Safari user agent (`DESKTOP_UA`) so mobile WebViews talk to `weibo.com` rather than redirecting to `m.weibo.cn`. A second hidden WebView handles `s.weibo.com` search/topic pages under the shared `.weibo.com` cookie domain.
 - **Clean sign-out:** Signing out triggers Sina SSO's logout endpoint (`login.sina.com.cn/sso/logout.php`), clears WebView cookies and local cached pages, and returns to the sign-in screen.
 
@@ -50,11 +50,11 @@ Because `weibo.com`'s web endpoints are undocumented and can change at any time,
 
 ### Streaming Media Saves (`download.ts`)
 
-Images and videos of any size are saved without buffering bytes in JS: a hidden WebView opens the media host's origin, validates the content type via a `Range: bytes=0-0` probe, and clicks a same-origin `download` link so the web engine streams directly to disk before handing the file to the system share sheet or `~/Downloads`.
+Images and videos of any size are saved without buffering bytes in JS: a hidden WebView opens the media host's origin, validates the content type via a `Range: bytes=0-0` probe, and clicks a same-origin `download` link so the web engine streams directly to disk before handing the file to the system share sheet.
 
 ### Design System & Floating Glass (`theme.json`, `components/Glass.ts`, `components/Header.tsx`)
 
-The UI follows a light/dark token palette defined in `theme.json` (`ground`, `well`, `hairline`, `ink`, `weibo`, `link`, etc.) and typography scale in `nsh.json`. Floating controls—headers, menus, toasts, and media overlays—derive their surface from `glass(kind)`, using Apple's native Liquid Glass (`glassEffect`) on iOS 26 / macOS 26+ and a matching frosted translucent surface elsewhere.
+The UI follows a light/dark token palette defined in `theme.json` (`ground`, `well`, `hairline`, `ink`, `weibo`, `link`, etc.) and typography scale in `nsh.json`. Floating controls—headers, menus, toasts, and media overlays—derive their surface from `glass(kind)`, using Apple's native Liquid Glass (`glassEffect`) on iOS 26+ and a matching frosted translucent surface elsewhere.
 
 ## Getting Started
 
@@ -62,34 +62,35 @@ The UI follows a light/dark token palette defined in `theme.json` (`ground`, `we
 
 - [NSH CLI](https://nsh.dev) installed and on your `PATH`
   - *Note:* Sharing downloaded media files on iOS requires an NSH version newer than `0.6.1`.
-- **Linux only:** WebKitGTK 6.0 for the embedded WebView (e.g., `sudo pacman -S webkitgtk-6.0` on Arch Linux).
 
 ### Run Locally
 
 ```sh
-# Desktop (AppKit on macOS, GTK on Linux) with hot reload
-nsh run .
-
 # iOS Simulator (on macOS)
 nsh run . --target ios
 
+# Android device or emulator
+nsh run . --target android
+
 # Package an installable build
-nsh package
+nsh package . --target ios
+nsh package . --target android
 ```
 
-On first start, sign in on Weibo's page; once authenticated, the WebView hides and your Following timeline loads. Session data persists in the platform WebView store (on Linux: `$XDG_DATA_HOME/com.example.weibo/webkit`).
+On first start, sign in on Weibo's page; once authenticated, the WebView hides and your Following timeline loads. Session data persists in the platform WebView store.
 
 > [!NOTE]
 > On iOS, packaged builds offer **Save Image / Save Video** directly to Photos via `NSPhotoLibraryAddUsageDescription` in [`nsh.json`](nsh.json). The development host (`nsh run`) does not carry this key, so its share sheet shows **Save to Files** and installed apps.
 
 ## Platform Support
 
+> [!NOTE]
+> Weibo NSH targets **iOS** and **Android**, and is primarily developed and tested on **iOS**.
+
 | Platform | Bridge Transport | Floating Surface | Media Save / Share |
 | --- | --- | --- | --- |
 | **iOS** | `WebViewRef.evaluate` | Liquid Glass (iOS 26+) / frosted fallback | System share sheet (Save to Photos in packaged builds) |
-| **macOS** | `WebViewRef.evaluate` | Liquid Glass (macOS 26+) / frosted fallback | `~/Downloads` or system share sheet |
 | **Android** | `WebViewRef.evaluate` | Frosted translucent surface | System share sheet |
-| **Linux** | `injectJavaScript` + `postMessage` | Frosted translucent surface | `~/Downloads` (requires WebKitGTK 6.0) |
 
 ## Development & Testing
 
@@ -135,12 +136,12 @@ CI ([`ci.yml`](.github/workflows/ci.yml)) runs `nsh check` and `nsh test` on eve
 Releases are published from GitHub's **Releases** page—no tags are pushed by hand:
 
 1. **Draft a new release**, type the version as a new tag (`0.2.0`, no `v`), and click **Generate release notes**.
-2. Publish it. GitHub creates the tag, and [`release.yml`](.github/workflows/release.yml) builds the app at it and attaches `Weibo-<version>-macos-arm64.zip` and `Weibo-<version>-android.apk`.
+2. Publish it. GitHub creates the tag, and [`release.yml`](.github/workflows/release.yml) builds the Android app at it and attaches `Weibo-<version>-android.apk`.
 
 The tag is the app's version (`nsh.json`'s `version` is only the development one), and the workflow run number is its build number. To rebuild a release's packages, run the **Release** workflow by hand with its tag. Coding agents can draft a release for you by following [`AGENTS.md`](AGENTS.md).
 
-- **macOS:** ad hoc signed, not notarized. After unzipping, run `xattr -dr com.apple.quarantine Weibo.app` (or right-click → **Open**) before the first launch.
 - **Android:** signed with the keystore in the `ANDROID_KEYSTORE_BASE64` (the file, base64-encoded), `ANDROID_KEY_ALIAS`, and `ANDROID_KEYSTORE_PASSWORD` repository secrets. Without them, the APK gets a throwaway debug key and won't install over the previous release.
+- **iOS:** build and sign locally with `nsh package . --target ios --sign ... --profile ...`.
 
 ## Personal Use & Terms of Service
 

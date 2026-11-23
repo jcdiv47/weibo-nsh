@@ -23,9 +23,9 @@ page's own same-origin `fetch` (`bridge.ts`). The app never sees the password or
 ## Commands
 
 ```sh
-nsh check .    # type check
-nsh test       # parsers against fixtures, saved-page logic
-nsh run .      # run with hot reload (macOS: AppKit; --target ios for the simulator)
+nsh check .            # type check
+nsh test               # parsers against fixtures, saved-page logic
+nsh run . --target ios # run with hot reload (iOS simulator; --target android for Android)
 ```
 
 Run `nsh check .` and `nsh test` before handing back a change. CI runs both on every PR.
@@ -44,9 +44,8 @@ Run `nsh check .` and `nsh test` before handing back a change. CI runs both on e
 ## Releasing
 
 A release is a GitHub Release whose tag is a plain version (`0.2.0`, no `v`). Publishing it runs
-`.github/workflows/release.yml`, which builds `Weibo-<version>-macos-arm64.zip` and
-`Weibo-<version>-android.apk` and attaches them. The tag is the app's version; don't edit
-`nsh.json` for it. Never push tags by hand.
+`.github/workflows/release.yml`, which builds `Weibo-<version>-android.apk` and attaches it. The tag
+is the app's version; don't edit `nsh.json` for it. Never push tags by hand.
 
 To draft one:
 

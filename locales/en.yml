@@ -80,7 +80,6 @@ video:
   error: "Can't play this video: %{error}"
 save:
   label: "Save"
-  saved_downloads: "Saved to Downloads"
   failed: "Couldn't save: %{error}"
   share: "Share"
   share_failed: "Couldn't share: %{error}"

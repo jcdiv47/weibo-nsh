@@ -1,10 +1,9 @@
-// The viewers' "save" and "share" buttons (a picture, a video), the hidden web view that downloads (see
-// `download.ts`) and what it says when done: a toast over the viewers, "Saved to Downloads" on the
-// desktops, why it failed everywhere. On a phone the share sheet is the confirmation: it shows
-// "Save Image" / "Save Video" and the system says the rest.
+// The viewers' "save" and "share" buttons (a picture, a video), the hidden web view that downloads
+// (see `download.ts`), and an error toast over the viewers when a save or share fails. On iOS and
+// Android the system share sheet is the confirmation: it shows "Save Image" / "Save Video" and the
+// system says the rest.
 import { createMotion, safeArea, signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { t } from "nsh/i18n";
-import { Share } from "nsh";
 import { downloader, hostPage, job, saveMedia, shareMedia } from "../download";
 import { glass } from "./Glass";
 import { GlassButton } from "./Header";
@@ -12,9 +11,6 @@ import { Icon } from "./Icon";
 
 /** What is being saved or shared: one at a time. */
 const saving = signal<{ url: string; share: boolean } | null>(null);
-/** The platform has a share sheet (not Linux). */
-const canShare = signal(false);
-Share.available().then(canShare.set, () => {});
 const toast = signal<{ text: string; error: boolean } | null>(null);
 let hide: ReturnType<typeof setTimeout> | undefined;
 
@@ -24,13 +20,12 @@ function say(text: string, error = false) {
   hide = setTimeout(() => toast.set(null), 3000);
 }
 
-/** Saves the picture or video at `url`, or with `share` shares it, saying how it went. */
+/** Saves the picture or video at `url`, or with `share` shares it, reporting any failure. */
 export async function save(url: string, kind: "image" | "video", share = false) {
   if (!url || saving()) return;
   saving.set({ url, share });
   try {
-    const { outcome } = await (share ? shareMedia(url, kind) : saveMedia(url, kind));
-    if (outcome === "downloads") say(t("save.saved_downloads"));
+    await (share ? shareMedia(url, kind) : saveMedia(url, kind));
   } catch (e) {
     say(t(share ? "save.share_failed" : "save.failed", { error: String((e as Error)?.message ?? e) }), true);
   } finally {
@@ -60,21 +55,19 @@ export function SaveButton(props: { url: string; kind: "image" | "video"; size?:
   );
 }
 
-/** As `SaveButton`, sharing to another app (WeChat, X...): only where there is a share sheet. */
+/** As `SaveButton`, sharing to another app (WeChat, X...). */
 export function ShareButton(props: { url: string; kind: "image" | "video"; size?: string }) {
   return (
-    <If when={canShare()}>
-      <GlassButton
-        kind="media"
-        size={props.size}
-        label={t("save.share")}
-        onPress={saving() ? undefined : () => save(props.url, props.kind, true)}
-      >
-        <If when={saving()?.share} else={<Icon name="share" class="size-6 tint-white" />}>
-          <Turning />
-        </If>
-      </GlassButton>
-    </If>
+    <GlassButton
+      kind="media"
+      size={props.size}
+      label={t("save.share")}
+      onPress={saving() ? undefined : () => save(props.url, props.kind, true)}
+    >
+      <If when={saving()?.share} else={<Icon name="share" class="size-6 tint-white" />}>
+        <Turning />
+      </If>
+    </GlassButton>
   );
 }
 

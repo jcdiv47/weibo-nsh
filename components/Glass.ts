@@ -2,16 +2,15 @@
 // drop-down menu, the toast. Each asks `glass(kind)` for its look and keeps its own shape (size,
 // radius, padding, placement), which is the same on every platform.
 //
-// Where the system draws Liquid Glass (iOS 26 and macOS 26 and later) a surface is the system's
-// glass: no fill of its own and no drop shadow, both of which the glass draws. Everywhere else
-// (earlier iOS, Android, Linux) it is the design's frosted surface: a translucent fill from
-// `theme.json`, a blur of what is behind it, a hairline and a soft shadow. The two read as one
-// design; only the material differs.
+// Where the system draws Liquid Glass (iOS 26 and later) a surface is the system's glass: no fill
+// of its own and no drop shadow, both of which the glass draws. Everywhere else (earlier iOS and
+// Android) it is the design's frosted surface: a translucent fill from `theme.json`, a blur of what
+// is behind it, a hairline and a soft shadow. The two read as one design; only the material
+// differs.
 import { platform, token, type ViewStyle } from "nsh";
 
 /** Liquid Glass is drawn natively here. */
-export const NATIVE_GLASS =
-  (platform.os === "ios" || platform.os === "macos") && Number.parseFloat(platform.version) >= 26;
+export const NATIVE_GLASS = platform.os === "ios" && Number.parseFloat(platform.version) >= 26;
 
 export type GlassKind =
   /** A button or capsule of the header (`GlassButton`): clear over the page. */

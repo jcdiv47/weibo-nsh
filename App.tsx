@@ -103,7 +103,6 @@ function Bridge() {
           signOutLoaded(e.url);
           probe(e.url);
         }}
-        onMessage={(e) => weibo.onMessage(e.data)}
         onError={(e) => {
           if (weibo.onError(e)) return;
           if (signingOut()) signOutLoaded(null);
@@ -141,7 +140,6 @@ function SearchBridge() {
         class="flex-1"
         onLoadStart={() => search.onLoadStart()}
         onLoad={(e) => search.onLoad(e.url)}
-        onMessage={(e) => search.onMessage(e.data)}
         onError={(e) => search.onError(e)}
       />
     </View>
