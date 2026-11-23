@@ -2,11 +2,11 @@
 // and the native pages: one navigation stack on a phone; on the Mac a window of three columns,
 // the sidebar's sections, the list column (each section's stack) and the detail column.
 import { effect, type JSX, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
-import { NavStack, ResizablePanel, ResizablePanelGroup } from "nsh/base";
+import { NavPage, NavStack, ResizablePanel, ResizablePanelGroup } from "nsh/base";
 import { currentWindow, Menu } from "nsh/desktop";
 import { t } from "nsh/i18n";
 import { emoticonList, forgetAccount } from "./api";
-import { DETAIL_MIN, LIST_WIDTH, listWidth, setListWidth, sidebarShown, toggleSidebar } from "./layout";
+import { DETAIL_MIN, detailShown, LIST_WIDTH, listWidth, setListWidth, sidebarShown, toggleDetail, toggleSidebar } from "./layout";
 import {
   DESKTOP_UA,
   get,
@@ -212,11 +212,13 @@ function page(route: Route): JSX.Element {
 /** The Mac's detail column before a post is chosen. */
 function NoPost() {
   return (
-    <View desktop={{ windowDrag: true }} class="flex-1 items-center justify-center gap-2.5 bg-ground pb-10">
-      <Icon name="message-circle" class="size-10 tint-ink-3" />
-      <Text class="text-[15px] font-semibold text-ink-2">{t("mac.no_post")}</Text>
-      <Text class="text-[13px] text-ink-3">{t("mac.no_post_note")}</Text>
-    </View>
+    <NavPage title={t("post.title")} headerVisible={false} animation="none">
+      <View desktop={{ windowDrag: true }} class="flex-1 items-center justify-center gap-2.5 bg-ground pb-10">
+        <Icon name="message-circle" class="size-10 tint-ink-3" />
+        <Text class="text-[15px] font-semibold text-ink-2">{t("mac.no_post")}</Text>
+        <Text class="text-[13px] text-ink-3">{t("mac.no_post_note")}</Text>
+      </View>
+    </NavPage>
   );
 }
 
@@ -236,7 +238,14 @@ function Columns() {
         handleAccessibilityLabel={t("mac.resize_columns")}
         onResize={(e) => e.sizes[0] !== undefined && setListWidth(e.sizes[0])}
       >
-        <ResizablePanel size={listWidth()} minSize={LIST_WIDTH.min} maxSize={LIST_WIDTH.max} fixed class="bg-ground">
+        {/* Without the post column the list takes the whole width. */}
+        <ResizablePanel
+          size={listWidth()}
+          minSize={LIST_WIDTH.min}
+          maxSize={detailShown() ? LIST_WIDTH.max : null}
+          fixed={detailShown()}
+          class="bg-ground"
+        >
           <Each of={SECTIONS.filter((s) => visited().has(s))} key={(s) => s}>
             {(s) => (
               <View class={section() === s() ? "flex-1" : "hidden"}>
@@ -247,7 +256,7 @@ function Columns() {
             )}
           </Each>
         </ResizablePanel>
-        <ResizablePanel minSize={DETAIL_MIN} class="bg-ground">
+        <ResizablePanel minSize={DETAIL_MIN} visible={detailShown()} class="bg-ground">
           <PageStack.Provider value={detail}>
             <NavStack state={detail} class="flex-1">
               {page}
@@ -296,6 +305,7 @@ function setMenuBar() {
       label: t("mac.view"),
       submenu: [
         { label: t(sidebarShown() ? "mac.hide_sidebar" : "mac.show_sidebar"), shortcut: "mod+b", onSelect: toggleSidebar },
+        { label: t(detailShown() ? "mac.hide_post_column" : "mac.show_post_column"), shortcut: "mod+shift+b", onSelect: toggleDetail },
         { type: "separator" },
         { role: "toggleFullScreen" },
       ],

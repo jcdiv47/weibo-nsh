@@ -167,6 +167,8 @@ mac:
   view: "View"
   hide_sidebar: "Hide Sidebar"
   show_sidebar: "Show Sidebar"
+  hide_post_column: "Hide Post Column"
+  show_post_column: "Show Post Column"
   resize_columns: "Resize the list and the post"
   back: "Back"
   open_post: "Open Post"

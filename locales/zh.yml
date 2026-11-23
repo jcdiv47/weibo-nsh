@@ -167,6 +167,8 @@ mac:
   view: "显示"
   hide_sidebar: "隐藏边栏"
   show_sidebar: "显示边栏"
+  hide_post_column: "隐藏正文栏"
+  show_post_column: "显示正文栏"
   resize_columns: "调整列表和正文的宽度"
   back: "返回"
   open_post: "打开微博"

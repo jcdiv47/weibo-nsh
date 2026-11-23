@@ -455,10 +455,14 @@ function ColumnPage(props: {
   bar?: JSX.Element;
   children?: JSX.Element;
 }) {
-  const inList = PageStack() !== detail;
+  const stack = PageStack();
+  const inList = stack !== detail;
   const lights = () => (inList && !sidebarShown() ? TRAFFIC_LIGHTS : 0);
+  // The post column's first page (a post a list's press chose) shows in place of the one before,
+  // with no slide: choosing another post is not going deeper. Pages over it still slide in.
+  const first = !inList && detail.routes().length <= 1;
   return (
-    <NavPage title={props.title} headerVisible={false} class="bg-ground">
+    <NavPage title={props.title} headerVisible={false} animation={first ? "none" : undefined} class="bg-ground">
       <View class="flex-1 bg-ground">
         <If when={props.scroll} else={<View class="flex-1" style={{ paddingTop: BAR }}>{props.children}</View>}>
           {(scroll) => (

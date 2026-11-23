@@ -5,9 +5,10 @@
 // sections (Following, Search, Favorites, My profile), each with a stack of its own in the list
 // column, and the detail column at the right, where a post a list's press opens shows with its
 // comments (its replies and versions stack over it there).
-import { context, platform, signal } from "nsh";
+import { context, signal } from "nsh";
 import { createNavStack, type NavStackState } from "nsh/base";
 import { type Comment, longText, type Status, type User } from "./api";
+import { detailShown, showDetail, WIDE } from "./layout";
 
 export type Route =
   | { name: "timeline" }
@@ -43,8 +44,7 @@ export type Route =
   /** The Mac's detail column before a post is chosen. */
   | { name: "blank" };
 
-/** The Mac's window of columns, instead of one stack: macOS's own host (not Mac Catalyst). */
-export const WIDE = platform.os === "macos";
+export { WIDE };
 
 /** The sections of the Mac's sidebar, each a stack of its own in the list column. */
 export type Section = "timeline" | "search" | "favorites" | "me";
@@ -110,13 +110,15 @@ const inDetail = (route: Route) => route.name === "post" || route.name === "repl
  */
 function go(route: Route, from?: NavStackState<Route>) {
   if (!WIDE || !inDetail(route)) return nav.push(route);
+  showDetail();
   if (route.name === "post" && from !== detail) detail.setRoutes([route]);
   else detail.push(route);
 }
 
-/** The post the detail column shows from its first page: its card in a list is marked. */
+/** The post the detail column shows from its first page: its card in a list is marked (none
+ * while the column is hidden). */
 export const selectedPost = () => {
-  if (!WIDE) return undefined;
+  if (!WIDE || !detailShown()) return undefined;
   const first = detail.routes()[0];
   return first?.name === "post" ? first.id : undefined;
 };
