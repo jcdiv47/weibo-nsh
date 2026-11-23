@@ -10,6 +10,7 @@ import {
   parseHotSearch,
   parseLikes,
   parseLongText,
+  parseNewer,
   parsePeople,
   parseProfile,
   parseReply,
@@ -17,6 +18,7 @@ import {
   parseStatus,
   parseSuggest,
   parseTimeline,
+  isNewerId,
   parseUserPosts,
   parseUserPostSearch,
   parseUserSearch,
@@ -61,6 +63,32 @@ test("timeline: ads and accounts I don't follow left out, my own posts kept", ()
   const page = parseTimeline(friendstimeline, GID);
   expect(page.items.map((s) => s.id)).toEqual(["5100000000000001", "5100000000000002", "5100000000000005"]);
   expect(page.next).toBe("5100000000000004");
+});
+
+test("new posts: only those newer than the first shown count, ads still left out", () => {
+  // Weibo's ids grow with time: the fixture's, newest first, made so.
+  const page = copy(friendstimeline);
+  page.statuses.forEach((s: any, i: number) => (s.idstr = s.id = String(5100000000000009 - i)));
+  const newer = parseNewer(page, GID, "5100000000000007");
+  expect(newer.items.map((s) => s.id)).toEqual(["5100000000000009", "5100000000000008"]);
+  expect(newer.more).toBe(false);
+  // Weibo answering with its newest page whatever `since_id` said: nothing new.
+  expect(parseNewer(page, GID, "5100000000000009").items).toEqual([]);
+});
+
+test("new posts: a full page of nothing but new ones may have more past it", () => {
+  const full = copy(friendstimeline);
+  const first = full.statuses[0];
+  full.statuses = Array.from({ length: 20 }, (_, i) => ({ ...first, id: 5200000000000020 - i, idstr: String(5200000000000020 - i) }));
+  const newer = parseNewer(full, GID, "5100000000000001");
+  expect(newer.items.length).toBe(20);
+  expect(newer.more).toBe(true);
+});
+
+test("post ids compare as numbers", () => {
+  expect(isNewerId("5100000000000002", "5100000000000001")).toBe(true);
+  expect(isNewerId("10000000000000000", "9999999999999999")).toBe(true);
+  expect(isNewerId("5100000000000001", "5100000000000001")).toBe(false);
 });
 
 test("timeline: a post's fields, pictures and links", () => {

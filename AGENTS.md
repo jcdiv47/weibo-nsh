@@ -13,7 +13,7 @@ page's own same-origin `fetch` (`bridge.ts`). The app never sees the password or
 - `components/`: shared views (Header, StatusCard, Glass, Icon, VideoPlayer, ...).
 - `api.ts`: every weibo.com endpoint. Each answer goes through a `parse...` function. `drift.ts`
   checks the fields a screen needs and throws `WeiboChanged` when they're gone.
-- `feed.ts` (paged lists), `saved.ts` (first pages kept on the device), `download.ts`, `format.ts`,
+- `feed.ts` (paged lists), `news.ts` (the timeline's new posts count), `saved.ts` (first pages kept on the device), `download.ts`, `format.ts`,
   `emoticons.ts`, `diff.ts`.
 - `locales/en.yml`, `locales/zh.yml`: every UI string, read with `t()` from `nsh/i18n`.
 - `theme.json` (color tokens, light and dark), `nsh.json` (app config, type scale, capabilities).

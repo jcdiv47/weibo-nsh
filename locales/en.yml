@@ -14,6 +14,9 @@ common:
 timeline:
   title: "Following"
   top: "Back to top, or refresh at the top"
+  news_one: "new post"
+  news_many: "new posts"
+  news_label: "New posts: %{n}. Show them"
 post:
   title: "Post"
   gone: "This post is no longer loaded."
