@@ -45,6 +45,8 @@ replies:
   title: "%{n} replies"
 reply:
   to: "Reply to %{name}"
+  to_post: "Comment on @%{name}'s post"
+  post_placeholder: "Write a comment…"
   placeholder: "Write a reply…"
   send: "Send"
   sending: "Sending…"

@@ -1,12 +1,14 @@
 // The reply box: a sheet at the bottom with a text input, over the keyboard. One for the app,
 // opened with `openReply` on the comment (or the reply in a thread) to answer, or with
 // `openRepost` to repost the post with the comment quoted, as weibo.com's repost box for a comment.
-// Without a comment (a post's repost count in a list), it reposts the post itself.
+// Without a comment it comments on the post itself (`openComment`, the post page's comment field)
+// or reposts it (a post's repost count in a list, the post page's repost button).
 import { keyboardFrame, safeArea, signal, Text, View } from "nsh";
 import { Button, Input, Sheet } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
   type Comment,
+  commentStatus,
   replyComment,
   repostComment,
   repostStatus,
@@ -46,6 +48,11 @@ export function openReply(status: Status, comment: Comment, onSent?: (reply: Com
   open({ kind: "reply", status, comment, onSent }, "");
 }
 
+/** Comments on the post itself. */
+export function openComment(status: Status, onSent?: (comment: Comment | null) => void) {
+  open({ kind: "reply", status, onSent }, "");
+}
+
 /** Reposts `status` quoting `comment` (and `parent`, the comment it replies to in a thread). */
 export function openRepost(status: Status, comment: Comment, parent?: Comment) {
   open({ kind: "repost", status, comment }, repostText(status, comment, parent));
@@ -76,7 +83,9 @@ async function send() {
     const reply =
       cur.kind === "repost"
         ? (await (c ? repostComment(cur.status, c, body, also()) : repostStatus(cur.status, body, also())), null)
-        : await replyComment(cur.status, c!, body, also());
+        : c
+          ? await replyComment(cur.status, c, body, also())
+          : await commentStatus(cur.status, body, also());
     drafts.delete(draftKey(cur));
     text.set("");
     if (target() === cur) target.set(null);
@@ -108,7 +117,7 @@ export function ReplySheet() {
   const title = () => {
     const cur = target();
     if (!cur) return "";
-    if (!cur.comment) return t("repost.title_post", { name: cur.status.user.name });
+    if (!cur.comment) return t(repost() ? "repost.title_post" : "reply.to_post", { name: cur.status.user.name });
     return t(repost() ? "repost.title" : "reply.to", { name: cur.comment.user.name });
   };
   // What it answers, quoted under the title, unless the text quotes it already (a comment's repost).
@@ -160,7 +169,7 @@ export function ReplySheet() {
         <Input
           value={text()}
           onChange={(e) => text.set(e.value)}
-          placeholder={t(repost() ? "repost.placeholder" : "reply.placeholder")}
+          placeholder={t(repost() ? "repost.placeholder" : target()?.comment ? "reply.placeholder" : "reply.post_placeholder")}
           multiline
           autoFocus
           maxLength={2000}

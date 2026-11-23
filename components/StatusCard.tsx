@@ -295,11 +295,11 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
 // Likes given or taken back here, by post id. The lists hold plain objects, and a recycled row
 // shows another post: the row reads its post's like from here first.
 const likeChanges = signal<Record<string, { liked: boolean; likes: number }>>({});
-const likeOf = (s: Status) => likeChanges()[s.id] ?? { liked: s.liked, likes: s.likes };
+export const likeOf = (s: Status) => likeChanges()[s.id] ?? { liked: s.liked, likes: s.likes };
 const liking = new Set<string>();
 
 /** Likes the post, or takes the like back, at once; if Weibo refuses, as it was. */
-async function toggleLike(s: Status) {
+export async function toggleLike(s: Status) {
   if (liking.has(s.id)) return;
   const before = likeChanges()[s.id];
   const was = likeOf(s);
