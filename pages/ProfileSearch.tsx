@@ -20,7 +20,7 @@ export function ProfileSearch(props: { uid: string; name?: string }) {
   const results = signal<{ q: string; feed: Feed<Status, number> } | null>(null);
   const submit = () => {
     const q = typed();
-    if (!q || q === results()?.q) return;
+    if (!q) return;
     const feed = createFeed<Status, number>((page) => searchUserPosts(props.uid, q, page ?? 1));
     results.set({ q, feed });
     feed.more();
