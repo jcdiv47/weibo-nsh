@@ -1,0 +1,19 @@
+name: Set up nsh
+description: Install the nsh CLI and put it on the PATH
+
+inputs:
+  version:
+    description: A release tag such as v0.6.1, or nightly
+    # The app relies on nsh newer than 0.6.1 (see README), so it follows nightly.
+    default: nightly
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        NSH_VERSION: ${{ inputs.version }}
+      run: |
+        curl -fsSL https://nsh.dev/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        "$HOME/.local/bin/nsh" --version

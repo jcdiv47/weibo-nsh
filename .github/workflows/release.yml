@@ -1,0 +1,81 @@
+name: Release
+
+# A release is made on GitHub's Releases page: "Draft a new
+# release", type the version as a new tag (e.g. 0.2.0), "Generate release
+# notes", publish. GitHub creates the tag; this builds the app at it and
+# attaches the packages to the release.
+on:
+  release:
+    types: [published]
+  # Rebuild the packages of a release that already exists.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release's tag, e.g. 0.2.0
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos
+            os: macos-latest
+          - target: android
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: ./.github/actions/setup-nsh
+
+      - name: Version
+        id: version
+        shell: bash
+        run: |
+          version="${TAG#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag $TAG is not a version like 1.2.3"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: nsh test
+
+      - name: Package macOS
+        if: matrix.target == 'macos'
+        run: |
+          nsh package . --target macos \
+            --app-version "${{ steps.version.outputs.version }}" --build "${{ github.run_number }}" \
+            -o out
+          ditto -c -k --keepParent out/Weibo.app "Weibo-${{ steps.version.outputs.version }}-macos-arm64.zip"
+
+      - name: Package Android
+        if: matrix.target == 'android'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          NSH_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          signing=()
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            signing=(--keystore "$RUNNER_TEMP/release.keystore" --key-alias "$ANDROID_KEY_ALIAS")
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: the APK is signed with a throwaway debug key, so it will not install over an earlier release"
+          fi
+          nsh package . --target android "${signing[@]}" \
+            --app-version "${{ steps.version.outputs.version }}" --build "${{ github.run_number }}" \
+            -o out
+          cp "$(find out -name '*.apk' | head -1)" "Weibo-${{ steps.version.outputs.version }}-android.apk"
+
+      - name: Attach to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" Weibo-* --clobber
