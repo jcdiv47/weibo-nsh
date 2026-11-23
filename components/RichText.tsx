@@ -114,7 +114,9 @@ function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
       <If when={props.link} else={props.url}>
         {(link) => (
           <>
-            <Icon name={video() ? "player-play" : "link"} class={`size-4 ${LINK_TINT}`} /> {link().title}
+            {/* `align-middle` centers it on the letters, as the emoticons are; on the baseline it
+                sits above them. */}
+            <Icon name={video() ? "player-play" : "link"} class={`size-4 align-middle ${LINK_TINT}`} /> {link().title}
           </>
         )}
       </If>
