@@ -8,7 +8,18 @@
 // a blur) keeps the title and the status bar legible; a large title scrolls away with the list and
 // the bar shows it small. The pull-to-refresh indicator is the app's, under the header, the same on
 // every platform.
-import { type AnimatedValue, createAnimatedValue, type JSX, type ListRef, safeArea, Text, token, View } from "nsh";
+import {
+  type AnimatedValue,
+  createAnimatedValue,
+  type JSX,
+  type ListRef,
+  reduceMotion,
+  safeArea,
+  signal,
+  Text,
+  token,
+  View,
+} from "nsh";
 import { Button, NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
 import { nav } from "../nav";
@@ -89,6 +100,11 @@ export interface PageScroll {
   inset(): number;
   /** Scrolls the list back to its top; refreshes it (`refresh`) when it is there already. */
   toTop(): Promise<void>;
+  /** The top button's presence, 0 to 1: it goes while the user scrolls the list and comes back
+   * once the list rests (`TOP_BUTTON_REST_MS`). */
+  readonly topShown: AnimatedValue;
+  /** Whether the top button takes presses: not while it is gone or going. */
+  topPressable(): boolean;
   /** The list's props: it starts under the header and scrolls under it; a list that refreshes
    * draws the page's indicator. */
   list(): {
@@ -98,11 +114,19 @@ export interface PageScroll {
     pullValue: AnimatedValue;
     refreshIndicator?: { height: number };
     ref: (list: ListRef) => void;
+    onScrollDragStart?: () => void;
+    onScrollDragEnd?: () => void;
+    onMomentumStart?: () => void;
+    onMomentumEnd?: () => void;
   };
 }
 
 /** How near its top, in points, the list counts as there: a press of the top button refreshes. */
 const AT_TOP = 4;
+/** How long the list rests before the top button comes back. */
+const TOP_BUTTON_REST_MS = 300;
+/** How quickly the top button goes as a scroll starts: out of the way at once. */
+const TOP_BUTTON_HIDE_MS = 140;
 
 export function createPageScroll(
   options: { large?: boolean; accessory?: number; refreshing?: () => boolean; refresh?: () => void } = {},
@@ -115,6 +139,27 @@ export function createPageScroll(
   // status bar.
   const inset = () => safeArea().top + (large ? 0 : BAR) + accessory;
   let ref: ListRef | undefined;
+  // The top button: gone while a finger or a fling moves the list, back once it rests. A press on
+  // the button scrolls without a drag, so the button stays to show the arrow turn to refresh.
+  const topShown = createAnimatedValue(1);
+  const pressable = signal(true);
+  let rest: ReturnType<typeof setTimeout> | undefined;
+  const hideTop = () => {
+    clearTimeout(rest);
+    pressable.set(false);
+    topShown.timing(0, { duration: TOP_BUTTON_HIDE_MS, easing: "easeOut" });
+  };
+  const showTopSoon = () => {
+    clearTimeout(rest);
+    rest = setTimeout(() => {
+      pressable.set(true);
+      if (reduceMotion()) topShown.timing(1, { duration: 200, easing: "easeOut" });
+      else topShown.spring(1, { stiffness: 320, damping: 28, mass: 1 });
+    }, TOP_BUTTON_REST_MS);
+  };
+  const topEvents = options.refresh
+    ? { onScrollDragStart: hideTop, onScrollDragEnd: showTopSoon, onMomentumStart: hideTop, onMomentumEnd: showTopSoon }
+    : {};
   return {
     large,
     accessory,
@@ -123,6 +168,8 @@ export function createPageScroll(
     offset,
     pull,
     inset,
+    topShown,
+    topPressable: () => pressable(),
     async toTop() {
       const top = -inset();
       if ((await offset.getValue()) > top + AT_TOP) ref?.scrollTo({ y: top, animated: true });
@@ -137,6 +184,7 @@ export function createPageScroll(
       ref: (list: ListRef) => {
         ref = list;
       },
+      ...topEvents,
     }),
   };
 }
@@ -234,14 +282,32 @@ function PullIndicator(props: { scroll: PageScroll; refreshing: () => boolean })
   );
 }
 
-/** Over the page's list, centered at its bottom, clear of the home indicator's swipe: an arrow up
+/** Over the page's list, centered at its bottom, just above the home indicator's area: an arrow up
  * while the list is scrolled away from its top, which scrolls it back there, and the refresh glyph
- * once it is at the top, which refreshes it. The two cross-fade with the list's offset, natively. */
+ * once it is at the top, which refreshes it. The two cross-fade with the list's offset, natively.
+ * While the list scrolls it fades, sinks and shrinks a little out of the way, and springs back once
+ * the list rests (only fading with reduced motion). */
 function TopButton(props: { scroll: PageScroll }) {
   const top = () => -props.scroll.inset();
   const away = () => props.scroll.offset.interpolate({ inputRange: [top() + AT_TOP, top() + 48], outputRange: [0, 1] });
+  const shown = props.scroll.topShown;
+  const motion = () =>
+    reduceMotion()
+      ? []
+      : [
+          { translateY: shown.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) },
+          { scale: shown.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) },
+        ];
   return (
-    <View class="absolute inset-x-0 items-center" style={{ bottom: safeArea().bottom + 24, pointerEvents: "box-none" }}>
+    <View
+      class="absolute inset-x-0 items-center"
+      style={{
+        bottom: safeArea().bottom + 6,
+        pointerEvents: props.scroll.topPressable() ? "box-none" : "none",
+        opacity: shown,
+        transform: motion(),
+      }}
+    >
       <GlassButton label={t("timeline.top")} onPress={() => void props.scroll.toTop()}>
         <View class="size-[22px]">
           <View class="absolute inset-0" style={{ opacity: away().interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
