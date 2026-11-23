@@ -128,6 +128,8 @@ export interface PageScroll {
 
 /** How near its top, in points, the list counts as there: a press of the top button refreshes. */
 const AT_TOP = 4;
+/** The longest the top button waits for the list to reach its top before it shows new items. */
+const SCROLL_WAIT_MS = 1500;
 /** How long the list rests before the top button comes back. */
 const TOP_BUTTON_REST_MS = 300;
 /** How quickly the top button goes as a scroll starts: out of the way at once. */
@@ -179,8 +181,17 @@ export function createPageScroll(
     async toTop() {
       const top = -inset();
       if (options.news?.count()) {
-        ref?.scrollTo({ y: top, animated: true });
-        options.news.show();
+        // The list scrolls to its top first, and the new items go in once it is there: rows put in
+        // above the viewport while it scrolls are measured on the way, which shifts the content
+        // under the scroll and leaves it short of the top.
+        const news = options.news;
+        if ((await offset.getValue()) > top + AT_TOP) {
+          ref?.scrollTo({ y: top, animated: true });
+          for (let waited = 0; waited < SCROLL_WAIT_MS && (await offset.getValue()) > top + AT_TOP; waited += 16) {
+            await new Promise((done) => setTimeout(done, 16));
+          }
+        }
+        news.show();
       } else if ((await offset.getValue()) > top + AT_TOP) ref?.scrollTo({ y: top, animated: true });
       else if (!options.refreshing?.()) options.refresh?.();
     },
