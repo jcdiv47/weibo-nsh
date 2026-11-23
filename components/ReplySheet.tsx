@@ -3,7 +3,7 @@
 // `openRepost` to repost the post with the comment quoted, as weibo.com's repost box for a comment.
 // Without a comment it comments on the post itself (`openComment`, the post page's comment field)
 // or reposts it (a post's repost count in a list, the post page's repost button).
-import { safeArea, signal, Text, View } from "nsh";
+import { type InputRef, safeArea, signal, Text, View } from "nsh";
 import { Button, Input, Sheet } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
@@ -113,6 +113,7 @@ function ToolButton(props: { label: string; icon: IconName; onPress: () => void 
 }
 
 export function ReplySheet() {
+  let input: InputRef | undefined;
   const repost = () => target()?.kind === "repost";
   const title = () => {
     const cur = target();
@@ -131,6 +132,9 @@ export function ReplySheet() {
       open={!!target()}
       onOpenChange={(e) => !e.open && close()}
       closeOnSwipe
+      // The keyboard comes once the box is all there, not while it slides in: on a phone, the two
+      // at once stand the box a moment too high before it drops into place.
+      onOpen={() => input?.focus()}
       backdropClass="bg-black/30"
       popupClass="rounded-t-sheet bg-ground px-4 pt-2.5 shadow-[0_-8px_30px_#00000014]"
       // The sheet makes room for the keyboard itself, all of it but the home indicator's area: this
@@ -173,7 +177,7 @@ export function ReplySheet() {
           onChange={(e) => text.set(e.value)}
           placeholder={t(repost() ? "repost.placeholder" : target()?.comment ? "reply.placeholder" : "reply.post_placeholder")}
           multiline
-          autoFocus
+          ref={(r) => (input = r)}
           maxLength={2000}
           readonly={sending()}
           class="min-h-[88px] max-h-40 rounded-well bg-well px-3 py-2.5 text-body leading-[22px] text-ink placeholder:text-ink-3"
