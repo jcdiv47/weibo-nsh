@@ -14,6 +14,9 @@ common:
 timeline:
   title: "关注"
   top: "回到顶部，已在顶部时刷新"
+  news_one: "条新微博"
+  news_many: "条新微博"
+  news_label: "%{n} 条新微博，点按查看"
 post:
   title: "微博正文"
   gone: "这条微博已不在内存中。"

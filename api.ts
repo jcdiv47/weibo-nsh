@@ -401,6 +401,39 @@ export function parseTimeline(json: any, gid: string): Page<Status> {
   return { items: items(EP, raw.filter((s) => isFromFollowed(s, gid)), shapes.status).map(toStatus), next };
 }
 
+/** Whether post id `a` is newer than `b`: Weibo's ids are numbers too long for a JS number, which
+ * grow with time; a longer one is the larger. */
+export function isNewerId(a: string, b: string): boolean {
+  return a.length !== b.length ? a.length > b.length : a > b;
+}
+
+/** The posts of the timeline newer than the one shown first, and whether there are more of them
+ * than came: what the new posts button counts (`news.ts`). */
+export interface Newer {
+  items: Status[];
+  more: boolean;
+}
+
+const NEWER_COUNT = 20;
+
+/** The posts newer than `sinceId` in the latest group, newest first, one request. */
+export async function newerPosts(sinceId: string): Promise<Newer> {
+  const gid = await latestGroup();
+  const q = `list_id=${gid}&refresh=4&since_id=${encodeURIComponent(sinceId)}&count=${NEWER_COUNT}&fid=${gid}`;
+  return parseNewer(await get(`/ajax/feed/friendstimeline?${q}`), gid, sinceId);
+}
+
+/** The answer to `since_id`, read as a timeline page. Weibo has answered with the newest page
+ * whatever `since_id` said: only the posts newer than `sinceId` count either way. When every post
+ * that came is new and the page is about full, more may be past it (`more`): showing them takes the
+ * first page again, not these before the shown ones, which would leave a gap. */
+export function parseNewer(json: any, gid: string, sinceId: string): Newer {
+  const raw = list("/ajax/feed/friendstimeline", json, "statuses");
+  const newer = raw.filter((s: any) => isNewerId(str(s?.idstr ?? s?.id), sinceId));
+  const page = parseTimeline({ ...json, statuses: newer }, gid);
+  return { items: page.items, more: newer.length > 0 && newer.length === raw.length && raw.length >= NEWER_COUNT / 2 };
+}
+
 /** Reads weibo.com's list of emoticons (`emoticons.ts`), once. Not through `get`: a failure here
  * leaves the codes as text, and must not ask for a sign-in. */
 export const emoticonList = () =>

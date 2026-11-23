@@ -1,8 +1,9 @@
-// The timeline of followed accounts: pull to refresh, more as it scrolls. At the top right, search,
+// The timeline of followed accounts: pull to refresh, more as it scrolls, new posts counted on the
+// button at its bottom (`news.ts`). At the top right, search,
 // and my picture, which opens a menu: my profile, my favorites, sign out.
 import { Image, List, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
-import { friendsTimeline, myUid, profile, type User } from "../api";
+import { friendsTimeline, myUid, newerPosts, profile, type User } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { createPageScroll, GlassButton, LargeTitle, Page } from "../components/Header";
 import { PopMenu } from "../components/PopMenu";
@@ -10,7 +11,8 @@ import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { Icon } from "../components/Icon";
-import { openFavorites, openMe, openSearch } from "../nav";
+import { nav, openFavorites, openMe, openSearch } from "../nav";
+import { createNews, mayCheck } from "../news";
 import { confirmSignOut } from "./Profile";
 
 // My picture in the header (a "我" until it loads): opens the menu.
@@ -42,10 +44,13 @@ function MeMenu() {
 export function Timeline() {
   const feed = createFeed(friendsTimeline, { saveAs: () => "timeline" });
   feed.more();
+  // New posts are looked for while the timeline is the page shown (`news.ts`).
+  const news = createNews(feed, newerPosts, () => mayCheck() && nav.routes().length === 1);
   const scroll = createPageScroll({
     large: true,
     refreshing: () => feed.refreshing(),
     refresh: () => feed.refresh(),
+    news,
   });
   return (
     <Page

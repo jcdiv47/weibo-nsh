@@ -23,6 +23,7 @@ import {
 import { Button, NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
 import { nav } from "../nav";
+import type { News } from "../news";
 import { GLASS_PRESS, type GlassKind, glass } from "./Glass";
 import { Icon } from "./Icon";
 import { Spinner } from "./Spinner";
@@ -92,13 +93,17 @@ export interface PageScroll {
   /** Refreshes the list: with it, the page has a button centered at its bottom that scrolls the list
    * back to its top, or refreshes it when it is there (`TopButton`). */
   readonly refresh?: () => void;
+  /** New items found above the list's first (`news.ts`): the button counts them instead, and a
+   * press shows them at the top. */
+  readonly news?: News;
   /** The list's scroll offset, fed natively: `-inset()` at its top. */
   readonly offset: AnimatedValue;
   /** How far the list is pulled past its top, fed natively. */
   readonly pull: AnimatedValue;
   /** The room the header takes over the top of the page (the status bar's included). */
   inset(): number;
-  /** Scrolls the list back to its top; refreshes it (`refresh`) when it is there already. */
+  /** Scrolls the list back to its top, showing the new items there (`news`) if there are any;
+   * refreshes it (`refresh`) when it is there already and there are none. */
   toTop(): Promise<void>;
   /** The top button's presence, 0 to 1: it goes while the user scrolls the list and comes back
    * once the list rests (`TOP_BUTTON_REST_MS`). */
@@ -129,7 +134,7 @@ const TOP_BUTTON_REST_MS = 300;
 const TOP_BUTTON_HIDE_MS = 140;
 
 export function createPageScroll(
-  options: { large?: boolean; accessory?: number; refreshing?: () => boolean; refresh?: () => void } = {},
+  options: { large?: boolean; accessory?: number; refreshing?: () => boolean; refresh?: () => void; news?: News } = {},
 ): PageScroll {
   const offset = createAnimatedValue(0);
   const pull = createAnimatedValue(0);
@@ -165,6 +170,7 @@ export function createPageScroll(
     accessory,
     refreshing: options.refreshing,
     refresh: options.refresh,
+    news: options.news,
     offset,
     pull,
     inset,
@@ -172,7 +178,10 @@ export function createPageScroll(
     topPressable: () => pressable(),
     async toTop() {
       const top = -inset();
-      if ((await offset.getValue()) > top + AT_TOP) ref?.scrollTo({ y: top, animated: true });
+      if (options.news?.count()) {
+        ref?.scrollTo({ y: top, animated: true });
+        options.news.show();
+      } else if ((await offset.getValue()) > top + AT_TOP) ref?.scrollTo({ y: top, animated: true });
       else if (!options.refreshing?.()) options.refresh?.();
     },
     list: () => ({
@@ -285,6 +294,8 @@ function PullIndicator(props: { scroll: PageScroll; refreshing: () => boolean })
 /** Over the page's list, centered at its bottom, just above the home indicator's area: an arrow up
  * while the list is scrolled away from its top, which scrolls it back there, and the refresh glyph
  * once it is at the top, which refreshes it. The two cross-fade with the list's offset, natively.
+ * While new posts wait above the list (`news`), a capsule counting them takes the circle's place,
+ * wherever the list is: a press scrolls to the top and shows them there.
  * While the list scrolls it fades, sinks and shrinks a little out of the way, and springs back once
  * the list rests (only fading with reduced motion). */
 function TopButton(props: { scroll: PageScroll }) {
@@ -308,17 +319,46 @@ function TopButton(props: { scroll: PageScroll }) {
         transform: motion(),
       }}
     >
-      <GlassButton label={t("timeline.top")} onPress={() => void props.scroll.toTop()}>
-        <View class="size-[22px]">
-          <View class="absolute inset-0" style={{ opacity: away().interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
-            <Icon name="refresh" class="size-[22px] tint-ink" />
-          </View>
-          <View class="absolute inset-0" style={{ opacity: away() }}>
-            <Icon name="arrow-up" class="size-[22px] tint-ink" />
-          </View>
-        </View>
-      </GlassButton>
+      <If
+        when={props.scroll.news?.count()}
+        else={
+          <GlassButton label={t("timeline.top")} onPress={() => void props.scroll.toTop()}>
+            <View class="size-[22px]">
+              <View class="absolute inset-0" style={{ opacity: away().interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
+                <Icon name="refresh" class="size-[22px] tint-ink" />
+              </View>
+              <View class="absolute inset-0" style={{ opacity: away() }}>
+                <Icon name="arrow-up" class="size-[22px] tint-ink" />
+              </View>
+            </View>
+          </GlassButton>
+        }
+      >
+        {(count) => (
+          <NewsButton count={count()} more={!!props.scroll.news?.more()} onPress={() => void props.scroll.toTop()} />
+        )}
+      </If>
     </View>
+  );
+}
+
+/** The capsule counting the new posts: the count in the brand's ink, "new posts" after it ("20+"
+ * when more may be past those counted). */
+function NewsButton(props: { count: number; more: boolean; onPress: () => void }) {
+  const look = glass("control");
+  const n = () => `${props.count}${props.more ? "+" : ""}`;
+  return (
+    <Button
+      accessibilityLabel={t("timeline.news_label", { n: n() })}
+      onPress={props.onPress}
+      class={`h-11 flex-row items-center gap-1.5 rounded-full px-[18px] ${GLASS_PRESS} ${look.class}`}
+      style={look.style}
+    >
+      <Text class="text-body font-bold text-weibo-ink">{n()}</Text>
+      <Text class="text-body font-semibold text-ink">
+        {props.count === 1 && !props.more ? t("timeline.news_one") : t("timeline.news_many")}
+      </Text>
+    </Button>
   );
 }
 
