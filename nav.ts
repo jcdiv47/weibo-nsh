@@ -28,7 +28,11 @@ export type Route =
   /** All the replies to a comment of a post, by the post's and the comment's ids. */
   | { name: "replies"; postId: string; commentId: string }
   /** The posts I saved (收藏). */
-  | { name: "favorites" };
+  | { name: "favorites" }
+  /** Search: hot searches, then suggestions as a search is typed. */
+  | { name: "search" }
+  /** What a search found: posts and accounts, under two tabs. */
+  | { name: "search-results"; q: string };
 
 export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
@@ -151,3 +155,12 @@ export const openPeople = (user: User, kind: "following" | "followers") => {
 
 /** The posts I saved (收藏). */
 export const openFavorites = () => nav.push({ name: "favorites" });
+
+/** Search, from the timeline. */
+export const openSearch = () => nav.push({ name: "search" });
+
+/** What `q` finds, over the search page. */
+export const openSearchResults = (q: string) => {
+  const query = q.trim();
+  if (query) nav.push({ name: "search-results", q: query });
+};

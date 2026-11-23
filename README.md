@@ -34,6 +34,12 @@ What it does now:
   `/ajax/statuses/deleteFilters`). Blocking ends the follow; unblocking does not restore it.
   A post they pinned (`isTop`, or the `title` "置顶") says so above it, a pin and "置顶" in Weibo's
   orange.
+- **Search**, from the glass magnifier at the top right of the timeline: under the field, Weibo's hot
+  searches (`/ajax/side/hotSearch`, ads left out); as a search is typed, what weibo.com's own box
+  suggests (`/ajax/side/search`: accounts by that name, searches that start so). A search opens what it
+  finds under two tabs: posts (s.weibo.com's `/weibo?q=`, as topics) and accounts (its `/user?q=`, read
+  from the page's cards), each with a follow button; the field brings back the search to change it.
+  Searching one account's posts is not there yet.
 - **Sign out**, from the "我" menu on the timeline or the menu of my own profile, asking first: the
   session web view runs weibo.com's own sign-out (Sina SSO's `login.sina.com.cn/sso/logout.php`),
   which ends the session and clears its cookies; the saved pages are cleared, the pages close and the sign-in page shows. Whoever

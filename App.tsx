@@ -27,6 +27,7 @@ import { Favorites } from "./pages/Favorites";
 import { Post } from "./pages/Post";
 import { Profile } from "./pages/Profile";
 import { Replies } from "./pages/Replies";
+import { Search, SearchResults } from "./pages/Search";
 import { Timeline } from "./pages/Timeline";
 import { People } from "./pages/People";
 import { Topic } from "./pages/Topic";
@@ -193,6 +194,10 @@ function App() {
                 return <Replies postId={route.postId} commentId={route.commentId} />;
               case "favorites":
                 return <Favorites />;
+              case "search":
+                return <Search />;
+              case "search-results":
+                return <SearchResults q={route.q} />;
             }
           }}
         </NavStack>

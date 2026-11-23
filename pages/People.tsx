@@ -1,6 +1,6 @@
 // Who an account follows and who follows it, one list at a time under two tabs (as a post's
 // reposts / comments / likes): each account opens its profile. A list loads when first shown and stays while the page is open.
-import { List, signal, Text, View } from "nsh";
+import { type JSX, List, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { people, type User } from "../api";
@@ -15,7 +15,9 @@ import { openProfile } from "../nav";
 
 type Kind = "following" | "followers";
 
-function PersonRow(props: { user: User }) {
+/** An account in a list: its picture, name, description and followers; it opens their profile.
+ * `trailing`: at the right (search's follow button). */
+export function PersonRow(props: { user: User; trailing?: JSX.Element }) {
   const u = () => props.user;
   return (
     <View
@@ -38,8 +40,11 @@ function PersonRow(props: { user: User }) {
         <If when={u().description}>
           <Text class="text-sm leading-[19px] text-ink-2 line-clamp-1">{u().description}</Text>
         </If>
-        <Text class="text-xs text-ink-2">{t("profile.followers_count", { n: count(u().followersCount ?? 0) })}</Text>
+        <If when={u().followersCount !== undefined}>
+          <Text class="text-xs text-ink-2">{t("profile.followers_count", { n: count(u().followersCount ?? 0) })}</Text>
+        </If>
       </View>
+      {props.trailing}
       {/* The divider starts under the names, past the pictures. */}
       <View class="absolute bottom-0 left-[72px] right-0 h-[0.5px] bg-hairline" />
     </View>

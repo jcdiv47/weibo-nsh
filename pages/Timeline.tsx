@@ -1,5 +1,5 @@
-// The timeline of followed accounts: pull to refresh, more as it scrolls. My picture at the top
-// right opens a menu: my profile, my favorites, sign out.
+// The timeline of followed accounts: pull to refresh, more as it scrolls. At the top right, search,
+// and my picture, which opens a menu: my profile, my favorites, sign out.
 import { Image, List, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import { friendsTimeline, myUid, profile, type User } from "../api";
@@ -9,7 +9,8 @@ import { PopMenu } from "../components/PopMenu";
 import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
-import { openFavorites, openMe } from "../nav";
+import { Icon } from "../components/Icon";
+import { openFavorites, openMe, openSearch } from "../nav";
 import { confirmSignOut } from "./Profile";
 
 // My picture in the header (a "我" until it loads): opens the menu.
@@ -43,7 +44,18 @@ export function Timeline() {
   feed.more();
   const scroll = createPageScroll({ large: true, refreshing: () => feed.refreshing() });
   return (
-    <Page title={t("timeline.title")} scroll={scroll} right={<MeMenu />}>
+    <Page
+      title={t("timeline.title")}
+      scroll={scroll}
+      right={
+        <View class="flex-row items-center gap-2.5">
+          <GlassButton label={t("search.title")} onPress={openSearch} size="size-10">
+            <Icon name="search" class="size-[22px] tint-ink" />
+          </GlassButton>
+          <MeMenu />
+        </View>
+      }
+    >
       <List
         {...scroll.list()}
         each={feed.items()}

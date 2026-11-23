@@ -1,0 +1,11 @@
+{"ok":1,"data":{
+"hotquery":[
+{"suggestion":"雷军回应小米售后锦旗","count":500000658,"top_flag":2,"topic_flag":0,"type":2},
+{"suggestion":"雷军APEC","count":500000518,"top_flag":2,"topic_flag":0,"type":2},
+{"suggestion":"雷军APEC","count":500000400,"top_flag":2,"topic_flag":0,"type":2},
+{"suggestion":"雷军超话","count":500000472,"top_flag":2,"topic_flag":0,"type":2}
+],
+"history":[],"real_hot":[],"query_relates":[],
+"user":[{"uid":1000000011,"nick":"雷军","note":"","type":1},{"uid":1000000014,"nick":"雷军的朋友","note":"","type":1}],
+"users":[{"id":1000000011,"idstr":"1000000011","screen_name":"雷军","profile_image_url":"https://tvax4.sinaimg.cn/crop.0.0.1080.1080.50/aaaa.jpg","avatar_large":"https://tvax4.sinaimg.cn/crop.0.0.1080.1080.180/aaaa.jpg","description":"小米董事长，金山软件董事长。业余爱好是天使投资。","followers_count":27334687,"friends_count":1649,"statuses_count":22395,"following":true,"follow_me":false,"verified":true,"verified_type":0,"verified_type_ext":1,"verified_reason":"小米创办人，董事长兼CEO"}]
+}}
