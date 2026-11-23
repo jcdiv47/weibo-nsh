@@ -86,8 +86,14 @@ function Plain(props: { text: string }) {
           p
         ) : (
           // A little taller than the letters (the text runs 13 to 16 points), as weibo.com draws them;
-          // `middle` keeps the line's height.
-          <Image src={p.src} accessibilityLabel={p.code} style={{ width: 18, height: 18, verticalAlign: "middle" }} />
+          // `middle` keeps the line's height. That middle is half the x height above the baseline, a
+          // point or so below the middle of Chinese characters, so it goes up a point, as the link
+          // icons do.
+          <Image
+            src={p.src}
+            accessibilityLabel={p.code}
+            style={{ width: 18, height: 18, verticalAlign: "middle", translate: [0, -1] }}
+          />
         ),
       )}
     </>
@@ -115,8 +121,9 @@ function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
         {(link) => (
           <>
             {/* `align-middle` centers it on the letters, as the emoticons are; on the baseline it
-                sits above them. */}
-            <Icon name={video() ? "player-play" : "link"} class={`size-4 align-middle ${LINK_TINT}`} /> {link().title}
+                sits above them. That middle is half the x height above the baseline, a point or so
+                below the middle of Chinese characters, so it goes up a point. */}
+            <Icon name={video() ? "player-play" : "link"} class={`size-4 align-middle -translate-y-px ${LINK_TINT}`} /> {link().title}
           </>
         )}
       </If>
