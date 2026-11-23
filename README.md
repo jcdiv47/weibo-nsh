@@ -2,6 +2,7 @@
 
 A lightweight, native cross-platform Weibo client for personal use, built with [Native Shell (NSH)](https://nsh.dev) and TypeScript.
 
+[![CI](https://github.com/jcdiv47/weibo-nsh/actions/workflows/ci.yml/badge.svg)](https://github.com/jcdiv47/weibo-nsh/actions/workflows/ci.yml)
 [![Last Commit](https://img.shields.io/github/last-commit/jcdiv47/weibo-nsh?style=flat)](https://github.com/jcdiv47/weibo-nsh/commits/main)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat)](LICENSE)
 [![Built with NSH](https://img.shields.io/badge/built%20with-NSH-111827?style=flat)](https://nsh.dev)
@@ -126,6 +127,20 @@ The test suite runs all API parsers against real-shaped responses in `tests/fixt
 ├── nsh.json         # NSH manifest, capabilities, typography scale, and iOS plist config
 └── theme.json       # Light and dark color tokens
 ```
+
+## Releases
+
+CI ([`ci.yml`](.github/workflows/ci.yml)) runs `nsh check` and `nsh test` on every pull request and push to `main`.
+
+Releases are published from GitHub's **Releases** page—no tags are pushed by hand:
+
+1. **Draft a new release**, type the version as a new tag (`0.2.0`, no `v`), and click **Generate release notes**.
+2. Publish it. GitHub creates the tag, and [`release.yml`](.github/workflows/release.yml) builds the app at it and attaches `Weibo-<version>-macos-arm64.zip` and `Weibo-<version>-android.apk`.
+
+The tag is the app's version (`nsh.json`'s `version` is only the development one), and the workflow run number is its build number. To rebuild a release's packages, run the **Release** workflow by hand with its tag. Coding agents can draft a release for you by following [`AGENTS.md`](AGENTS.md).
+
+- **macOS:** ad hoc signed, not notarized. After unzipping, run `xattr -dr com.apple.quarantine Weibo.app` (or right-click → **Open**) before the first launch.
+- **Android:** signed with the keystore in the `ANDROID_KEYSTORE_BASE64` (the file, base64-encoded), `ANDROID_KEY_ALIAS`, and `ANDROID_KEYSTORE_PASSWORD` repository secrets. Without them, the APK gets a throwaway debug key and won't install over the previous release.
 
 ## Personal Use & Terms of Service
 
