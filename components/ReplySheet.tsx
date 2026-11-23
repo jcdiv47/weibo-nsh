@@ -3,7 +3,7 @@
 // `openRepost` to repost the post with the comment quoted, as weibo.com's repost box for a comment.
 // Without a comment it comments on the post itself (`openComment`, the post page's comment field)
 // or reposts it (a post's repost count in a list, the post page's repost button).
-import { keyboardFrame, safeArea, signal, Text, View } from "nsh";
+import { safeArea, signal, Text, View } from "nsh";
 import { Button, Input, Sheet } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
@@ -133,7 +133,9 @@ export function ReplySheet() {
       closeOnSwipe
       backdropClass="bg-black/30"
       popupClass="rounded-t-sheet bg-ground px-4 pt-2.5 shadow-[0_-8px_30px_#00000014]"
-      popupStyle={{ paddingBottom: Math.max(keyboardFrame().height, safeArea().bottom) + 14 }}
+      // The sheet makes room for the keyboard itself, all of it but the home indicator's area: this
+      // padding is that area's, keyboard or not, so the box sits right above the keyboard.
+      popupStyle={{ paddingBottom: safeArea().bottom + 14 }}
     >
       <View class="gap-3">
         <View class="h-[5px] w-9 self-center rounded-full bg-sheet-grabber" />
