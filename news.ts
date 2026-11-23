@@ -3,7 +3,7 @@
 // arrow (`TopButton`), and a press shows them at once: they came with the check, so the list puts
 // them over the shown ones without another request. When more came than one page holds, the press
 // loads the first page again instead, so the timeline has no gap.
-import { effect, lifecycle, network, signal, untracked } from "nsh";
+import { effect, lifecycle, signal, untracked } from "nsh";
 import { isNewerId } from "./api";
 import type { Feed } from "./feed";
 
@@ -91,9 +91,9 @@ export function createNews<T extends { id: string }>(
   };
 }
 
-/** The app is in front (or visible beside another, on a desktop) and the network is there and not
- * one the user asked to spare (Low Data Mode, Data Saver). */
+/** The app is in front (or visible beside another, on a desktop). Offline, a check fails quietly
+ * and the next one tries again. (`network()`, which would skip checks offline and in Low Data
+ * Mode, is not in the runtime the device builds use yet: importing it leaves the app blank.) */
 export function mayCheck(): boolean {
-  const net = network();
-  return lifecycle() !== "background" && net.online && !net.constrained;
+  return lifecycle() !== "background";
 }
