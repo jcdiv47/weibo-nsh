@@ -6,7 +6,7 @@ import { NavPage, NavStack, ResizablePanel, ResizablePanelGroup } from "nsh/base
 import { currentWindow, Menu } from "nsh/desktop";
 import { t } from "nsh/i18n";
 import { emoticonList, forgetAccount } from "./api";
-import { DETAIL_MIN, detailShown, LIST_WIDTH, listWidth, setListWidth, sidebarShown, toggleDetail, toggleSidebar } from "./layout";
+import { attachWindow, DETAIL_MIN, detailShown, LIST_WIDTH, listWidth, setListWidth, sidebarShown, toggleDetail, toggleSidebar } from "./layout";
 import {
   DESKTOP_UA,
   get,
@@ -353,7 +353,9 @@ function App() {
   if (WIDE) {
     // nsh.json hides the title bar from the window's first frame; the development host's window
     // takes it here.
-    currentWindow().set({ titleBar: { style: "hidden", height: BAR } });
+    const win = currentWindow();
+    win.set({ titleBar: { style: "hidden", height: BAR } });
+    attachWindow(win);
     effect(setMenuBar);
   }
   return (

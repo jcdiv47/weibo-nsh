@@ -6,13 +6,12 @@ import { Button } from "nsh/base";
 import { Menu } from "nsh/desktop";
 import { t } from "nsh/i18n";
 import { myUid, profile, type User } from "../api";
+import { SIDEBAR_WIDTH } from "../layout";
 import { type Section, section, showSection } from "../nav";
 import { confirmSignOut } from "../pages/Profile";
 import { BAR } from "./Header";
 import { Icon, type IconName } from "./Icon";
 
-/** The sidebar's width. */
-export const SIDEBAR = 220;
 
 const ROWS: { section: Section; icon: IconName; label: () => string; shortcut: string }[] = [
   { section: "timeline", icon: "home", label: () => t("timeline.title"), shortcut: "⌘1" },
@@ -73,7 +72,7 @@ export function Sidebar() {
     <View
       macos={{ backdrop: { material: "sidebar", blending: "behindWindow", state: "followsWindowActiveState" } }}
       class="shrink-0 border-r-[0.5px] border-hairline px-2.5 pb-3"
-      style={{ width: SIDEBAR, paddingTop: 6 }}
+      style={{ width: SIDEBAR_WIDTH, paddingTop: 6 }}
     >
       <View desktop={{ windowDrag: true }} class="-mx-2.5 -mt-1.5" style={{ height: BAR + 6 }} />
       <View role="tablist" accessibilityLabel={t("mac.sections")} class="gap-0.5">
