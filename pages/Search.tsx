@@ -68,13 +68,13 @@ function IconRow(props: { icon: JSX.Element; label: string; onPress: () => void;
 }
 
 /** A hot search: its rank (the first three in Weibo's orange), the words, its mark or its count. */
-function HotRow(props: { word: HotWord; rank: number }) {
+function HotRow(props: { word: HotWord; rank: number; onSearch: (q: string) => void }) {
   const w = () => props.word;
   return (
     <View
       role="button"
       accessibilityLabel={w().word}
-      onPress={() => openSearchResults(w().query)}
+      onPress={() => props.onSearch(w().query)}
       class="h-12 flex-row items-center gap-2.5 px-4 active:bg-well"
     >
       <Text
@@ -104,13 +104,13 @@ function HotRow(props: { word: HotWord; rank: number }) {
 }
 
 /** A suggested search, the part typed in Weibo's orange. */
-function WordRow(props: { word: string; typed: string }) {
+function WordRow(props: { word: string; typed: string; onSearch: (q: string) => void }) {
   const typed = () => (props.word.startsWith(props.typed) ? props.typed : "");
   return (
     <IconRow
       icon={<Icon name="search" class="size-[18px] tint-ink-3" />}
       label={props.word}
-      onPress={() => openSearchResults(props.word)}
+      onPress={() => props.onSearch(props.word)}
     >
       <Text class="flex-1 text-body leading-5 text-ink line-clamp-1">
         <Text class="text-weibo">{typed()}</Text>
@@ -177,8 +177,13 @@ export function Search() {
     ];
   };
 
+  // The field holds what was searched: changing the search (the results' field) starts from it.
+  const search = (q: string) => {
+    text.set(q);
+    openSearchResults(q);
+  };
   const submit = () => {
-    if (typed()) openSearchResults(typed());
+    if (typed()) search(typed());
   };
   const scroll = createPageScroll();
   return (
@@ -239,7 +244,7 @@ export function Search() {
             }
             class="flex-1"
           >
-            {(w, i) => <HotRow word={w()} rank={i() + 1} />}
+            {(w, i) => <HotRow word={w()} rank={i() + 1} onSearch={search} />}
           </List>
         }
       >
@@ -270,7 +275,7 @@ export function Search() {
               case "user":
                 return <PersonRow user={r.user} />;
               case "word":
-                return <WordRow word={r.word} typed={typed()} />;
+                return <WordRow word={r.word} typed={typed()} onSearch={search} />;
             }
           }}
         </List>
@@ -310,8 +315,8 @@ function Tabs(props: { value: Tab; onChange: (tab: Tab) => void }) {
 }
 
 /** Follows an account from its row; once followed, says so (unfollowing is on their profile). */
-function FollowButton(props: { user: User }) {
-  const following = signal(!!props.user.following);
+function FollowButton(props: { user: User; onFollowed: () => void }) {
+  const following = () => !!props.user.following;
   const busy = signal(false);
   const failed = signal(false);
   const press = () => {
@@ -319,7 +324,7 @@ function FollowButton(props: { user: User }) {
     busy.set(true);
     failed.set(false);
     follow(props.user.id)
-      .then(() => following.set(true), () => failed.set(true))
+      .then(props.onFollowed, () => failed.set(true))
       .finally(() => busy.set(false));
   };
   return (
@@ -415,7 +420,18 @@ export function SearchResults(props: { q: string }) {
           footer={footer()}
           class="flex-1"
         >
-          {(u) => <PersonRow user={u()} trailing={<FollowButton user={u()} />} />}
+          {(u) => (
+            <PersonRow
+              user={u()}
+              trailing={
+                <FollowButton
+                  user={u()}
+                  // The list keeps it, so the row says so again after a switch of tabs.
+                  onFollowed={() => users.update((list) => list.map((x) => (x.id === u().id ? { ...x, following: true } : x)))}
+                />
+              }
+            />
+          )}
         </List>
       </If>
     </Page>
