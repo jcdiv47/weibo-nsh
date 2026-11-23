@@ -38,8 +38,16 @@
   "window": {
     "title": "Weibo",
     "defaultSize": {
-      "width": 480,
-      "height": 860
+      "width": 1240,
+      "height": 820
+    },
+    "minSize": {
+      "width": 940,
+      "height": 560
+    },
+    "titleBar": {
+      "style": "hidden",
+      "height": 52
     }
   },
   "capabilities": {
@@ -71,6 +79,8 @@
       ]
     },
     "share": true,
+    "application": true,
+    "clipboard": true,
     "homeDir": true,
     "fs": {
       "read": [

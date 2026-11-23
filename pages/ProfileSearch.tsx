@@ -4,6 +4,7 @@
 import { type InputRef, List, signal, Text, View } from "nsh";
 import { Button, Input } from "nsh/base";
 import { t } from "nsh/i18n";
+import { WIDE } from "../nav";
 import { searchUserPosts, type Status } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { createPageScroll, Page } from "../components/Header";
@@ -45,7 +46,7 @@ export function ProfileSearch(props: { uid: string; name?: string }) {
             autoCorrect={false}
             autoFocus
             maxLength={100}
-            class="h-10 flex-1 text-body text-ink placeholder:text-ink-3"
+            class={`${WIDE ? "h-8" : "h-10"} flex-1 text-body text-ink placeholder:text-ink-3`}
           />
           <If when={text()}>
             <Button

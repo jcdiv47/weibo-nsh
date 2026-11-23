@@ -18,7 +18,7 @@ import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
-import { keepPost, openPost, openProfile, openReplies, postById, withFullText } from "../nav";
+import { keepPost, openPost, openProfile, openReplies, PageStack, postById, withFullText } from "../nav";
 
 export function Post(props: { id: string }) {
   const cached = postById(props.id);
@@ -235,10 +235,11 @@ function LikeRow(props: { user: User }) {
 /** A repost: who, when, and what they said; a press opens it as a post of its own. */
 function RepostRow(props: { repost: Status }) {
   const s = () => props.repost;
+  const from = PageStack();
   return (
     <View
       role="button"
-      onPress={() => openPost(s())}
+      onPress={() => openPost(s(), from)}
       class="flex-row gap-2.5 border-b-[0.5px] border-hairline px-4 pb-3 pt-3.5 active:bg-well"
     >
       <Avatar user={s().user} size="sm" />

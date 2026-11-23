@@ -2,11 +2,12 @@
 // their profile, a picture the viewer, a video the player, the reposted post that post, elsewhere
 // the post's comments; its repost count opens the box to repost it, its likes like it.
 // An edited post says so; on its own page, its versions open from below it.
-import { Image, type JSX, signal, Text, View } from "nsh";
+import { Clipboard, Image, type JSX, openUrl, signal, Text, View } from "nsh";
+import { Menu } from "nsh/desktop";
 import { t } from "nsh/i18n";
 import { type Activity, likeStatus, type Pic, type Status, type User, type VerifiedKind, type Video } from "../api";
 import { count, relativeTime, timeAgo } from "../format";
-import { openEdits, opening, openPost, openProfile } from "../nav";
+import { openEdits, opening, openPost, openProfile, PageStack, selectedPost, WIDE } from "../nav";
 import { Icon, type IconName } from "./Icon";
 import { openViewer } from "./ImageViewer";
 import { openRepostStatus } from "./ReplySheet";
@@ -212,6 +213,28 @@ function PinnedLine() {
   );
 }
 
+/** The post on weibo.com. */
+const postUrl = (s: Status) => `https://weibo.com/${s.user.id}/${s.mblogid || s.id}`;
+
+/** The Mac's right-click menu of a post: open it or its author, copy its link, open it on weibo.com. */
+function postMenu(s: Status, from: ReturnType<typeof PageStack>) {
+  Menu.popup([
+    { label: t("mac.open_post"), onSelect: () => openPost(s, from) },
+    hasAuthor(s) && { label: t("mac.open_profile", { name: s.user.name }), onSelect: () => openProfile(s.user.id) },
+    { type: "separator" },
+    { label: t("mac.copy_link"), onSelect: () => void Clipboard.writeText(postUrl(s)).catch(() => {}) },
+    { label: t("mac.open_in_browser"), onSelect: () => void openUrl(postUrl(s)) },
+  ]);
+}
+
+/** A card's ground in a list: shaded while its page opens; on the Mac also under the pointer,
+ * and marked in Weibo's wash while the detail column shows it. */
+function cardGround(s: Status) {
+  if (opening() === s.id) return "bg-well";
+  if (!WIDE) return "bg-ground";
+  return selectedPost() === s.id ? "bg-weibo-wash" : "bg-ground hover:bg-menu-press";
+}
+
 /**
  * A post. In a list (`full` unset) a press opens its page and its counts close it; on its page
  * (`full`) the text is selectable and its edit history and region close it instead. `trailing`:
@@ -219,6 +242,8 @@ function PinnedLine() {
  */
 export function StatusCard(props: { status: Status; full?: boolean; trailing?: JSX.Element }) {
   const s = () => props.status;
+  // The Mac's column the card is in: a post opened from the detail column stacks there.
+  const from = PageStack();
   const meta = () =>
     [relativeTime(s().createdAt), s().source && t("post.via", { source: s().source }), !props.full && s().region]
       .filter(Boolean)
@@ -226,8 +251,9 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
   return (
     <View
       role={props.full ? undefined : "button"}
-      onPress={props.full ? undefined : () => openPost(s())}
-      class={`gap-2.5 px-4 pb-3 ${props.full ? "bg-ground pt-1" : `border-b-[0.5px] border-hairline ${s().activity || s().pinned ? "pt-2.5" : "pt-3.5"} active:bg-well ${opening() === s().id ? "bg-well" : "bg-ground"}`}`}
+      onPress={props.full ? undefined : () => openPost(s(), from)}
+      onContextMenu={WIDE ? () => postMenu(s(), from) : undefined}
+      class={`gap-2.5 pb-3 px-4 ${props.full ? `bg-ground ${WIDE ? "pt-4" : "pt-1"}` : `border-b-[0.5px] border-hairline ${s().activity || s().pinned ? "pt-2.5" : "pt-3.5"} active:bg-well ${cardGround(s())}`}`}
     >
       <If when={props.full ? undefined : s().activity}>{(a) => <ActivityLine activity={a()} />}</If>
       <If when={!props.full && s().pinned}>
@@ -240,7 +266,7 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
           <View
             role="button"
             accessibilityLabel={hasAuthor(rt()) ? t("post.reposted_by", { name: rt().user.name }) : undefined}
-            onPress={() => openPost(rt())}
+            onPress={() => openPost(rt(), from)}
             class="gap-1.5 rounded-well bg-well px-3 pb-3 pt-2.5 active:opacity-70"
           >
             <If when={hasAuthor(rt())}>

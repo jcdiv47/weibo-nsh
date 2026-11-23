@@ -10,7 +10,7 @@ import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { Icon } from "../components/Icon";
-import { openFavorites, openMe, openSearch } from "../nav";
+import { openFavorites, openMe, openSearch, timelineTop, WIDE } from "../nav";
 import { confirmSignOut } from "./Profile";
 
 // My picture in the header (a "我" until it loads): opens the menu.
@@ -47,12 +47,14 @@ export function Timeline() {
     refreshing: () => feed.refreshing(),
     refresh: () => feed.refresh(),
   });
+  timelineTop.run = () => void scroll.toTop();
   return (
     <Page
       title={t("timeline.title")}
       scroll={scroll}
+      // On the Mac the sidebar has search and me.
       right={
-        <View class="flex-row items-center gap-2.5">
+        WIDE ? undefined : <View class="flex-row items-center gap-2.5">
           <GlassButton label={t("search.title")} onPress={openSearch} size="size-10">
             <Icon name="search" class="size-[22px] tint-ink" />
           </GlassButton>
@@ -70,7 +72,9 @@ export function Timeline() {
         onLoadMore={() => feed.more()}
         header={
           <View>
-            <LargeTitle title={t("timeline.title")} />
+            <If when={!WIDE}>
+              <LargeTitle title={t("timeline.title")} />
+            </If>
             <SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />
           </View>
         }

@@ -1,7 +1,12 @@
-// The navigation stack and the posts pages pass along: a post page reads the post the timeline
+// The navigation stacks and the posts pages pass along: a post page reads the post the timeline
 // already has instead of fetching it again.
-import { signal } from "nsh";
-import { createNavStack } from "nsh/base";
+//
+// On a phone the app is one stack. On the Mac it is a window of three columns: a sidebar of
+// sections (Following, Search, Favorites, My profile), each with a stack of its own in the list
+// column, and the detail column at the right, where a post a list's press opens shows with its
+// comments (its replies and versions stack over it there).
+import { context, platform, signal } from "nsh";
+import { createNavStack, type NavStackState } from "nsh/base";
 import { type Comment, longText, type Status, type User } from "./api";
 
 export type Route =
@@ -34,9 +39,98 @@ export type Route =
   /** What a search found: posts and accounts, under two tabs. */
   | { name: "search-results"; q: string }
   /** Search within one account's posts, from their profile (their name for the field's hint). */
-  | { name: "profile-search"; uid: string; userName?: string };
+  | { name: "profile-search"; uid: string; userName?: string }
+  /** The Mac's detail column before a post is chosen. */
+  | { name: "blank" };
 
-export const nav = createNavStack<Route>([{ name: "timeline" }]);
+/** The Mac's window of columns, instead of one stack: macOS's own host (not Mac Catalyst). */
+export const WIDE = platform.os === "macos";
+
+/** The sections of the Mac's sidebar, each a stack of its own in the list column. */
+export type Section = "timeline" | "search" | "favorites" | "me";
+export const SECTIONS: readonly Section[] = ["timeline", "search", "favorites", "me"];
+
+/** Each section's first page. */
+const rootOf = (s: Section): Route =>
+  s === "timeline" ? { name: "timeline" } : s === "search" ? { name: "search" } : s === "favorites" ? { name: "favorites" } : { name: "profile", me: true };
+
+/** The section's stacks; on a phone only the timeline's, which is the app's one stack. */
+export const stacks: Record<Section, NavStackState<Route>> = {
+  timeline: createNavStack<Route>([rootOf("timeline")]),
+  search: createNavStack<Route>([rootOf("search")]),
+  favorites: createNavStack<Route>([rootOf("favorites")]),
+  me: createNavStack<Route>([rootOf("me")]),
+};
+
+/** The section the list column shows (always the timeline on a phone). */
+export const section = signal<Section>("timeline");
+
+/** The sections opened so far: their stacks stay mounted, so each keeps its pages and scroll. */
+export const visited = signal<ReadonlySet<Section>>(new Set(["timeline"]));
+
+/** Shows a section in the list column; choosing the one that shows goes back to its first page. */
+export function showSection(s: Section) {
+  if (!WIDE) {
+    if (s !== "timeline") nav.push(rootOf(s));
+    return;
+  }
+  if (section() === s) stacks[s].popToRoot();
+  section.set(s);
+  if (!visited().has(s)) visited.set(new Set([...visited(), s]));
+}
+
+/** The stack the list column shows: the app's one stack on a phone. */
+const list = () => stacks[section()];
+
+/** The list column's stack (the app's one on a phone), whichever section shows. */
+export const nav: NavStackState<Route> = {
+  routes: () => list().routes(),
+  push: (route) => list().push(route),
+  pop: (count) => list().pop(count),
+  popToRoot: () => list().popToRoot(),
+  replace: (route) => list().replace(route),
+  setRoutes: (routes) => list().setRoutes(routes),
+  remove: (route) => list().remove(route),
+};
+
+/** The Mac's detail column: a post, its replies and versions over it. */
+export const detail = createNavStack<Route>([{ name: "blank" }]);
+
+/** The stack a page is in, for its back button: the list column's, unless the page says. */
+export const PageStack = context<NavStackState<Route>>(nav);
+
+/** The routes the Mac's detail column shows. */
+const inDetail = (route: Route) => route.name === "post" || route.name === "replies" || route.name === "edits";
+
+/**
+ * Opens a page. On the Mac a post a list's press opens takes the detail column's place, and one
+ * opened from the detail column (`from`, the stack of the page pressed: a repost, a link in a
+ * post) stacks over the post there; a post's replies and versions stack there too, and every
+ * other page opens in the list column.
+ */
+function go(route: Route, from?: NavStackState<Route>) {
+  if (!WIDE || !inDetail(route)) return nav.push(route);
+  if (route.name === "post" && from !== detail) detail.setRoutes([route]);
+  else detail.push(route);
+}
+
+/** The post the detail column shows from its first page: its card in a list is marked. */
+export const selectedPost = () => {
+  if (!WIDE) return undefined;
+  const first = detail.routes()[0];
+  return first?.name === "post" ? first.id : undefined;
+};
+
+/** What the menu bar's Refresh does: the timeline's top button, which the timeline gives. */
+export const timelineTop: { run?: () => void } = {};
+
+/** Back to the first pages, as a sign-out leaves the app. */
+export function resetNav() {
+  for (const s of SECTIONS) stacks[s].setRoutes([rootOf(s)]);
+  detail.setRoutes([{ name: "blank" }]);
+  section.set("timeline");
+  visited.set(new Set(["timeline"]));
+}
 
 const posts = new Map<string, Status>();
 
@@ -76,11 +170,11 @@ export const opening = signal<string | null>(null);
  * while the page slides in, it would grow and push the pictures down mid-slide. Other presses on
  * posts do nothing until it opens.
  */
-export function openPost(status: Status) {
+export function openPost(status: Status, from?: NavStackState<Route>) {
   if (opening()) return;
   const push = (s: Status) => {
     posts.set(s.id, s);
-    nav.push({ name: "post", id: s.id });
+    go({ name: "post", id: s.id }, from);
   };
   if (!status.isLongText || !status.mblogid) return push(status);
   opening.set(status.id);
@@ -95,8 +189,8 @@ export function openPost(status: Status) {
  * A post by its id or mblogid (a link to it), which the page loads when it has not got it. Pages
  * stack: a post linked from a post linked from a post opens on top, and back returns each.
  */
-export const openPostById = (id: string) => {
-  if (id) nav.push({ name: "post", id });
+export const openPostById = (id: string, from?: NavStackState<Route>) => {
+  if (id) go({ name: "post", id }, from);
 };
 
 export const postById = (id: string) => posts.get(id);
@@ -113,7 +207,7 @@ const commentsById = new Map<string, Comment>();
 export function openReplies(status: Status, comment: Comment) {
   posts.set(status.id, status);
   commentsById.set(comment.id, comment);
-  nav.push({ name: "replies", postId: status.id, commentId: comment.id });
+  go({ name: "replies", postId: status.id, commentId: comment.id });
 }
 
 export const commentById = (id: string) => commentsById.get(id);
@@ -121,7 +215,7 @@ export const commentById = (id: string) => commentsById.get(id);
 /** The versions of an edited post. */
 export function openEdits(status: Status) {
   posts.set(status.id, status);
-  nav.push({ name: "edits", id: status.id });
+  go({ name: "edits", id: status.id });
 }
 
 export const openProfile = (uid: string) => {
@@ -140,7 +234,7 @@ export const openTopic = (topic: string) => {
 };
 
 /** My own profile. */
-export const openMe = () => nav.push({ name: "profile", me: true });
+export const openMe = () => showSection("me");
 
 /** Who `user` follows, or who follows `user`. */
 export const openPeople = (user: User, kind: "following" | "followers") => {
@@ -156,10 +250,10 @@ export const openPeople = (user: User, kind: "following" | "followers") => {
 };
 
 /** The posts I saved (收藏). */
-export const openFavorites = () => nav.push({ name: "favorites" });
+export const openFavorites = () => showSection("favorites");
 
 /** Search, from the timeline. */
-export const openSearch = () => nav.push({ name: "search" });
+export const openSearch = () => showSection("search");
 
 /** What `q` finds, over the search page. */
 export const openSearchResults = (q: string) => {

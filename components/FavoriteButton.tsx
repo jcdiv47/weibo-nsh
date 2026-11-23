@@ -4,7 +4,7 @@ import { safeArea, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { favorite, type Status } from "../api";
-import { nav, openFavorites } from "../nav";
+import { nav, openFavorites, WIDE } from "../nav";
 import { glass } from "./Glass";
 import { GlassButton } from "./Header";
 import { Icon } from "./Icon";
@@ -60,7 +60,7 @@ export function SavedToast() {
     <If when={toast()}>
       <View
         role="alert"
-        class={`absolute inset-x-4 h-[52px] flex-row items-center gap-2.5 rounded-full pl-4 pr-2 ${glass("toast").class}`}
+        class={`absolute ${WIDE ? "right-6 w-[340px]" : "inset-x-4"} h-[52px] flex-row items-center gap-2.5 rounded-full pl-4 pr-2 ${glass("toast").class}`}
         style={{ ...glass("toast").style, bottom: safeArea().bottom + 14 }}
       >
         <Icon name="bookmark-filled" class="size-5 tint-weibo" />

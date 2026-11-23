@@ -22,7 +22,7 @@ import {
 } from "nsh";
 import { Button, NavPage } from "nsh/base";
 import { t } from "nsh/i18n";
-import { nav } from "../nav";
+import { PageStack, WIDE } from "../nav";
 import { GLASS_PRESS, type GlassKind, glass } from "./Glass";
 import { Icon } from "./Icon";
 import { Spinner } from "./Spinner";
@@ -39,7 +39,10 @@ export function GlassButton(props: {
   /** Its glass: the header's (`"control"`, the default), or `"media"` over pictures and video. */
   kind?: GlassKind;
 }) {
-  const look = glass(props.kind ?? "control");
+  const kind = props.kind ?? "control";
+  // The Mac's toolbar has plain buttons, shaded under the pointer, their icons a little smaller.
+  if (WIDE && kind === "control") return <ToolbarButton {...props} />;
+  const look = glass(kind);
   const cls = () => `${props.size ?? "size-11"} items-center justify-center rounded-full ${GLASS_PRESS} ${look.class}`;
   return (
     <If
@@ -63,16 +66,32 @@ export function GlassButton(props: {
   );
 }
 
-export function BackButton() {
+/** A button of the Mac's toolbar: 32 points, shaded under the pointer and while pressed; its
+ * icon, drawn for the phone's 44-point circle, at four fifths. */
+function ToolbarButton(props: { label: string; onPress?: () => void; children: JSX.Element; selected?: boolean }) {
+  const cls = "size-8 items-center justify-center rounded-lg hover:bg-menu-press active:bg-menu-press";
+  const icon = <View style={{ transform: [{ scale: 0.8 }] }}>{props.children}</View>;
   return (
-    <GlassButton label={t("common.back")} onPress={() => nav.pop()}>
+    <If when={props.onPress} else={<View role="button" accessibilityLabel={props.label} tooltip={props.label} class={cls}>{icon}</View>}>
+      <Button accessibilityLabel={props.label} tooltip={props.label} selected={props.selected} onPress={props.onPress} class={cls}>
+        {icon}
+      </Button>
+    </If>
+  );
+}
+
+/** Back, in the stack of the page it is on (the Mac's list or detail column). */
+export function BackButton() {
+  const stack = PageStack();
+  return (
+    <GlassButton label={t("common.back")} onPress={() => stack.pop()}>
       <Icon name="chevron-left" class="size-6 tint-ink" />
     </GlassButton>
   );
 }
 
-/** The bar's height; a large title's row is as tall. */
-export const BAR = 54;
+/** The bar's height; a large title's row is as tall. The Mac's toolbar's. */
+export const BAR = WIDE ? 52 : 54;
 const LARGE_ROW = 57;
 /** How far the edge fades out below the header. */
 const EDGE_FADE = 20;
@@ -133,11 +152,11 @@ export function createPageScroll(
 ): PageScroll {
   const offset = createAnimatedValue(0);
   const pull = createAnimatedValue(0);
-  const large = options.large ?? false;
+  const large = !WIDE && (options.large ?? false);
   const accessory = options.accessory ?? 0;
   // A large title is the list's first row, the bar's action beside it: the list starts at the
-  // status bar.
-  const inset = () => safeArea().top + (large ? 0 : BAR) + accessory;
+  // status bar. The Mac's toolbar has no status bar over it.
+  const inset = () => (WIDE ? 0 : safeArea().top) + (large ? 0 : BAR) + accessory;
   let ref: ListRef | undefined;
   // The top button: gone while a finger or a fling moves the list, back once it rests. A press on
   // the button scrolls without a drag, so the button stays to show the arrow turn to refresh.
@@ -192,6 +211,7 @@ export function createPageScroll(
 /** The bar under the status bar: back, the title centered over the whole width (unless
  * `hideTitle`), an action. */
 export function Header(props: { title: string; hideTitle?: boolean; right?: JSX.Element }) {
+  const stack = PageStack();
   return (
     <View class="h-[54px] flex-row items-center justify-between px-4">
       <If when={!props.hideTitle}>
@@ -199,7 +219,7 @@ export function Header(props: { title: string; hideTitle?: boolean; right?: JSX.
           <Text class="text-center text-headline font-semibold text-ink line-clamp-1">{props.title}</Text>
         </View>
       </If>
-      <If when={nav.routes().length > 1} else={<View />}>
+      <If when={stack.routes().length > 1} else={<View />}>
         <BackButton />
       </If>
       {props.right ?? <View />}
@@ -338,6 +358,7 @@ export function Page(props: {
   bar?: JSX.Element;
   children?: JSX.Element;
 }) {
+  if (WIDE) return <ColumnPage {...props} />;
   const header = () => safeArea().top + (props.scroll?.large ? LARGE_ROW : BAR) + (props.scroll?.accessory ?? 0);
   return (
     <NavPage title={props.title} headerVisible={false} class="bg-ground">
@@ -363,6 +384,88 @@ export function Page(props: {
             </If>
           }>
             {props.bar}
+          </If>
+          {props.accessory}
+        </View>
+      </View>
+    </NavPage>
+  );
+}
+
+/** The Mac's toolbar: back (in a pushed page), the title, the refresh of a list that refreshes,
+ * the page's buttons. Dragging it moves the window. */
+function Toolbar(props: { title: string; right?: JSX.Element; scroll?: PageScroll }) {
+  const stack = PageStack();
+  return (
+    <View desktop={{ windowDrag: true }} class="flex-row items-center gap-1 px-3" style={{ height: BAR }}>
+      <If when={stack.routes().length > 1} else={<View class="w-2" />}>
+        <BackButton />
+      </If>
+      <Text role="header" class="ml-1 flex-1 text-[15px] font-bold tracking-tight text-ink line-clamp-1">
+        {props.title}
+      </Text>
+      <If when={props.scroll?.refresh ? props.scroll : undefined}>{(scroll) => <RefreshButton scroll={scroll()} />}</If>
+      <View class="flex-row items-center gap-1">{props.right}</View>
+    </View>
+  );
+}
+
+/** The toolbar's refresh: an arrow up while the list is scrolled away from its top, which scrolls
+ * it back, the refresh glyph at the top, which refreshes it, and the spinner while it does. */
+function RefreshButton(props: { scroll: PageScroll }) {
+  const top = () => -props.scroll.inset();
+  const away = () => props.scroll.offset.interpolate({ inputRange: [top() + AT_TOP, top() + 48], outputRange: [0, 1] });
+  return (
+    <If
+      when={!props.scroll.refreshing?.()}
+      else={
+        <View class="size-8 items-center justify-center">
+          <View style={{ transform: [{ scale: 0.75 }] }}>
+            <Spinner />
+          </View>
+        </View>
+      }
+    >
+      <GlassButton label={t("timeline.top")} onPress={() => void props.scroll.toTop()}>
+        <View class="size-[22px]">
+          <View class="absolute inset-0" style={{ opacity: away().interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
+            <Icon name="refresh" class="size-[22px] tint-ink-2" />
+          </View>
+          <View class="absolute inset-0" style={{ opacity: away() }}>
+            <Icon name="arrow-up" class="size-[22px] tint-ink-2" />
+          </View>
+        </View>
+      </GlassButton>
+    </If>
+  );
+}
+
+/** A page of one of the Mac's columns: the toolbar over it (or the page's own bar, search's
+ * field), opaque, with what goes under it (People's segments); the list scrolls below it. */
+function ColumnPage(props: {
+  title: string;
+  right?: JSX.Element;
+  scroll?: PageScroll;
+  accessory?: JSX.Element;
+  bar?: JSX.Element;
+  children?: JSX.Element;
+}) {
+  return (
+    <NavPage title={props.title} headerVisible={false} class="bg-ground">
+      <View class="flex-1 bg-ground">
+        <If when={props.scroll} else={<View class="flex-1" style={{ paddingTop: BAR }}>{props.children}</View>}>
+          {(scroll) => (
+            <>
+              {props.children}
+              <If when={scroll().refreshing}>
+                {(refreshing) => <PullIndicator scroll={scroll()} refreshing={refreshing()} />}
+              </If>
+            </>
+          )}
+        </If>
+        <View class="absolute inset-x-0 top-0 border-b-[0.5px] border-hairline bg-ground">
+          <If when={props.bar} else={<Toolbar title={props.title} right={props.right} scroll={props.scroll} />}>
+            <View desktop={{ windowDrag: true }}>{props.bar}</View>
           </If>
           {props.accessory}
         </View>

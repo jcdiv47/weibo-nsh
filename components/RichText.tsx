@@ -7,7 +7,7 @@ import { Image, openUrl, Text } from "nsh";
 import { t } from "nsh/i18n";
 import { type Link, postIdOf, type Status } from "../api";
 import { emoticons } from "../emoticons";
-import { openPostById, openProfileByName, openTopic } from "../nav";
+import { openPostById, openProfileByName, openTopic, PageStack } from "../nav";
 import { Icon } from "./Icon";
 import { openViewer } from "./ImageViewer";
 
@@ -95,6 +95,7 @@ function Plain(props: { text: string }) {
 }
 
 function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
+  const from = PageStack();
   const video = () => !!props.link?.video && !!props.onVideo;
   return (
     <Text
@@ -105,7 +106,7 @@ function UrlLink(props: { url: string; link?: Link; onVideo?: () => void }) {
         // Pages saved before links knew their posts: read the address.
         const post = link?.post ?? postIdOf(link?.url ?? props.url);
         if (video()) props.onVideo!();
-        else if (post) openPostById(post);
+        else if (post) openPostById(post, from);
         else if (link?.pics?.length) openViewer(link.pics, 0);
         else openUrl(link?.url ?? props.url).catch(() => {});
       }}

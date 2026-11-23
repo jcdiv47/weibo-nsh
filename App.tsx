@@ -1,7 +1,9 @@
 // The app shell: the session bridge (a WebView signed in to weibo.com, shown only to sign in)
-// and the navigation stack of native pages.
-import { effect, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
+// and the native pages: one navigation stack on a phone; on the Mac a window of three columns,
+// the sidebar's sections, the list column (each section's stack) and the detail column.
+import { effect, type JSX, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
 import { NavStack } from "nsh/base";
+import { currentWindow, Menu } from "nsh/desktop";
 import { t } from "nsh/i18n";
 import { emoticonList, forgetAccount } from "./api";
 import {
@@ -21,11 +23,27 @@ import { ReplySheet } from "./components/ReplySheet";
 import { Downloader, SaveToast } from "./components/SaveMedia";
 import { Spinner } from "./components/Spinner";
 import { VideoPlayer } from "./components/VideoPlayer";
-import { nav } from "./nav";
+import { BAR } from "./components/Header";
+import { Icon } from "./components/Icon";
+import { Sidebar } from "./components/Sidebar";
+import {
+  detail,
+  nav,
+  PageStack,
+  type Route,
+  resetNav,
+  SECTIONS,
+  section,
+  showSection,
+  stacks,
+  timelineTop,
+  visited,
+  WIDE,
+} from "./nav";
 import { Edits } from "./pages/Edits";
 import { Favorites } from "./pages/Favorites";
 import { Post } from "./pages/Post";
-import { Profile } from "./pages/Profile";
+import { confirmSignOut, Profile } from "./pages/Profile";
 import { Replies } from "./pages/Replies";
 import { ProfileSearch } from "./pages/ProfileSearch";
 import { Search, SearchResults } from "./pages/Search";
@@ -81,7 +99,7 @@ function Bridge() {
     <View
       class={
         visible()
-          ? "absolute inset-0 bg-ground pt-[env(safe-area-inset-top)]"
+          ? `absolute inset-0 bg-ground ${WIDE ? "pt-[52px]" : "pt-[env(safe-area-inset-top)]"}`
           : "pointer-events-none absolute left-0 top-0 h-px w-px opacity-0"
       }
     >
@@ -116,6 +134,10 @@ function Bridge() {
       <If when={visible() && !showPage()}>
         <Connecting />
       </If>
+      {/* The Mac's window has no title bar: the strip above the sign-in page moves it. */}
+      <If when={WIDE && visible()}>
+        <View desktop={{ windowDrag: true }} class="absolute inset-x-0 top-0 h-[52px]" />
+      </If>
     </View>
   );
 }
@@ -148,6 +170,147 @@ function SearchBridge() {
   );
 }
 
+/** A route's page, in whichever stack or column it opens. */
+function page(route: Route): JSX.Element {
+  switch (route.name) {
+    case "timeline":
+      return <Timeline />;
+    case "post":
+      return <Post id={route.id} />;
+    case "people":
+      return (
+        <People
+          uid={route.uid}
+          kind={route.kind}
+          name={route.userName}
+          followingCount={route.followingCount}
+          followersCount={route.followersCount}
+        />
+      );
+    case "topic":
+      return <Topic topic={route.topic} />;
+    case "profile":
+      return <Profile {...route} />;
+    case "edits":
+      return <Edits id={route.id} />;
+    case "replies":
+      return <Replies postId={route.postId} commentId={route.commentId} />;
+    case "favorites":
+      return <Favorites />;
+    case "search":
+      return <Search />;
+    case "search-results":
+      return <SearchResults q={route.q} />;
+    case "profile-search":
+      return <ProfileSearch uid={route.uid} name={route.userName} />;
+    case "blank":
+      return <NoPost />;
+  }
+}
+
+/** The Mac's detail column before a post is chosen. */
+function NoPost() {
+  return (
+    <View desktop={{ windowDrag: true }} class="flex-1 items-center justify-center gap-2.5 bg-ground pb-10">
+      <Icon name="message-circle" class="size-10 tint-ink-3" />
+      <Text class="text-[15px] font-semibold text-ink-2">{t("mac.no_post")}</Text>
+      <Text class="text-[13px] text-ink-3">{t("mac.no_post_note")}</Text>
+    </View>
+  );
+}
+
+/** The list column's width on the Mac. */
+const LIST = 400;
+
+/** The Mac's window: the sidebar, the list column (each section opened so far keeps its stack,
+ * the one chosen shows), the detail column. */
+function Columns() {
+  return (
+    <View class="flex-1 flex-row bg-ground">
+      <Sidebar />
+      <View
+        class="shrink-0 border-r-[0.5px] border-hairline bg-ground"
+        style={{ width: LIST }}
+      >
+        <Each of={SECTIONS.filter((s) => visited().has(s))} key={(s) => s}>
+          {(s) => (
+            <View class={section() === s() ? "flex-1" : "hidden"}>
+              <NavStack state={stacks[s()]} class="flex-1">
+                {page}
+              </NavStack>
+            </View>
+          )}
+        </Each>
+      </View>
+      <View class="flex-1 bg-ground">
+        <PageStack.Provider value={detail}>
+          <NavStack state={detail} class="flex-1">
+            {page}
+          </NavStack>
+        </PageStack.Provider>
+      </View>
+    </View>
+  );
+}
+
+/** Back in the detail column while it has pages over its post, else in the list column. */
+const back = () => (detail.routes().length > 1 ? detail.pop() : nav.pop());
+
+/** The Mac's menu bar: the app's menu, Edit, Go (the sections, back, refresh) and Window. */
+function setMenuBar() {
+  Menu.setApplicationMenu([
+    {
+      label: "Weibo",
+      submenu: [
+        { role: "about" },
+        { type: "separator" },
+        { label: t("menu.sign_out"), onSelect: confirmSignOut },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "showAll" },
+        { type: "separator" },
+        { role: "quit" },
+      ],
+    },
+    {
+      label: t("mac.edit"),
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "selectAll" },
+      ],
+    },
+    {
+      label: t("mac.go"),
+      submenu: [
+        { label: t("timeline.title"), shortcut: "mod+1", checked: section() === "timeline", onSelect: () => showSection("timeline") },
+        { label: t("search.title"), shortcut: "mod+2", checked: section() === "search", onSelect: () => showSection("search") },
+        { label: t("mac.favorites"), shortcut: "mod+3", checked: section() === "favorites", onSelect: () => showSection("favorites") },
+        { label: t("menu.my_profile"), shortcut: "mod+4", checked: section() === "me", onSelect: () => showSection("me") },
+        { type: "separator" },
+        { label: t("mac.back"), shortcut: "mod+[", onSelect: back },
+        {
+          label: t("mac.refresh"),
+          shortcut: "mod+r",
+          onSelect: () => {
+            showSection("timeline");
+            timelineTop.run?.();
+          },
+        },
+      ],
+    },
+    {
+      label: t("mac.window"),
+      submenu: [{ role: "minimize" }, { role: "zoom" }, { type: "separator" }, { role: "toggleFullScreen" }],
+    },
+  ]);
+}
+
 function App() {
   // Pages mount once the first sign-in succeeds and stay through later re-sign-ins (a session
   // that ran out). A sign-out ends them: whoever signs in next starts on a timeline of their own.
@@ -160,50 +323,30 @@ function App() {
   effect(() => {
     if (!signingOut()) return;
     started.set(false);
-    nav.setRoutes([{ name: "timeline" }]);
+    resetNav();
   });
+  if (WIDE) {
+    // nsh.json hides the title bar from the window's first frame; the development host's window
+    // takes it here.
+    currentWindow().set({ titleBar: { style: "hidden", height: BAR } });
+    effect(setMenuBar);
+  }
   return (
     <View class="flex-1 bg-ground">
       <If
         when={started()}
         else={<Connecting />}
       >
-        <NavStack state={nav} class="flex-1">
-          {(route) => {
-            switch (route.name) {
-              case "timeline":
-                return <Timeline />;
-              case "post":
-                return <Post id={route.id} />;
-              case "people":
-                return (
-                  <People
-                    uid={route.uid}
-                    kind={route.kind}
-                    name={route.userName}
-                    followingCount={route.followingCount}
-                    followersCount={route.followersCount}
-                  />
-                );
-              case "topic":
-                return <Topic topic={route.topic} />;
-              case "profile":
-                return <Profile {...route} />;
-              case "edits":
-                return <Edits id={route.id} />;
-              case "replies":
-                return <Replies postId={route.postId} commentId={route.commentId} />;
-              case "favorites":
-                return <Favorites />;
-              case "search":
-                return <Search />;
-              case "search-results":
-                return <SearchResults q={route.q} />;
-              case "profile-search":
-                return <ProfileSearch uid={route.uid} name={route.userName} />;
-            }
-          }}
-        </NavStack>
+        <If
+          when={WIDE}
+          else={
+            <NavStack state={stacks.timeline} class="flex-1">
+              {page}
+            </NavStack>
+          }
+        >
+          <Columns />
+        </If>
       </If>
       <SavedToast />
       <ReplySheet />

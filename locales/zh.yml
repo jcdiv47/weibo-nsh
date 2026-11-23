@@ -154,3 +154,18 @@ menu:
 compose:
   mention: "提及"
   topic: "话题"
+mac:
+  favorites: "收藏"
+  sections: "栏目"
+  no_post: "未选择微博"
+  no_post_note: "选择一条微博，在这里阅读正文和评论。"
+  account: "账号"
+  refresh: "刷新"
+  go: "前往"
+  edit: "编辑"
+  window: "窗口"
+  back: "返回"
+  open_post: "打开微博"
+  open_profile: "打开 %{name} 的主页"
+  copy_link: "复制链接"
+  open_in_browser: "在 weibo.com 打开"

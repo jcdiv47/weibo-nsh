@@ -154,3 +154,18 @@ menu:
 compose:
   mention: "Mention"
   topic: "Topic"
+mac:
+  favorites: "Favorites"
+  sections: "Sections"
+  no_post: "No post selected"
+  no_post_note: "Choose a post to read it and its comments here."
+  account: "Account"
+  refresh: "Refresh"
+  go: "Go"
+  edit: "Edit"
+  window: "Window"
+  back: "Back"
+  open_post: "Open Post"
+  open_profile: "Open %{name}'s Profile"
+  copy_link: "Copy Link"
+  open_in_browser: "Open on weibo.com"

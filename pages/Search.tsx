@@ -24,7 +24,7 @@ import { Spinner } from "../components/Spinner";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
-import { nav, openSearchResults } from "../nav";
+import { nav, openSearchResults, WIDE } from "../nav";
 import { PersonRow } from "./People";
 
 /** How long typing pauses before Weibo is asked for suggestions. */
@@ -35,21 +35,24 @@ const MAX_WORDS = 10;
 /** The field's capsule: the search icon, then what it holds. */
 function Field(props: { children: JSX.Element }) {
   return (
-    <View class="h-10 flex-1 flex-row items-center gap-2 rounded-full bg-well pl-3.5 pr-2">
+    <View class={`${WIDE ? "h-8 rounded-lg" : "h-10 rounded-full"} flex-1 flex-row items-center gap-2 bg-well pl-3.5 pr-2`}>
       <Icon name="search" class="size-[18px] tint-ink-2" />
       {props.children}
     </View>
   );
 }
 
-/** The bar: the field, then 取消, which leaves search (`depth` pages: results over search, two). */
+/** The bar: the field, then 取消, which leaves search (`depth` pages: results over search, two).
+ * On the Mac search is a section of the sidebar, its first page has no 取消. */
 export function SearchBar(props: { children: JSX.Element; depth?: number }) {
   return (
-    <View class="flex-row items-center gap-3.5 px-4" style={{ height: BAR }}>
+    <View class={`flex-row items-center gap-3.5 ${WIDE ? "px-3" : "px-4"}`} style={{ height: BAR }}>
       <Field>{props.children}</Field>
-      <Button onPress={() => nav.pop(props.depth ?? 1)} class="h-10 justify-center active:opacity-60">
-        <Text class="text-body text-ink">{t("common.cancel")}</Text>
-      </Button>
+      <If when={!WIDE || nav.routes().length > 1}>
+        <Button onPress={() => nav.pop(props.depth ?? 1)} class="h-10 justify-center active:opacity-60">
+          <Text class="text-body text-ink">{t("common.cancel")}</Text>
+        </Button>
+      </If>
     </View>
   );
 }
@@ -204,7 +207,7 @@ export function Search() {
             autoCorrect={false}
             autoFocus
             maxLength={100}
-            class="h-10 flex-1 text-body text-ink placeholder:text-ink-3"
+            class={`${WIDE ? "h-8" : "h-10"} flex-1 text-body text-ink placeholder:text-ink-3`}
           />
           <If when={text()}>
             <Button
