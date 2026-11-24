@@ -125,8 +125,8 @@ export function SaveToast() {
       {(m) => (
         <View
           role="alert"
-          class={`pointer-events-none absolute inset-x-4 min-h-[52px] flex-row items-center gap-2.5 rounded-full px-4 py-2 ${glass("toast").class}`}
-          style={{ ...glass("toast").style, bottom: safeArea().bottom + 14 }}
+          class={`pointer-events-none absolute left-4 min-h-[52px] flex-row items-center gap-2.5 rounded-full px-4 py-2 ${glass("toast").class}`}
+          style={{ ...glass("toast").style, bottom: safeArea().bottom + 14, right: safeArea().right + 16 }}
         >
           <If
             when={m().tone === "busy"}

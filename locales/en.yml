@@ -18,6 +18,7 @@ timeline:
   news_many: "new posts"
   news_label: "New posts: %{n}. Show them"
 post:
+  unopened: "Pick a post on the left to read it and its comments here."
   title: "Post"
   gone: "This post is no longer loaded."
   reposts: "Reposts %{n}"

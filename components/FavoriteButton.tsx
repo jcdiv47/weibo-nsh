@@ -60,8 +60,8 @@ export function SavedToast() {
     <If when={toast()}>
       <View
         role="alert"
-        class={`absolute inset-x-4 h-[52px] flex-row items-center gap-2.5 rounded-full pl-4 pr-2 ${glass("toast").class}`}
-        style={{ ...glass("toast").style, bottom: safeArea().bottom + 14 }}
+        class={`absolute left-4 h-[52px] flex-row items-center gap-2.5 rounded-full pl-4 pr-2 ${glass("toast").class}`}
+        style={{ ...glass("toast").style, bottom: safeArea().bottom + 14, right: safeArea().right + 16 }}
       >
         <Icon name="bookmark-filled" class="size-5 tint-weibo" />
         <Text class="flex-1 text-body leading-5 font-medium text-white">{t("favorite.saved")}</Text>

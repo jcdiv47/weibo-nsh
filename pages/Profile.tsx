@@ -16,7 +16,7 @@ import {
 } from "../api";
 import { NotSignedIn, signOut } from "../bridge";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
-import { createPageScroll, GlassButton, Page } from "../components/Header";
+import { createPageScroll, GlassButton, type HeaderAction, Page } from "../components/Header";
 import { PopMenu } from "../components/PopMenu";
 import { Spinner } from "../components/Spinner";
 import { Icon } from "../components/Icon";
@@ -348,10 +348,38 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
     );
   };
 
+  // The same, as the system's buttons, for the Duo's vertical bar (the first lowest).
+  const headerActions = (): HeaderAction[] => {
+    const d = data();
+    const items: HeaderAction[] = [];
+    if (mine())
+      items.push({
+        key: "more",
+        symbol: "ellipsis",
+        label: t("profile.more"),
+        menu: [{ label: t("menu.sign_out"), symbol: "rectangle.portrait.and.arrow.right", destructive: true, onSelect: confirmSignOut }],
+      });
+    else if (d && d.block.blocked !== true)
+      items.push({
+        key: "more",
+        symbol: "ellipsis",
+        label: t("profile.more"),
+        menu: [{ label: t("profile.block"), symbol: "nosign", destructive: true, onSelect: () => actions.run("block") }],
+      });
+    if (d && d.block.blocked !== true)
+      items.push({
+        key: "search",
+        symbol: "magnifyingglass",
+        label: t("search.profile_search", { name: d.user.name }),
+        onPress: () => openProfileSearch(d.user),
+      });
+    return items;
+  };
+
   const scroll = createPageScroll();
   return (
     // The name is the header's below: none in the bar.
-    <Page title={title()} hideTitle right={right()} scroll={scroll}>
+    <Page title={title()} hideTitle right={right()} actions={headerActions()} scroll={scroll}>
       <List
         {...scroll.list()}
         each={blocked() ? [] : posts.items()}

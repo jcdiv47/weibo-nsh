@@ -390,11 +390,13 @@ export function ReplySheet() {
           ref={(r) => (panel = r ?? undefined)}
           role="dialog"
           accessibilityLabel={title()}
-          class="absolute inset-x-0 rounded-t-sheet bg-ground px-4 pt-4 shadow-[0_-8px_30px_#00000014]"
+          class="absolute inset-x-0 rounded-t-sheet bg-ground pl-4 pt-4 shadow-[0_-8px_30px_#00000014]"
           // Waits invisible at `bottom: 0`, then travels the exact keyboard height (`0` → `lift`)
           // so the panel stays welded to the top edge of the keyboard throughout expand and close.
           style={{
             bottom: lift() ?? 0,
+            // Clear of an iPhone Duo's status bar, which runs down the right edge.
+            paddingRight: safeArea().right + 16,
             paddingBottom: (noKeyboard() ? safeArea().bottom : 0) + 14,
             opacity: panelOpacity,
             transform: [{ translateY: drop }],

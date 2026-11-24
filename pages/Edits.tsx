@@ -43,6 +43,14 @@ export function Edits(props: { id: string }) {
     <Page
       title={t("edits.title")}
       scroll={scroll}
+      actions={[
+        {
+          key: "changes",
+          symbol: changes() ? "eye.slash" : "eye",
+          label: changes() ? t("edits.hide_changes") : t("edits.show_changes"),
+          onPress: () => changes.update((v) => !v),
+        },
+      ]}
       right={
         <Button
           selected={changes()}
