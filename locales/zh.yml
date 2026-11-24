@@ -45,6 +45,8 @@ replies:
   title: "%{n} 条回复"
 reply:
   to: "回复 %{name}"
+  to_post: "评论 @%{name} 的微博"
+  post_placeholder: "写评论…"
   placeholder: "写回复…"
   send: "发送"
   sending: "发送中…"

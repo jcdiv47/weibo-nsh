@@ -1,7 +1,8 @@
 // A post and, in tabs under it, its reposts, comments and likes: a press on a comment replies to
-// it, one on its replies opens its thread.
+// it, one on its replies opens its thread. A bar floats at the bottom, in glass: a field that
+// comments on the post, and buttons that repost and like it.
 // A post the app has not got (one a "微博正文" link points at) loads by its id first.
-import { computed, List, signal, Text, View } from "nsh";
+import { computed, List, safeArea, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
@@ -12,10 +13,11 @@ import { FavoriteButton } from "../components/FavoriteButton";
 import { Icon } from "../components/Icon";
 import { createPageScroll, Page, type PageScroll } from "../components/Header";
 import { Spinner } from "../components/Spinner";
-import { openReply, openRepost } from "../components/ReplySheet";
+import { GLASS_PRESS, glass } from "../components/Glass";
+import { openComment, openReply, openRepost, openRepostStatus } from "../components/ReplySheet";
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
-import { Avatar, StatusCard } from "../components/StatusCard";
+import { Avatar, likeOf as likeState, StatusCard, toggleLike } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
 import { keepPost, openPost, openProfile, openReplies, postById, withFullText } from "../nav";
@@ -136,52 +138,110 @@ function PostBody(props: { status: Status; scroll: PageScroll }) {
       ),
     );
 
+  // A comment on the post goes at the top of its comments, which the page then shows.
+  const commented = (c: Comment | null) => {
+    full.update((s) => ({ ...s, comments: s.comments + 1 }));
+    if (c) feeds.comments.update((list) => [c, ...list]);
+    open("comments");
+  };
+
   return (
-    <List
-      {...props.scroll.list()}
-      each={rows()}
-      keyExtractor={(r) => r.id}
-      estimatedItemSize={tab() === "likes" ? 52 : 96}
-      onLoadMore={() => feed().more()}
-      header={
-        <View>
-          <StatusCard status={full()} full />
-          <Tabs status={full()} tab={tab()} onTab={open} />
-          <SavedNotice at={feed().savedAt()} failed={!!feed().error()} onRetry={() => feed().more()} />
-        </View>
-      }
-      footer={
-        <FeedFooter
-          loading={feed().loading()}
-          error={feed().error()}
-          done={feed().done()}
-          empty={!rows().length}
-          onRetry={() => feed().more()}
-        />
-      }
-      class="flex-1"
-    >
-      {/* Rows are recycled across tabs: the row's kind is read again with each item it shows. */}
-      {(r) => (
-        <If
-          when={commentOf(r())}
-          else={
-            <If when={repostOf(r())} else={<If when={likeOf(r())}>{(u) => <LikeRow user={u()} />}</If>}>
-              {(s) => <RepostRow repost={s()} />}
-            </If>
-          }
-        >
-          {(c) => (
-            <CommentRow
-              comment={c()}
-              onReply={() => openReply(full(), c(), sent(c()))}
-              onRepost={() => openRepost(full(), c())}
-              onReplies={() => openReplies(full(), c())}
+    <>
+      <List
+        {...props.scroll.list()}
+        each={rows()}
+        keyExtractor={(r) => r.id}
+        estimatedItemSize={tab() === "likes" ? 52 : 96}
+        onLoadMore={() => feed().more()}
+        header={
+          <View>
+            <StatusCard status={full()} full />
+            <Tabs status={full()} tab={tab()} onTab={open} />
+            <SavedNotice at={feed().savedAt()} failed={!!feed().error()} onRetry={() => feed().more()} />
+          </View>
+        }
+        footer={
+          // The last rows clear the action bar.
+          <View style={{ paddingBottom: ACTIONS_HEIGHT + actionsBottom() + 12 }}>
+            <FeedFooter
+              loading={feed().loading()}
+              error={feed().error()}
+              done={feed().done()}
+              empty={!rows().length}
+              onRetry={() => feed().more()}
             />
-          )}
-        </If>
-      )}
-    </List>
+          </View>
+        }
+        class="flex-1"
+      >
+        {/* Rows are recycled across tabs: the row's kind is read again with each item it shows. */}
+        {(r) => (
+          <If
+            when={commentOf(r())}
+            else={
+              <If when={repostOf(r())} else={<If when={likeOf(r())}>{(u) => <LikeRow user={u()} />}</If>}>
+                {(s) => <RepostRow repost={s()} />}
+              </If>
+            }
+          >
+            {(c) => (
+              <CommentRow
+                comment={c()}
+                onReply={() => openReply(full(), c(), sent(c()))}
+                onRepost={() => openRepost(full(), c())}
+                onReplies={() => openReplies(full(), c())}
+              />
+            )}
+          </If>
+        )}
+      </List>
+      <PostActions status={full()} onComment={() => openComment(full(), commented)} />
+    </>
+  );
+}
+
+/** The action bar's capsules' height. */
+const ACTIONS_HEIGHT = 50;
+/** How far the action bar sits above the screen's bottom: in the home indicator's area, as the
+ * system's own bottom bars do, clear of the screen's rounded corners. */
+const actionsBottom = () => Math.max(safeArea().bottom - 4, 16);
+
+/**
+ * Over the bottom of the post's page, two glass capsules: a field that comments on the post, and
+ * the post's repost and like buttons, the like filled while I like it. The counts are the tabs'.
+ */
+function PostActions(props: { status: Status; onComment: () => void }) {
+  const look = glass("control");
+  const like = () => likeState(props.status);
+  return (
+    <View class="absolute inset-x-4 flex-row items-center gap-2.5" style={{ bottom: actionsBottom() }}>
+      <Button
+        accessibilityLabel={t("reply.post_placeholder")}
+        onPress={props.onComment}
+        class={`h-[50px] flex-1 flex-row items-center gap-2 rounded-full px-[18px] ${GLASS_PRESS} ${look.class}`}
+        style={look.style}
+      >
+        <Icon name="message-circle" class="size-[18px] tint-ink-2" />
+        <Text class="text-body leading-5 text-ink-2">{t("reply.post_placeholder")}</Text>
+      </Button>
+      <View class={`h-[50px] flex-row items-center rounded-full px-1 ${look.class}`} style={look.style}>
+        <Button
+          accessibilityLabel={t("repost.action")}
+          onPress={() => openRepostStatus(props.status)}
+          class="size-[46px] items-center justify-center rounded-full active:opacity-60"
+        >
+          <Icon name="repeat" class="size-[22px] tint-ink" />
+        </Button>
+        <Button
+          accessibilityLabel={t(like().liked ? "comment.unlike" : "comment.like")}
+          selected={like().liked}
+          onPress={() => toggleLike(props.status)}
+          class="size-[46px] items-center justify-center rounded-full active:opacity-60"
+        >
+          <Icon name={like().liked ? "thumb-up-filled" : "thumb-up"} class={`size-[22px] ${like().liked ? "tint-link" : "tint-ink"}`} />
+        </Button>
+      </View>
+    </View>
   );
 }
 
@@ -189,7 +249,8 @@ function Tabs(props: { status: Status; tab: Tab; onTab: (tab: Tab) => void }) {
   const tabs: { id: Tab; label: () => string; n: () => number; a11y: () => string }[] = [
     { id: "reposts", label: () => t("post.tab_reposts"), n: () => props.status.reposts, a11y: () => t("post.reposts", { n: count(props.status.reposts) }) },
     { id: "comments", label: () => t("post.tab_comments"), n: () => props.status.comments, a11y: () => t("post.comments", { n: count(props.status.comments) }) },
-    { id: "likes", label: () => t("post.tab_likes"), n: () => props.status.likes, a11y: () => t("post.likes", { n: count(props.status.likes) }) },
+    // The likes as the action bar's like button leaves them.
+    { id: "likes", label: () => t("post.tab_likes"), n: () => likeState(props.status).likes, a11y: () => t("post.likes", { n: count(likeState(props.status).likes) }) },
   ];
   return (
     <View class="flex-row items-end gap-7 border-b-[0.5px] border-t-8 border-b-hairline border-t-well px-4">
