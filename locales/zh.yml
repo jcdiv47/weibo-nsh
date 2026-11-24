@@ -18,6 +18,7 @@ timeline:
   news_many: "条新微博"
   news_label: "%{n} 条新微博，点按查看"
 post:
+  unopened: "点左边的一条微博，在这里读它和评论"
   title: "微博正文"
   gone: "这条微博已不在内存中。"
   reposts: "转发 %{n}"

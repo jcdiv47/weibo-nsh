@@ -8,6 +8,9 @@
 // a blur) keeps the title and the status bar legible; a large title scrolls away with the list and
 // the bar shows it small. The pull-to-refresh indicator is the app's, under the header, the same on
 // every platform.
+//
+// Beside an iPhone Duo's vertical bar the page shows the system's header instead (`Page`): iOS
+// moves its back button and actions into the bar.
 import {
   type AnimatedValue,
   createAnimatedValue,
@@ -20,9 +23,9 @@ import {
   token,
   View,
 } from "nsh";
-import { Button, NavPage } from "nsh/base";
+import { Button, NavPage, type NavPageProps } from "nsh/base";
 import { t } from "nsh/i18n";
-import { nav } from "../nav";
+import { Column, inStrip } from "../nav";
 import type { News } from "../news";
 import { GLASS_PRESS, type GlassKind, glass } from "./Glass";
 import { Icon } from "./Icon";
@@ -64,9 +67,11 @@ export function GlassButton(props: {
   );
 }
 
+/** Back in the stack the page is in (`Column`): the list's, or the reader's on a wide screen. */
 export function BackButton() {
+  const stack = Column();
   return (
-    <GlassButton label={t("common.back")} onPress={() => nav.pop()}>
+    <GlassButton label={t("common.back")} onPress={() => stack.pop()}>
       <Icon name="chevron-left" class="size-6 tint-ink" />
     </GlassButton>
   );
@@ -142,9 +147,11 @@ export function createPageScroll(
   const pull = createAnimatedValue(0);
   const large = options.large ?? false;
   const accessory = options.accessory ?? 0;
+  // Beside the Duo's vertical bar the system's header shows, and the list starts below it.
+  const stack = Column();
   // A large title is the list's first row, the bar's action beside it: the list starts at the
   // status bar.
-  const inset = () => safeArea().top + (large ? 0 : BAR) + accessory;
+  const inset = () => (inStrip(stack) ? accessory : safeArea().top + (large ? 0 : BAR) + accessory);
   let ref: ListRef | undefined;
   // The top button: gone while a finger or a fling moves the list, back once it rests. A press on
   // the button scrolls without a drag, so the button stays to show the arrow turn to refresh.
@@ -212,6 +219,7 @@ export function createPageScroll(
 /** The bar under the status bar: back, the title centered over the whole width (unless
  * `hideTitle`), an action. */
 export function Header(props: { title: string; hideTitle?: boolean; right?: JSX.Element }) {
+  const stack = Column();
   return (
     <View class="h-[54px] flex-row items-center justify-between px-4">
       <If when={!props.hideTitle}>
@@ -219,7 +227,7 @@ export function Header(props: { title: string; hideTitle?: boolean; right?: JSX.
           <Text class="text-center text-headline font-semibold text-ink line-clamp-1">{props.title}</Text>
         </View>
       </If>
-      <If when={nav.routes().length > 1} else={<View />}>
+      <If when={stack.routes().length > 1} else={<View />}>
         <BackButton />
       </If>
       {props.right ?? <View />}
@@ -230,12 +238,16 @@ export function Header(props: { title: string; hideTitle?: boolean; right?: JSX.
 /** The timeline's title, large at the left: the first row of its list, which scrolls it away. Its
  * row is as tall as the bar's action beside it. */
 export function LargeTitle(props: { title: string }) {
+  // Beside the Duo's vertical bar, the system's header shows the title instead.
+  const stack = Column();
   return (
-    <View class="h-[57px] flex-row items-end pb-2.5 pl-5 pr-4">
-      <Text role="header" class="text-large-title font-bold tracking-tight text-ink">
-        {props.title}
-      </Text>
-    </View>
+    <If when={!inStrip(stack)}>
+      <View class="h-[57px] flex-row items-end pb-2.5 pl-5 pr-4">
+        <Text role="header" class="text-large-title font-bold tracking-tight text-ink">
+          {props.title}
+        </Text>
+      </View>
+    </If>
   );
 }
 
@@ -373,14 +385,24 @@ function NewsButton(props: { count: number; more: boolean; onPress: () => void }
   );
 }
 
+/** A button of the system's header (`Page`'s `actions`). */
+export type HeaderAction = NonNullable<NonNullable<NavPageProps["ios"]>["headerRightItems"]>[number];
+
 /** A page of the stack with the app's header over its content. With `scroll`, its list fills the
  * page and scrolls under the header (`createPageScroll`); without, the content starts below the
- * header. */
+ * header.
+ *
+ * Beside the Duo's vertical bar (`inStrip`), the page shows the system's header instead, whose
+ * back button and `actions` iOS moves into the bar, under the status bar; the content keeps clear
+ * of the bar. A page with a `bar` of its own (search's field) keeps it, clear of the bar too. */
 export function Page(props: {
   title: string;
   /** No title in the header (the page names itself below it); the page keeps it for the system. */
   hideTitle?: boolean;
   right?: JSX.Element;
+  /** What `right` does, as the system's buttons, for the Duo's vertical bar: an SF Symbol each,
+   * which the bar needs; the first one lowest. */
+  actions?: HeaderAction[];
   /** The page's list under the header; its `large` gives the page a large title. */
   scroll?: PageScroll;
   /** Under the bar, floating with it (People's segments): `scroll.accessory` points tall. */
@@ -389,15 +411,28 @@ export function Page(props: {
   bar?: JSX.Element;
   children?: JSX.Element;
 }) {
+  const stack = Column();
+  const strip = () => inStrip(stack);
+  const system = () => strip() && !props.bar;
   const header = () => safeArea().top + (props.scroll?.large ? LARGE_ROW : BAR) + (props.scroll?.accessory ?? 0);
   return (
-    <NavPage title={props.title} headerVisible={false} class="bg-ground">
-      <View class="flex-1 bg-ground">
-        <If when={props.scroll} else={<View class="flex-1" style={{ paddingTop: safeArea().top + BAR }}>{props.children}</View>}>
+    <NavPage
+      title={system() && props.hideTitle ? "" : props.title}
+      headerVisible={system()}
+      ios={{ headerRightItems: system() ? props.actions : undefined }}
+      class="bg-ground"
+    >
+      <View class="flex-1 bg-ground" style={{ paddingRight: strip() ? safeArea().right : 0 }}>
+        <If
+          when={props.scroll}
+          else={<View class="flex-1" style={{ paddingTop: system() ? 0 : safeArea().top + BAR }}>{props.children}</View>}
+        >
           {(scroll) => (
             <>
               {props.children}
-              <ScrollEdge scroll={scroll()} height={header()} />
+              <If when={!system()}>
+                <ScrollEdge scroll={scroll()} height={header()} />
+              </If>
               <If when={scroll().refreshing}>
                 {(refreshing) => <PullIndicator scroll={scroll()} refreshing={refreshing()} />}
               </If>
@@ -407,12 +442,17 @@ export function Page(props: {
             </>
           )}
         </If>
-        <View class="absolute inset-x-0" style={{ top: safeArea().top }}>
-          <If when={props.bar} else={
-            <If when={props.scroll?.large} else={<Header title={props.title} hideTitle={props.hideTitle} right={props.right} />}>
-              <LargeBar title={props.title} right={props.right} scroll={props.scroll!} />
-            </If>
-          }>
+        <View class="absolute inset-x-0" style={{ top: system() ? 0 : safeArea().top }}>
+          <If
+            when={props.bar}
+            else={
+              <If when={!system()}>
+                <If when={props.scroll?.large} else={<Header title={props.title} hideTitle={props.hideTitle} right={props.right} />}>
+                  <LargeBar title={props.title} right={props.right} scroll={props.scroll!} />
+                </If>
+              </If>
+            }
+          >
             {props.bar}
           </If>
           {props.accessory}

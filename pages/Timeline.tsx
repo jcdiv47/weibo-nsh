@@ -1,6 +1,7 @@
 // The timeline of followed accounts: pull to refresh, more as it scrolls, new posts counted on the
 // button at its bottom (`news.ts`). At the top right, search,
-// and my picture, which opens a menu: my profile, my favorites, sign out.
+// and my picture, which opens a menu: my profile, my favorites, sign out (beside an iPhone Duo's
+// vertical bar, the system's buttons for both, in that bar).
 import { Image, List, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import { friendsTimeline, myUid, newerPosts, profile, type User } from "../api";
@@ -56,6 +57,19 @@ export function Timeline() {
     <Page
       title={t("timeline.title")}
       scroll={scroll}
+      actions={[
+        {
+          key: "me",
+          symbol: "person.crop.circle",
+          label: t("profile.me"),
+          menu: [
+            { label: t("menu.my_profile"), symbol: "person", onSelect: openMe },
+            { label: t("menu.my_favorites"), symbol: "bookmark", onSelect: openFavorites },
+            { label: t("menu.sign_out"), symbol: "rectangle.portrait.and.arrow.right", destructive: true, onSelect: confirmSignOut },
+          ],
+        },
+        { key: "search", symbol: "magnifyingglass", label: t("search.title"), onPress: openSearch },
+      ]}
       right={
         <View class="flex-row items-center gap-2.5">
           <GlassButton label={t("search.title")} onPress={openSearch} size="size-10">

@@ -1,17 +1,18 @@
 // A post and, in tabs under it, its reposts, comments and likes: a press on a comment replies to
 // it, one on its replies opens its thread. A bar floats at the bottom, in glass: a field that
-// comments on the post, and buttons that repost and like it.
+// comments on the post, and buttons that repost and like it. Beside an iPhone Duo's vertical bar,
+// those buttons and the favorite are the system's, in that bar, and no bar floats.
 // A post the app has not got (one a "微博正文" link points at) loads by its id first.
-import { computed, List, safeArea, signal, Text, View } from "nsh";
+import { computed, effect, List, safeArea, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
 import { type Comment, comments, likes, reposts, type Status, status as loadStatus, type User } from "../api";
 import { CommentBody, CommentFooter, InlineReply } from "../components/CommentBody";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
-import { FavoriteButton } from "../components/FavoriteButton";
+import { FavoriteButton, isFavorited, toggleFavorite } from "../components/FavoriteButton";
 import { Icon } from "../components/Icon";
-import { createPageScroll, Page, type PageScroll } from "../components/Header";
+import { createPageScroll, type HeaderAction, Page, type PageScroll } from "../components/Header";
 import { Spinner } from "../components/Spinner";
 import { GLASS_PRESS, glass } from "../components/Glass";
 import { openComment, openReply, openRepost, openRepostStatus } from "../components/ReplySheet";
@@ -20,15 +21,17 @@ import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, likeOf as likeState, StatusCard, toggleLike } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
-import { keepPost, openPost, openProfile, openReplies, postById, withFullText } from "../nav";
+import { Column, inStrip, keepPost, openPost, openProfile, openReplies, postById, withFullText } from "../nav";
 
 export function Post(props: { id: string }) {
   const cached = postById(props.id);
   const scroll = createPageScroll();
+  // The system's buttons for the Duo's vertical bar, which the post's body gives once it shows.
+  const actions = signal<HeaderAction[]>([]);
   if (cached) {
     return (
-      <Page title={t("post.title")} right={<FavoriteButton status={cached} />} scroll={scroll}>
-        <PostBody status={cached} scroll={scroll} />
+      <Page title={t("post.title")} right={<FavoriteButton status={cached} />} actions={actions()} scroll={scroll}>
+        <PostBody status={cached} scroll={scroll} onActions={actions.set} />
       </Page>
     );
   }
@@ -54,6 +57,7 @@ export function Post(props: { id: string }) {
     <Page
       title={t("post.title")}
       right={<If when={loaded()}>{(s) => <FavoriteButton status={s()} />}</If>}
+      actions={actions()}
       scroll={scroll}
     >
       <If
@@ -67,7 +71,7 @@ export function Post(props: { id: string }) {
           </View>
         }
       >
-        {(s) => <PostBody status={s()} scroll={scroll} />}
+        {(s) => <PostBody status={s()} scroll={scroll} onActions={actions.set} />}
       </If>
     </Page>
   );
@@ -86,8 +90,11 @@ const likeOf = (r: Row) => ("like" in r ? r.like : undefined);
  * first) and who liked it, each list below them. A tab's list loads when it is first opened, and
  * stays loaded while the page is open: switching back shows it at once.
  */
-function PostBody(props: { status: Status; scroll: PageScroll }) {
+function PostBody(props: { status: Status; scroll: PageScroll; onActions: (actions: HeaderAction[]) => void }) {
   const status = props.status;
+  // Beside the Duo's vertical bar, the action bar's buttons are the system's, in that bar.
+  const stack = Column();
+  const strip = () => inStrip(stack);
   const full = signal<Status>(status);
   // Opened before its whole text came (`openPost` gave up waiting): it takes the cut text's place.
   if (status.isLongText) withFullText(status).then((s) => s !== status && full.set(s));
@@ -145,6 +152,18 @@ function PostBody(props: { status: Status; scroll: PageScroll }) {
     open("comments");
   };
 
+  // In the bar from the top: comment, like, repost, favorite (the system lists the first lowest).
+  effect(() => {
+    const s = full();
+    const liked = likeState(s).liked;
+    const saved = isFavorited(s);
+    props.onActions([
+      { key: "favorite", symbol: saved ? "bookmark.fill" : "bookmark", label: t(saved ? "favorite.remove" : "favorite.add"), onPress: () => toggleFavorite(s) },
+      { key: "repost", symbol: "arrow.2.squarepath", label: t("repost.action"), onPress: () => openRepostStatus(s) },
+      { key: "like", symbol: liked ? "hand.thumbsup.fill" : "hand.thumbsup", label: t(liked ? "comment.unlike" : "comment.like"), onPress: () => toggleLike(s) },
+      { key: "comment", symbol: "bubble.left", label: t("reply.post_placeholder"), onPress: () => openComment(s, commented) },
+    ]);
+  });
   return (
     <>
       <List
@@ -162,7 +181,7 @@ function PostBody(props: { status: Status; scroll: PageScroll }) {
         }
         footer={
           // The last rows clear the action bar.
-          <View style={{ paddingBottom: ACTIONS_HEIGHT + actionsBottom() + 12 }}>
+          <View style={{ paddingBottom: strip() ? safeArea().bottom + 12 : ACTIONS_HEIGHT + actionsBottom() + 12 }}>
             <FeedFooter
               loading={feed().loading()}
               error={feed().error()}
@@ -195,7 +214,9 @@ function PostBody(props: { status: Status; scroll: PageScroll }) {
           </If>
         )}
       </List>
-      <PostActions status={full()} onComment={() => openComment(full(), commented)} />
+      <If when={!strip()}>
+        <PostActions status={full()} onComment={() => openComment(full(), commented)} />
+      </If>
     </>
   );
 }

@@ -193,7 +193,7 @@ export function ImageViewer() {
                 </View>
               </View>
             </If>
-            <View class="absolute right-4 h-11 flex-row items-center" style={{ top: safeArea().top + 4 }}>
+            <View class="absolute h-11 flex-row items-center" style={{ top: safeArea().top + 4, right: safeArea().right + 16 }}>
               <MediaMoreButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
             </View>
           </View>

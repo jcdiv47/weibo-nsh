@@ -6,7 +6,7 @@ import { Image, type JSX, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import { type Activity, likeStatus, type Pic, type Status, type User, type VerifiedKind, type Video } from "../api";
 import { count, relativeTime, timeAgo } from "../format";
-import { openEdits, opening, openPost, openProfile } from "../nav";
+import { Column, nav, openEdits, opening, openPost, openProfile, readingId } from "../nav";
 import { Icon, type IconName } from "./Icon";
 import { openViewer } from "./ImageViewer";
 import { openRepostStatus } from "./ReplySheet";
@@ -219,6 +219,10 @@ function PinnedLine() {
  */
 export function StatusCard(props: { status: Status; full?: boolean; trailing?: JSX.Element }) {
   const s = () => props.status;
+  // On a wide screen, the post the reader shows is marked in the list: a wash of Weibo's orange
+  // and a stripe at its left edge.
+  const inList = Column() === nav;
+  const read = () => !props.full && inList && readingId() === s().id;
   const meta = () =>
     [relativeTime(s().createdAt), s().source && t("post.via", { source: s().source }), !props.full && s().region]
       .filter(Boolean)
@@ -227,8 +231,11 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
     <View
       role={props.full ? undefined : "button"}
       onPress={props.full ? undefined : () => openPost(s())}
-      class={`gap-2.5 px-4 pb-3 ${props.full ? "bg-ground pt-1" : `border-b-[0.5px] border-hairline ${s().activity || s().pinned ? "pt-2.5" : "pt-3.5"} active:bg-well ${opening() === s().id ? "bg-well" : "bg-ground"}`}`}
+      class={`gap-2.5 px-4 pb-3 ${props.full ? "bg-ground pt-1" : `border-b-[0.5px] border-hairline ${s().activity || s().pinned ? "pt-2.5" : "pt-3.5"} active:bg-well ${opening() === s().id ? "bg-well" : read() ? "bg-weibo-wash" : "bg-ground"}`}`}
     >
+      <If when={read()}>
+        <View class="absolute left-0 top-3.5 h-10 w-[3px] rounded-r-full bg-weibo" />
+      </If>
       <If when={props.full ? undefined : s().activity}>{(a) => <ActivityLine activity={a()} />}</If>
       <If when={!props.full && s().pinned}>
         <PinnedLine />

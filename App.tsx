@@ -1,7 +1,8 @@
 // The app shell: the session bridge (a WebView signed in to weibo.com, shown only to sign in)
-// and the navigation stack of native pages.
-import { effect, mount, signal, Text, View, WebView, type WebViewRef } from "nsh";
-import { NavStack } from "nsh/base";
+// and the navigation stack of native pages; on a wide screen (an iPhone Duo open), two stacks side
+// by side, the list and the reader (`nav.ts`).
+import { effect, mount, safeArea, signal, Text, untracked, View, WebView, type WebViewRef, windowSize } from "nsh";
+import { NavStack, type NavStackState } from "nsh/base";
 import { t } from "nsh/i18n";
 import { emoticonList, forgetAccount } from "./api";
 import {
@@ -21,7 +22,7 @@ import { ReplySheet } from "./components/ReplySheet";
 import { Downloader, SaveToast } from "./components/SaveMedia";
 import { Spinner } from "./components/Spinner";
 import { VideoPlayer } from "./components/VideoPlayer";
-import { nav } from "./nav";
+import { Column, fitColumns, inStrip, nav, reader, type Route, touchColumn, wide } from "./nav";
 import { Edits } from "./pages/Edits";
 import { Favorites } from "./pages/Favorites";
 import { Post } from "./pages/Post";
@@ -32,6 +33,7 @@ import { Search, SearchResults } from "./pages/Search";
 import { Timeline } from "./pages/Timeline";
 import { People } from "./pages/People";
 import { Topic } from "./pages/Topic";
+import { Unopened } from "./pages/Unopened";
 
 // The page the bridge idles on once signed in: same origin as the API, but a plain text file, so
 // the hidden web view runs none of weibo.com's own app.
@@ -81,7 +83,7 @@ function Bridge() {
     <View
       class={
         visible()
-          ? "absolute inset-0 bg-ground pt-[env(safe-area-inset-top)]"
+          ? "absolute inset-0 bg-ground pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)]"
           : "pointer-events-none absolute left-0 top-0 h-px w-px opacity-0"
       }
     >
@@ -146,6 +148,52 @@ function SearchBridge() {
   );
 }
 
+/** A stack of pages; its pages know it (`Column`), so their back buttons pop it. */
+function Stack(props: { state: NavStackState<Route> }) {
+  return (
+    <Column.Provider value={props.state}>
+      <NavStack state={props.state} class="flex-1">
+        {(route) => {
+          switch (route.name) {
+            case "timeline":
+              return <Timeline />;
+            case "post":
+              return <Post id={route.id} />;
+            case "people":
+              return (
+                <People
+                  uid={route.uid}
+                  kind={route.kind}
+                  name={route.userName}
+                  followingCount={route.followingCount}
+                  followersCount={route.followersCount}
+                />
+              );
+            case "topic":
+              return <Topic topic={route.topic} />;
+            case "profile":
+              return <Profile {...route} />;
+            case "edits":
+              return <Edits id={route.id} />;
+            case "replies":
+              return <Replies postId={route.postId} commentId={route.commentId} />;
+            case "favorites":
+              return <Favorites />;
+            case "search":
+              return <Search />;
+            case "search-results":
+              return <SearchResults q={route.q} />;
+            case "profile-search":
+              return <ProfileSearch uid={route.uid} name={route.userName} />;
+            case "unopened":
+              return <Unopened />;
+          }
+        }}
+      </NavStack>
+    </Column.Provider>
+  );
+}
+
 function App() {
   // Pages mount once the first sign-in succeeds and stay through later re-sign-ins (a session
   // that ran out). A sign-out ends them: whoever signs in next starts on a timeline of their own.
@@ -159,6 +207,14 @@ function App() {
     if (!signingOut()) return;
     started.set(false);
     nav.setRoutes([{ name: "timeline" }]);
+    reader.setRoutes([{ name: "unopened" }]);
+  });
+  // The Duo opened or closed: the pages move between one stack and two.
+  let wasWide = untracked(wide);
+  effect(() => {
+    const isWide = wide();
+    if (isWide !== wasWide) fitColumns(isWide);
+    wasWide = isWide;
   });
   return (
     <View class="flex-1 bg-ground">
@@ -166,42 +222,24 @@ function App() {
         when={started()}
         else={<Connecting />}
       >
-        <NavStack state={nav} class="flex-1">
-          {(route) => {
-            switch (route.name) {
-              case "timeline":
-                return <Timeline />;
-              case "post":
-                return <Post id={route.id} />;
-              case "people":
-                return (
-                  <People
-                    uid={route.uid}
-                    kind={route.kind}
-                    name={route.userName}
-                    followingCount={route.followingCount}
-                    followersCount={route.followersCount}
-                  />
-                );
-              case "topic":
-                return <Topic topic={route.topic} />;
-              case "profile":
-                return <Profile {...route} />;
-              case "edits":
-                return <Edits id={route.id} />;
-              case "replies":
-                return <Replies postId={route.postId} commentId={route.commentId} />;
-              case "favorites":
-                return <Favorites />;
-              case "search":
-                return <Search />;
-              case "search-results":
-                return <SearchResults q={route.q} />;
-              case "profile-search":
-                return <ProfileSearch uid={route.uid} name={route.userName} />;
-            }
-          }}
-        </NavStack>
+        {/* The list stays mounted as the Duo opens and closes; the reader comes and goes beside it,
+            the hairline between them on the fold. The Duo's status bar runs down its right edge,
+            open or closed: the rightmost column keeps clear of it, unless the system's vertical bar
+            is there, which the stack must reach to put its buttons in (its pages keep clear). */}
+        <View class="flex-1 flex-row">
+          <View
+            class={wide() ? "border-r-[0.5px] border-hairline" : "flex-1"}
+            style={wide() ? { width: windowSize().width / 2 } : { paddingRight: inStrip(nav) ? 0 : safeArea().right }}
+            onTouchStartCapture={() => touchColumn(nav)}
+          >
+            <Stack state={nav} />
+          </View>
+          <If when={wide()}>
+            <View class="flex-1" style={{ paddingRight: inStrip(reader) ? 0 : safeArea().right }} onTouchStartCapture={() => touchColumn(reader)}>
+              <Stack state={reader} />
+            </View>
+          </If>
+        </View>
       </If>
       <SavedToast />
       <ReplySheet />

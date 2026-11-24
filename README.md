@@ -29,6 +29,7 @@ Weibo NSH pairs a native UI built in [NSH](https://nsh.dev) with a standard WebV
 - **Favorites (收藏)** — Bookmark posts from the post header with quick-view toast notifications, and browse saved posts newest-first from the **Me** menu.
 - **Search & Trending** — Timeline search with Weibo trending topics (ads excluded), live account and query suggestions, tabbed post/people results, and per-account profile search.
 - **Native Media Viewer & Downloads** — Full-screen image viewer (swipe, pinch-to-zoom, double-tap), built-in video player (scrubber, 0.5×–2× playback speed, quality selector, landscape rotation, drag-to-dismiss). Long-press a picture or video (or tap **⋯**) for one menu: **Save to Photos** (iOS) and **Share…** (the system share sheet).
+- **iPhone Duo** — Open, the app is a book of two pages split at the fold: the timeline (or any list) at the left, the post being read with its comments at the right, its card marked in the list. Closed, one page; folding and unfolding keeps the post in front. Beside the Duo's vertical bar (closed, and next to the right page when open), each page's back button and actions (search, favorite, repost, like, comment, menus) are the system's, in that bar.
 - **Offline-Resilient Cache & Polish** — Caches the first page of recent lists and profiles locally (up to 40 entries, wiped on sign-out) so screens open immediately and stay readable when offline. Includes system-matched light/dark themes, English & Chinese (`en` / `zh`) localization, and native Liquid Glass on iOS 26+.
 
 ## Architecture

@@ -23,6 +23,7 @@ import dots from "../icons/dots.svg";
 import download from "../icons/download.svg";
 import hash from "../icons/hash.svg";
 import history from "../icons/history.svg";
+import layoutColumns from "../icons/layout-columns.svg";
 import link from "../icons/link.svg";
 import lock from "../icons/lock.svg";
 import logout from "../icons/logout.svg";
@@ -68,6 +69,7 @@ const ICONS = {
   download,
   hash,
   history,
+  "layout-columns": layoutColumns,
   link,
   lock,
   logout,

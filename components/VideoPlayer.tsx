@@ -19,7 +19,7 @@ import { MenuButton } from "nsh/base";
 import { t } from "nsh/i18n";
 import { BackHandler } from "nsh/mobile";
 import type { Status, Video as VideoData } from "../api";
-import { nav } from "../nav";
+import { nav, reader } from "../nav";
 import { isFavorited, toggleFavorite } from "./FavoriteButton";
 import { GlassButton } from "./Header";
 import { Icon } from "./Icon";
@@ -213,7 +213,7 @@ function Player(props: { video: VideoData; status?: Status }) {
   const inset = () =>
     landscape()
       ? { top: 12, bottom: 12, left: Math.max(16, safeArea().top), right: Math.max(16, safeArea().bottom) }
-      : { top: safeArea().top, bottom: safeArea().bottom + 8, left: 16, right: 16 };
+      : { top: safeArea().top, bottom: safeArea().bottom + 8, left: 16, right: safeArea().right + 16 };
 
   const status = props.status;
   const shownTime = () => scrub() ?? time();
@@ -411,9 +411,9 @@ function Turning() {
 export function VideoPlayer() {
   const height = () => windowSize().height;
   // A page opening under the player (the favorite toast's "View") closes it.
-  let routes = nav.routes().length;
+  let routes = nav.routes().length + reader.routes().length;
   effect(() => {
-    const n = nav.routes().length;
+    const n = nav.routes().length + reader.routes().length;
     if (n !== routes && untracked(shown)) close();
     routes = n;
   });
