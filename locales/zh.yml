@@ -81,10 +81,14 @@ edits:
 video:
   error: "无法播放此视频：%{error}"
 save:
-  label: "保存"
   failed: "保存失败：%{error}"
-  share: "分享"
   share_failed: "分享失败：%{error}"
+  saving: "正在保存…"
+  saved_photos: "已保存到“照片”"
+  to_photos: "保存到“照片”"
+  share_ellipsis: "分享…"
+  more: "更多"
+  denied: "微博无法添加到“照片”。请在“设置”>“微博”>“照片”中允许。"
 player:
   play: "播放"
   pause: "暂停"

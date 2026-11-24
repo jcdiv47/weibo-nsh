@@ -1,7 +1,8 @@
 // A post's video full screen, in the app's own player (not the platform's controls). A tap shows or
 // hides the controls, which hide by themselves while it plays:
 //
-// - at the top, close, and at the right the post's favorite (收藏), save and share;
+// - at the top, close, and at the right the post's favorite (收藏) and "⋯": save and share, the
+//   menu a finger held on the video opens too (`SaveMedia.tsx`);
 // - in the middle, play / pause;
 // - at the bottom, the post's author and text (upright only), the time and a scrubber, then the
 //   speed (0.5× to 2×), the quality (Weibo's sizes of it) and the turn to landscape.
@@ -22,7 +23,7 @@ import { nav } from "../nav";
 import { isFavorited, toggleFavorite } from "./FavoriteButton";
 import { GlassButton } from "./Header";
 import { Icon } from "./Icon";
-import { SaveButton, ShareButton } from "./SaveMedia";
+import { MediaMenu, MediaMoreButton } from "./SaveMedia";
 
 const shown = signal<{ video: VideoData; status?: Status } | null>(null);
 /** Going away: it fades out letting touches through to the pages under it. */
@@ -254,7 +255,12 @@ function Player(props: { video: VideoData; status?: Status }) {
           // Sideways is the scrubber's: a drag that starts sideways stays its.
           panActivation={{ activeOffsetY: 12, failOffsetX: 12 }}
           onPanEnd={endDrag}
-        />
+        >
+          {/* A finger held on the video: save or share it. iOS lifts its poster beside the menu. */}
+          <MediaMenu url={qualities[quality()].url} kind="video" preview={<Poster video={v} />}>
+            <View class="flex-1" />
+          </MediaMenu>
+        </View>
       </If>
       <If when={buffering() && !error() && !paused()}>
         <View class="pointer-events-none absolute inset-0 items-center justify-center">
@@ -297,8 +303,7 @@ function Player(props: { video: VideoData; status?: Status }) {
                 </GlassButton>
               )}
             </If>
-            <SaveButton url={qualities[quality()].url} kind="video" />
-            <ShareButton url={qualities[quality()].url} kind="video" />
+            <MediaMoreButton url={qualities[quality()].url} kind="video" />
           </View>
         </View>
 
@@ -387,6 +392,13 @@ function Player(props: { video: VideoData; status?: Status }) {
       </View>
     </View>
   );
+}
+
+/** What iOS lifts beside the video's menu: its poster, at the video's shape. */
+function Poster(props: { video: VideoData }) {
+  const width = () => Math.min(windowSize().width - 32, props.video.portrait ? 270 : 400);
+  const height = () => Math.round(width() * (props.video.portrait ? 16 / 9 : 9 / 16));
+  return <Image src={props.video.poster} class="bg-black object-cover" style={{ width: width(), height: height() }} />;
 }
 
 /** The buffering ring. */

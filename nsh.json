@@ -77,5 +77,6 @@
     "infoPlist": {
       "NSPhotoLibraryAddUsageDescription": "Weibo saves the pictures and videos you choose to your photo library."
     }
-  }
+  },
+  "rust": "ext/weibo-media"
 }

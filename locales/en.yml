@@ -81,10 +81,14 @@ edits:
 video:
   error: "Can't play this video: %{error}"
 save:
-  label: "Save"
   failed: "Couldn't save: %{error}"
-  share: "Share"
   share_failed: "Couldn't share: %{error}"
+  saving: "Saving…"
+  saved_photos: "Saved to Photos"
+  to_photos: "Save to Photos"
+  share_ellipsis: "Share…"
+  more: "More"
+  denied: "Weibo can't add to Photos. Allow it in Settings > Weibo > Photos."
 player:
   play: "Play"
   pause: "Pause"

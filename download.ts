@@ -4,22 +4,27 @@
 // hidden web view downloads the file. It opens a page on the file's own host (any page: an error
 // page will do), so a link to the file is same-origin and its `download` attribute holds; a click
 // on it makes the web engine save the file, streamed to disk, in the app's data directory
-// (`downloads/<id>/<name>`, `WebView` `onDownload`). The file is then handed to the system's share
-// sheet, where "Save Image" / "Save Video" put it in Photos (or "Save to Files", WeChat, X,
-// Messages...), and removed.
+// (`downloads/<id>/<name>`, `WebView` `onDownload`). A save then puts it into the photo library on
+// iOS (`weibo-media`'s `PhotoLibrary`, the app's own Rust in `ext/`); `shareMedia` hands it to the
+// system's share sheet (WeChat, X, Messages, "Save to Files"...). Either way it is removed after.
 //
 // Before the click the page asks for the file's first byte, so an answer that is no picture or
 // video (an expired link, a refusal) fails the save instead of saving an error page.
 import { rmdir, unlink } from "fs/promises";
-import { Share, signal, type WebViewDownload } from "nsh";
+import { Share, signal, type ViewRef, type WebViewDownload } from "nsh";
+import { PhotoLibrary } from "weibo-media";
+
+/** A save puts the file into the photo library: iOS. On Android a save could only open the share
+ * sheet, as sharing does, so there is no save there. */
+export const CAN_SAVE = PhotoLibrary.available();
 
 /** How long a download may take, from the page's start to the file's end. */
 const TIMEOUT_MS = 15 * 60_000;
 
 export interface SaveResult {
-  /** `"shared"`: the share sheet took it; `"dismissed"`: the share sheet was closed without taking
-   * it. */
-  outcome: "shared" | "dismissed";
+  /** `"photos"`: added to the photo library (iOS); `"shared"`: the share sheet took it;
+   * `"dismissed"`: the share sheet was closed without taking it. */
+  outcome: "photos" | "shared" | "dismissed";
   /** Where the temporary file was before removal. */
   path: string;
 }
@@ -150,23 +155,80 @@ async function remove(path: string) {
   await rmdir(path.slice(0, path.lastIndexOf("/"))).catch(() => {});
 }
 
-/** Hands a downloaded file to the share sheet, then removes it: the targets copied it. */
-async function shareFile(path: string): Promise<SaveResult> {
+/** The view a share sheet points at (what was pressed), read when the sheet opens: on an iPad it
+ * shows there rather than over the middle of the window. */
+export type Anchor = () => ViewRef | undefined;
+
+/** Saves the picture or video at `url` into the photo library (iOS: `CAN_SAVE`). Rejects with
+ * `code` `"EACCES"` when the user does not let the app add to Photos. */
+export async function saveMedia(url: string, kind: "image" | "video"): Promise<SaveResult> {
+  const path = await take(url, kind);
   try {
-    const { action } = await Share.show({ files: [path] });
+    await PhotoLibrary.save(path, kind === "video");
+    return { outcome: "photos", path };
+  } finally {
+    await remove(path);
+  }
+}
+
+/** Hands a downloaded file to the share sheet, then removes it: the targets copied it. `onSheet`
+ * hears that the sheet is opening: the wait is over, the user is in the sheet. */
+async function shareFile(path: string, anchor?: Anchor, onSheet?: () => void): Promise<SaveResult> {
+  try {
+    onSheet?.();
+    const { action } = await Share.show({ files: [path], anchor: anchor?.() });
     return { outcome: action, path };
   } finally {
     await remove(path);
   }
 }
 
-/** Saves the picture or video at `url` through the system's share sheet. */
-export async function saveMedia(url: string, kind: "image" | "video"): Promise<SaveResult> {
-  return shareFile(await download(url, kind));
-}
-
 /** Shares the picture or video at `url` to another app (WeChat, X, Messages...) through the
  * system's share sheet, which lists the apps installed that take it. */
-export async function shareMedia(url: string, kind: "image" | "video"): Promise<SaveResult> {
-  return shareFile(await download(url, kind));
+export async function shareMedia(
+  url: string,
+  kind: "image" | "video",
+  anchor?: Anchor,
+  onSheet?: () => void,
+): Promise<SaveResult> {
+  return shareFile(await take(url, kind), anchor, onSheet);
+}
+
+/** A file fetched ahead (`prefetch`) for the save or share the user is likely to choose next. */
+let ahead: { url: string; file: Promise<string>; timer: ReturnType<typeof setTimeout> } | null = null;
+
+/** How long a file fetched ahead waits for a save or share before it is removed. */
+const AHEAD_MS = 2 * 60_000;
+
+/** Starts downloading the file at `url` into the app's storage before the user chooses (a picture's
+ * menu opened), so that a save or share then starts from the file at once instead of waiting for
+ * it. Nothing when it is already fetched or another download is under way. */
+export function prefetch(url: string, kind: "image" | "video") {
+  if (ahead?.url === url || job()) return;
+  drop();
+  const file = download(url, kind);
+  file.catch(() => {});
+  ahead = { url, file, timer: setTimeout(drop, AHEAD_MS) };
+}
+
+/** The file of `url`: the one fetched ahead, else downloaded now (after one fetched ahead for
+ * another picture is done and removed). */
+async function take(url: string, kind: "image" | "video"): Promise<string> {
+  if (ahead?.url === url) {
+    const { file, timer } = ahead;
+    clearTimeout(timer);
+    ahead = null;
+    return file;
+  }
+  await drop();
+  return download(url, kind);
+}
+
+/** Removes the file fetched ahead (once it is there): no save or share took it. */
+async function drop() {
+  if (!ahead) return;
+  const { file, timer } = ahead;
+  clearTimeout(timer);
+  ahead = null;
+  await file.then(remove, () => {});
 }
