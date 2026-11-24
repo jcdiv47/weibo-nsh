@@ -1,6 +1,6 @@
 // A post's pictures full screen: swipe between them, pinch or double tap to zoom, drag to pan
-// when zoomed, tap or drag up or down to close; the buttons at the top right share the picture shown
-// to another app (WeChat, X...: the system's share sheet) or save it.
+// when zoomed, tap or drag up or down to close. A finger held on a picture, or the "⋯" button at the
+// top right, opens what it offers: save it (to Photos on iOS) and share it (`SaveMedia.tsx`).
 // One viewer for the app, opened with `openViewer`.
 //
 // It is an overlay over the app's pages, not a `Dialog`: a native modal ignores touches while it
@@ -10,7 +10,7 @@ import { cleanup, createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, 
 import { BackHandler } from "nsh/mobile";
 import type { Status } from "../api";
 import { glass } from "./Glass";
-import { SaveButton, ShareButton } from "./SaveMedia";
+import { MediaMenu, MediaMoreButton } from "./SaveMedia";
 
 type Pics = Status["pics"];
 
@@ -70,8 +70,23 @@ function endDrag(e: { value?: { y?: number }; velocity: { y: number } }) {
   close(projected);
 }
 
+/** What iOS lifts beside the menu: the picture at its own shape, as wide as the screen allows. */
+function Preview(props: { src: string; size: { width: number; height: number } | null }) {
+  const box = () => {
+    const s = props.size;
+    const maxW = windowSize().width - 32;
+    const maxH = windowSize().height * 0.6;
+    if (!s || !s.width || !s.height) return { width: maxW, height: maxW };
+    const scale = Math.min(maxW / s.width, maxH / s.height);
+    return { width: Math.round(s.width * scale), height: Math.round(s.height * scale) };
+  };
+  return <Image src={props.src} class="object-cover" style={box()} />;
+}
+
 /** One picture, zoomable on its own: zoom resets as it scrolls out of the pager and back. */
 function ZoomPage(props: { src: string }) {
+  /** The picture's own size, once loaded: the menu's preview takes its shape. */
+  const natural = signal<{ width: number; height: number } | null>(null);
   let scroll: ScrollRef | undefined;
   let zoom = 1;
   // Not zoomed, it must not bounce: a vertical drag then goes to the viewer, to close it.
@@ -111,7 +126,9 @@ function ZoomPage(props: { src: string }) {
         }}
         style={{ width: windowSize().width, height: windowSize().height }}
       >
-        <Image src={props.src} class="size-full object-contain" />
+        <MediaMenu url={props.src} kind="image" preview={<Preview src={props.src} size={natural()} />}>
+          <Image src={props.src} class="size-full object-contain" onLoad={(e) => natural.set(e.size)} />
+        </MediaMenu>
       </View>
     </Scroll>
   );
@@ -176,9 +193,8 @@ export function ImageViewer() {
                 </View>
               </View>
             </If>
-            <View class="absolute right-4 h-11 flex-row items-center gap-3" style={{ top: safeArea().top + 4 }}>
-              <ShareButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
-              <SaveButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
+            <View class="absolute right-4 h-11 flex-row items-center" style={{ top: safeArea().top + 4 }}>
+              <MediaMoreButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
             </View>
           </View>
         );

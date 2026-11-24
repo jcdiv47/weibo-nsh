@@ -1,0 +1,28 @@
+[package]
+name = "weibo-media"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Saves a downloaded picture or video into the user's photo library (iOS)."
+
+[workspace]
+
+[dependencies]
+# nsh's crates at the commit of the nightly the app builds with (`nsh --version`), not crates.io's
+# 0.6.x: an app with Rust builds its runtime from wherever its crates take nsh, and the releases
+# lack what the app needs (files on iOS: `Share.show`'s files and `fs/promises` there). Move `rev`
+# with `nsh update nightly`, which otherwise stops naming both commits.
+nsh-core = { git = "https://github.com/longbridge/nsh", rev = "589a60f7569c14023c262c126f50279f27ddf470" }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+block2 = "0.6.2"
+objc2 = "0.6.5"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSBundle", "NSError", "NSString", "NSURL"] }
+
+# Adding to Photos asks the user, which iOS allows only with this description (without it the
+# system ends the app): `nsh` adds it to the packages and to the development hosts.
+[package.metadata.nsh.ios.infoPlist]
+NSPhotoLibraryAddUsageDescription = "Weibo saves the pictures and videos you choose to your photo library."
+
+[package.metadata.nsh.ios.infoPlistStrings.zh-Hans]
+NSPhotoLibraryAddUsageDescription = "微博会把你选择的图片和视频保存到你的照片图库。"

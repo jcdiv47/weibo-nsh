@@ -28,6 +28,11 @@ jobs:
         with:
           ref: ${{ env.TAG }}
       - uses: ./.github/actions/setup-nsh
+      # The app's Rust (ext/weibo-media) takes nsh at a nightly's commit: move it to the nightly
+      # just installed, and add Rust's Android targets for the APK's ABIs (the runner's Android SDK
+      # has the NDK nsh compiles them with).
+      - run: scripts/pin-nsh.sh
+      - run: rustup target add aarch64-linux-android armv7-linux-androideabi
 
       - name: Version
         id: version

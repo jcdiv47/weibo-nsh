@@ -15,5 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-nsh
+      # The app's Rust takes nsh at a nightly's commit; move it to the nightly just installed.
+      - run: scripts/pin-nsh.sh
       - run: nsh check .
       - run: nsh test

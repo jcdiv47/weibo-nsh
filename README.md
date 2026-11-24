@@ -28,7 +28,7 @@ Weibo NSH pairs a native UI built in [NSH](https://nsh.dev) with a standard WebV
 - **Profiles & Relationships** — View bios, follower/following lists, pinned posts (`置顶`), and commented/liked activity markers; follow/unfollow and block/unblock directly from profile pages.
 - **Favorites (收藏)** — Bookmark posts from the post header with quick-view toast notifications, and browse saved posts newest-first from the **Me** menu.
 - **Search & Trending** — Timeline search with Weibo trending topics (ads excluded), live account and query suggestions, tabbed post/people results, and per-account profile search.
-- **Native Media Viewer & Downloads** — Full-screen image viewer (swipe, pinch-to-zoom, double-tap), built-in video player (scrubber, 0.5×–2× playback speed, quality selector, landscape rotation, drag-to-dismiss), and streaming save/share to Photos or the system share sheet.
+- **Native Media Viewer & Downloads** — Full-screen image viewer (swipe, pinch-to-zoom, double-tap), built-in video player (scrubber, 0.5×–2× playback speed, quality selector, landscape rotation, drag-to-dismiss). Long-press a picture or video (or tap **⋯**) for one menu: **Save to Photos** (iOS) and **Share…** (the system share sheet).
 - **Offline-Resilient Cache & Polish** — Caches the first page of recent lists and profiles locally (up to 40 entries, wiped on sign-out) so screens open immediately and stay readable when offline. Includes system-matched light/dark themes, English & Chinese (`en` / `zh`) localization, and native Liquid Glass on iOS 26+.
 
 ## Architecture
@@ -50,7 +50,7 @@ Because `weibo.com`'s web endpoints are undocumented and can change at any time,
 
 ### Streaming Media Saves (`download.ts`)
 
-Images and videos of any size are saved without buffering bytes in JS: a hidden WebView opens the media host's origin, validates the content type via a `Range: bytes=0-0` probe, and clicks a same-origin `download` link so the web engine streams directly to disk before handing the file to the system share sheet.
+Images and videos of any size are saved without buffering bytes in JS: a hidden WebView opens the media host's origin, validates the content type via a `Range: bytes=0-0` probe, and clicks a same-origin `download` link so the web engine streams directly to disk. On iOS a save then adds the file to Photos through the app's own Rust module (`ext/weibo-media`, the Photos framework at add-only access); a share hands it to the system share sheet.
 
 ### Design System & Floating Glass (`theme.json`, `components/Glass.ts`, `components/Header.tsx`)
 
@@ -62,6 +62,8 @@ The UI follows a light/dark token palette defined in `theme.json` (`ground`, `we
 
 - [NSH CLI](https://nsh.dev) installed and on your `PATH`
   - *Note:* Sharing downloaded media files on iOS requires an NSH version newer than `0.6.1`.
+- [Rust](https://rustup.rs): the app has Rust of its own (`ext/weibo-media`, listed in `nsh.json` `"rust"`), which NSH builds with the app.
+  - It takes NSH's crates at the installed nightly's commit (crates.io's `0.6.x` lacks what the app needs). After `nsh update nightly`, run `scripts/pin-nsh.sh` to move that commit along; NSH stops with both commits named until you do. CI runs it after installing the latest nightly.
 
 ### Run Locally
 
@@ -118,7 +120,9 @@ The test suite runs all API parsers against real-shaped responses in `tests/fixt
 ├── api.ts           # Weibo web API calls and defensive response parsers
 ├── bridge.ts        # Same-origin WebView fetch channels (weibo.com & s.weibo.com)
 ├── drift.ts         # Response schema checks and drift reporting
-├── download.ts      # Streaming image/video download and share orchestration
+├── download.ts      # Streaming image/video download, save-to-Photos and share orchestration
+├── ext/weibo-media/ # The app's own Rust: saving to the iOS photo library
+├── scripts/         # pin-nsh.sh: points ext/ at the installed nightly's NSH crates
 ├── saved.ts         # Local on-device page cache (40-entry LRU, cleared on sign-out)
 ├── pages/           # Screen views (Timeline, Post, Replies, Edits, Profile, Search, Topic, Favorites, People)
 ├── components/      # Shared native UI components (Header, Glass, StatusCard, RichText, VideoPlayer, ImageViewer, …)
