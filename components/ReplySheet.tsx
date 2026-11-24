@@ -4,13 +4,19 @@
 // Without a comment it comments on the post itself (`openComment`, the post page's comment field)
 // or reposts it (a post's repost count in a list, the post page's repost button).
 //
-// The panel rises with the keyboard as one motion: it waits below the screen, and when the keyboard
-// comes it goes to the keyboard's top on the keyboard's own curve and duration, so it grows out of
-// the keyboard's top edge; closing takes them down together. (`Sheet` slid in on its own spring,
-// and a keyboard rising during that slide stood it, on a phone, a moment far too high.)
-//
-// It goes down by a transform alone, its layout kept: the input has let the keyboard go by then,
-// and a layout change with the keyboard going pulled the page under it down for a moment.
+// The panel rides right on top of the keyboard as one rigid unit:
+// - Before the keyboard appears, it sits at `bottom: 0` with `opacity: 0` so it travels the exact
+//   same distance (`0` → `kb.height`) as the keyboard itself rather than emerging faster/slower out
+//   of the keyboard's top edge.
+// - On iOS, the expand layout animation uses a physical spring fitted to the system keyboard's real
+//   rise (`stiffness: 800, damping: 57, mass: 1`) while fading in over the first ~110ms, so the
+//   panel stays welded to the keyboard's top edge from start to settle without triggering keyboard
+//   panning of the page behind it.
+// - On close, it dismisses the keyboard and drops by the exact keyboard height (`translateY`) in
+//   that same commit on a matched collapse spring (`stiffness: 1000, damping: 64, mass: 1`) while
+//   fading out as it reaches the bottom edge — zero round-trip lag, zero page panning, and no
+//   lingering panel after the keyboard disappears.
+// - On Android, expand and collapse follow `LayoutCurve::Keyboard` (`WindowInsetsAnimation`).
 import {
   batch,
   createAnimatedValue,
@@ -20,11 +26,13 @@ import {
   Keyboard,
   keyboardFrame,
   LayoutAnimation,
+  platform,
   safeArea,
   signal,
   Text,
   untracked,
   View,
+  type ViewRef,
 } from "nsh";
 import { Button, Input } from "nsh/base";
 import { t } from "nsh/i18n";
@@ -59,40 +67,80 @@ const error = signal<string | null>(null);
 const drafts = new Map<string, string>();
 const draftKey = (cur: Target) => `${cur.kind}:${cur.comment ? cur.comment.id : `post:${cur.status.id}`}`;
 
-/** The panel is going: it goes down with the keyboard, and leaves the tree once it is down. */
+/** The panel is closing: touches pass through, and it leaves the tree once offscreen. */
 const leaving = signal(false);
 /** No software keyboard came (a hardware keyboard): the panel stands at the bottom instead. */
 const noKeyboard = signal(false);
+/** Safety fallback on Android if `Keyboard.dismiss()` never reports `height: 0`. */
+const forceDrop = signal(false);
+/** How far the panel stands above the bottom of the screen (`null` while waiting at `bottom: 0`). */
+const lift = signal<number | null>(null);
 /** How long the panel waits for the keyboard before it stands at the bottom without it. */
 const KEYBOARD_WAIT_MS = 600;
-/** The panel's motion where the keyboard gives none (it is not there, or it reports no duration). */
-const PANEL_MS = 250;
-/** The curve of iOS's keyboard as it comes and goes, near enough: the panel goes down on it. */
-const KEYBOARD_CURVE = Easing.bezier(0.38, 0.7, 0.125, 1);
-/** How far the going panel has dropped from where it stood, moved natively. */
+/** The panel's motion when no software keyboard drives it (hardware keyboard, or duration 0). */
+const PANEL_MS = 220;
+/** How long Android's `Keyboard.dismiss()` may take to start hiding before dropping anyway. */
+const DISMISS_WAIT_MS = 450;
+/**
+ * Critically-damped physical springs fitted to iOS's real keyboard rise and drop:
+ * UIKit's legacy curve 7 settles noticeably slower than modern iOS's actual keyboard (~400ms vs
+ * ~150-220ms), which left the panel creeping up or lingering at the bottom after the keyboard had
+ * already finished moving.
+ */
+const IOS_EXPAND_SPRING = { mass: 1, stiffness: 800, damping: 57 };
+const IOS_COLLAPSE_SPRING = { mass: 1, stiffness: 1000, damping: 64 };
+const HARDWARE_SPRING = { mass: 1, stiffness: 600, damping: 48 };
+const BACKDROP_CURVE = Easing.out(Easing.cubic);
+/** Vertical offset of the panel, moved natively on close and hardware-keyboard open/close. */
 const drop = createAnimatedValue(0);
-let dropping = false;
+/** Panel opacity: invisible while waiting at `bottom: 0`, fades in/out tightly with the keyboard. */
+const panelOpacity = createAnimatedValue(0);
+
 let waiting: ReturnType<typeof setTimeout> | undefined;
-/** The panel's input, while it is there. */
+let dismissFallback: ReturnType<typeof setTimeout> | undefined;
+let unmountTimer: ReturnType<typeof setTimeout> | undefined;
+/** Whether this open session has seen a software keyboard rise, to detect external dismissal. */
+let sawKeyboard = false;
+/** Whether the panel has already started its exit motion in the current closing cycle. */
+let closing = false;
+/** The panel's input, while it is mounted. */
 let input: InputRef | undefined;
+/** The panel itself, to scope layout animations on non-keyboard transitions. */
+let panel: ViewRef | undefined;
+
+function clearTimers() {
+  clearTimeout(waiting);
+  clearTimeout(dismissFallback);
+  clearTimeout(unmountTimer);
+}
 
 function open(cur: Target, initial: string) {
-  text.set(drafts.get(draftKey(cur)) ?? initial);
-  error.set(null);
-  also.set(false);
-  leaving.set(false);
-  noKeyboard.set(false);
-  // Opened again while it went down: it stands where it stood.
-  if (dropping) {
-    dropping = false;
-    drop.stop();
-    drop.set(0);
+  const mounted = !!target();
+  const hasKb = keyboardFrame().height > 0;
+  clearTimers();
+  sawKeyboard = false;
+  closing = false;
+  drop.stop();
+  drop.set(0);
+  if (!mounted || !hasKb) {
+    panelOpacity.stop();
+    panelOpacity.set(0);
   }
-  target.set(cur);
-  clearTimeout(waiting);
-  waiting = setTimeout(() => !keyboardFrame().height && noKeyboard.set(true), KEYBOARD_WAIT_MS);
-  // Opened again while it went down, the panel kept its input, which `autoFocus` does not focus again.
-  setTimeout(() => input?.focus());
+  batch(() => {
+    text.set(drafts.get(draftKey(cur)) ?? initial);
+    error.set(null);
+    also.set(false);
+    leaving.set(false);
+    noKeyboard.set(false);
+    forceDrop.set(false);
+    if (!hasKb) lift.set(null);
+    target.set(cur);
+  });
+  waiting = setTimeout(() => {
+    if (target() && !leaving() && !keyboardFrame().height) noKeyboard.set(true);
+  }, KEYBOARD_WAIT_MS);
+  // Opened again while closing: the panel kept its mounted input, which `autoFocus` does not focus again.
+  if (mounted) input?.focus();
 }
 
 export function openReply(status: Status, comment: Comment, onSent?: (reply: Comment | null) => void) {
@@ -117,13 +165,28 @@ export function openRepostStatus(status: Status) {
 /** A repost of a post may go with no text: Weibo's "转发微博". */
 const canSend = (cur: Target | null, body: string) => !!cur && (!!body || (cur.kind === "repost" && !cur.comment));
 
+function dismiss() {
+  if (!target() || leaving()) return;
+  clearTimeout(waiting);
+  clearTimeout(unmountTimer);
+  leaving.set(true);
+  // On Android, wait for `Keyboard.dismiss()` to report `height: 0` so the panel rides the system's
+  // `WindowInsetsAnimation` curve. On iOS, the panel drops via `translateY` in this same commit
+  // (zero round-trip lag, and no layout change while focused so iOS never pans the page).
+  if (platform.os !== "ios" && keyboardFrame().height > 0) {
+    clearTimeout(dismissFallback);
+    dismissFallback = setTimeout(() => {
+      if (leaving()) forceDrop.set(true);
+    }, DISMISS_WAIT_MS);
+  }
+  Keyboard.dismiss();
+}
+
 function close() {
   const cur = target();
   if (!cur || leaving()) return;
-  clearTimeout(waiting);
   drafts.set(draftKey(cur), text());
-  leaving.set(true);
-  Keyboard.dismiss();
+  dismiss();
 }
 
 async function send() {
@@ -142,10 +205,7 @@ async function send() {
           : await commentStatus(cur.status, body, also());
     drafts.delete(draftKey(cur));
     text.set("");
-    if (target() === cur) {
-      leaving.set(true);
-      Keyboard.dismiss();
-    }
+    if (target() === cur) dismiss();
     cur.onSent?.(reply);
   } catch (e) {
     error.set(t(cur.kind === "repost" ? "repost.failed" : "reply.failed", { error: String((e as Error)?.message ?? e) }));
@@ -184,48 +244,142 @@ export function ReplySheet() {
     return (cur.comment ?? cur.status).text.trim();
   };
 
-  // Where the panel stands: below the screen (`null`), or this far above its bottom (the keyboard's
-  // height, 0 without one). A change animates on the keyboard's curve and duration (it comes up so).
-  const lift = signal<number | null>(null);
-  // Its height, to wait just below the screen (far below before it is first laid out).
-  const height = signal(1000);
   const backdrop = createAnimatedValue(0);
+
+  const finishClose = () => {
+    clearTimers();
+    sawKeyboard = false;
+    closing = false;
+    drop.stop();
+    panelOpacity.stop();
+    batch(() => {
+      target.set(null);
+      leaving.set(false);
+      noKeyboard.set(false);
+      forceDrop.set(false);
+      lift.set(null);
+    });
+    drop.set(0);
+    panelOpacity.set(0);
+    backdrop.set(0);
+  };
+
   effect(() => {
+    const cur = target();
     const kb = keyboardFrame();
-    if (leaving()) {
-      // Going: down out of sight with the keyboard, then out of the tree.
-      untracked(() => {
-        if (dropping) return;
-        dropping = true;
-        const duration = kb.duration || PANEL_MS;
-        backdrop.timing(0, { duration });
-        drop.timing((lift() ?? 0) + height(), { duration, easing: KEYBOARD_CURVE }).then(({ finished }) => {
-          if (!finished || !dropping) return;
-          dropping = false;
-          batch(() => {
-            target.set(null);
-            leaving.set(false);
-            lift.set(null);
-          });
-          drop.set(0);
-        });
-      });
-      return;
-    }
-    const up = !!target() && (kb.height > 0 || noKeyboard());
-    const to = up ? kb.height : null;
+    const isLeaving = leaving();
+    const noKb = noKeyboard();
+    const forced = forceDrop();
+
     untracked(() => {
-      if (to === lift()) return;
-      const duration = kb.duration || PANEL_MS;
-      backdrop.timing(up ? 1 : 0, { duration });
-      LayoutAnimation.configureNext({ duration, update: { type: "keyboard" } });
-      lift.set(to);
+      if (!cur) {
+        if (lift() !== null) lift.set(null);
+        return;
+      }
+
+      if (isLeaving) {
+        if (closing) return;
+        const ios = platform.os === "ios";
+        // On Android, wait for `kb.height` to drop to 0 so `sync_env` drives `LayoutCurve::Keyboard`.
+        if (!ios && kb.height > 0 && !forced) return;
+
+        clearTimeout(dismissFallback);
+        const currentLift = lift();
+        if (currentLift === null) {
+          finishClose();
+          return;
+        }
+        closing = true;
+        const withKeyboard = !noKb && !forced && currentLift > 0;
+        if (ios || !withKeyboard) {
+          // Drop by the exact keyboard height (`currentLift`) on a spring fitted to the keyboard's
+          // real dismissal, fading out cleanly as it meets the bottom edge so nothing lingers after
+          // the keyboard disappears. Without a software keyboard, glide down 48pt while fading out.
+          if (withKeyboard) {
+            drop.spring(currentLift, IOS_COLLAPSE_SPRING);
+            panelOpacity.timing(0, { duration: 140, easing: Easing.in(Easing.quad) });
+            backdrop.timing(0, { duration: 180, easing: BACKDROP_CURVE });
+          } else {
+            drop.spring(48, HARDWARE_SPRING);
+            panelOpacity.timing(0, { duration: 150, easing: Easing.out(Easing.quad) });
+            backdrop.timing(0, { duration: 180, easing: BACKDROP_CURVE });
+          }
+          clearTimeout(unmountTimer);
+          unmountTimer = setTimeout(() => {
+            if (leaving()) finishClose();
+          }, 260);
+        } else {
+          // Android software keyboard dismissal: ride the system's `WindowInsetsAnimation` curve.
+          if (!kb.duration) panel?.animateLayout({ type: "keyboard", duration: PANEL_MS });
+          lift.set(null);
+          const duration = kb.duration || PANEL_MS;
+          panelOpacity.timing(0, { duration: Math.min(duration, 160), easing: Easing.in(Easing.quad) });
+          backdrop.timing(0, { duration, easing: BACKDROP_CURVE });
+          clearTimeout(unmountTimer);
+          unmountTimer = setTimeout(() => {
+            if (leaving()) finishClose();
+          }, duration + 60);
+        }
+        return;
+      }
+
+      // The software keyboard was dismissed externally (Android back button, iPad hide-keyboard
+      // key): save the draft and enter the closing path in this same commit so the panel rides down
+      // with the keyboard instead of leaving an invisible backdrop over the page.
+      if (kb.height === 0 && sawKeyboard) {
+        drafts.set(draftKey(cur), text());
+        clearTimeout(waiting);
+        leaving.set(true);
+        return;
+      }
+
+      if (kb.height > 0) sawKeyboard = true;
+      const up = kb.height > 0 || noKb;
+      const to = up ? kb.height : null;
+      if (to === lift()) {
+        // Re-opened while still at the same keyboard height: restore visibility cleanly.
+        if (up) {
+          panelOpacity.timing(1, { duration: 110, easing: Easing.out(Easing.quad) });
+          backdrop.timing(1, { duration: 180, easing: BACKDROP_CURVE });
+        }
+        return;
+      }
+
+      const wasDown = lift() === null;
+      const withKeyboard = kb.height > 0;
+      const ios = platform.os === "ios";
+      if (withKeyboard) {
+        if (ios) {
+          LayoutAnimation.configureNext({
+            duration: kb.duration || PANEL_MS,
+            update: { type: "spring", ...IOS_EXPAND_SPRING },
+          });
+        } else if (!kb.duration) {
+          panel?.animateLayout({ type: "keyboard", duration: PANEL_MS });
+        }
+        lift.set(to);
+        if (wasDown) {
+          // Wait one frame on iOS before fading in so the composer emerges alongside the keyboard
+          // instead of flashing ahead of it, then reach full opacity while riding up together.
+          panelOpacity.timing(1, { duration: 110, delay: ios ? 16 : 0, easing: Easing.out(Easing.quad) });
+          backdrop.timing(1, { duration: ios ? 220 : kb.duration || PANEL_MS, easing: BACKDROP_CURVE });
+        }
+      } else if (up) {
+        // Hardware keyboard: crisp short rise and fade at the bottom of the screen.
+        lift.set(0);
+        drop.set(36);
+        drop.spring(0, HARDWARE_SPRING);
+        panelOpacity.timing(1, { duration: 160, easing: Easing.out(Easing.quad) });
+        backdrop.timing(1, { duration: 200, easing: BACKDROP_CURVE });
+      } else {
+        lift.set(null);
+      }
     });
   });
 
   return (
     <If when={target()}>
-      <View class="absolute inset-0">
+      <View class="absolute inset-0" style={{ pointerEvents: leaving() ? "none" : "auto" }}>
         <View
           accessibilityLabel={t("common.cancel")}
           onPress={close}
@@ -233,18 +387,22 @@ export function ReplySheet() {
           style={{ opacity: backdrop }}
         />
         <View
+          ref={(r) => (panel = r ?? undefined)}
           role="dialog"
           accessibilityLabel={title()}
-          onLayout={(e) => height.set(e.bounds.size.height)}
           class="absolute inset-x-0 rounded-t-sheet bg-ground px-4 pt-4 shadow-[0_-8px_30px_#00000014]"
-          // Above the keyboard it stands right on it; without one, clear of the home indicator. Below
-          // the screen it is as tall as on the keyboard, so that it goes all the way out of sight.
+          // Waits invisible at `bottom: 0`, then travels the exact keyboard height (`0` → `lift`)
+          // so the panel stays welded to the top edge of the keyboard throughout expand and close.
           style={{
-            bottom: lift() ?? -height(),
-            paddingBottom: (lift() === 0 ? safeArea().bottom : 0) + 14,
+            bottom: lift() ?? 0,
+            paddingBottom: (noKeyboard() ? safeArea().bottom : 0) + 14,
+            opacity: panelOpacity,
             transform: [{ translateY: drop }],
           }}
         >
+          {/* Extends the panel's ground behind the keyboard's top edge so no backdrop sliver shows
+              through rounded keyboard corners (iOS 26+) or subpixel seams while moving. */}
+          <View class="pointer-events-none absolute inset-x-0 top-full h-10 bg-ground" />
           <View class="gap-3">
             <View class="flex-row items-center gap-2.5">
               <Button
@@ -281,7 +439,7 @@ export function ReplySheet() {
               placeholder={t(repost() ? "repost.placeholder" : target()?.comment ? "reply.placeholder" : "reply.post_placeholder")}
               multiline
               autoFocus
-          ref={(r) => (input = r ?? undefined)}
+              ref={(r) => (input = r ?? undefined)}
               maxLength={2000}
               readonly={sending()}
               class="min-h-[88px] max-h-40 rounded-well bg-well px-3 py-2.5 text-body leading-[22px] text-ink placeholder:text-ink-3"
