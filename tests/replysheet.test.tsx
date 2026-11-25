@@ -42,3 +42,44 @@ test("panel mounts at bottom, rises on hardware-keyboard fallback, can reopen mi
   await app.clock!.runFor(650);
   expect(app.value("text:Draft text")).toBe("Draft text");
 });
+
+test("signing out forgets the drafts", async () => {
+  const app = await open("./fixtures/ReplyHarness.tsx", { clock: {} });
+  await app.press("id:open-comment");
+  await app.clock!.runFor(650);
+  await app.type("text:Write a comment…", "Draft text");
+  await app.press("label:Cancel >> nth=1");
+  await app.clock!.runFor(400);
+
+  await app.press("id:forget");
+  await app.press("id:open-comment");
+  await app.clock!.runFor(650);
+  expect(app.shows("text:Draft text")).toBe(false);
+  expect(app.value("text:Write a comment…")).toBe("");
+});
+
+test("the also-repost option is a checkbox that screen readers hear checked and unchecked", async () => {
+  const app = await open("./fixtures/ReplyHarness.tsx", {
+    width: 390,
+    height: 844,
+    safeArea: { top: 59, bottom: 34 },
+    clock: {},
+  });
+  await app.press("id:open-comment");
+  await app.clock!.runFor(650);
+
+  const find = (node: ReturnType<typeof app.accessibility>): NonNullable<typeof node> | null => {
+    if (!node) return null;
+    if (node.role === "checkbox") return node;
+    for (const child of node.children) {
+      const found = find(child);
+      if (found) return found;
+    }
+    return null;
+  };
+  expect(find(app.accessibility())?.checked).toBe("false");
+  await app.press("text:Also repost");
+  expect(find(app.accessibility())?.checked).toBe("true");
+  await app.press("text:Also repost");
+  expect(find(app.accessibility())?.checked).toBe("false");
+});

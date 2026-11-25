@@ -3,7 +3,9 @@
 // the post's comments; its repost count opens the box to repost it, its likes like it.
 // An edited post says so; on its own page, its versions open from below it.
 import { Image, type JSX, signal, Text, View } from "nsh";
+import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
+import { onForgetAccount } from "../account";
 import { type Activity, likeStatus, type Pic, type Status, type User, type VerifiedKind, type Video } from "../api";
 import { count, relativeTime, timeAgo } from "../format";
 import { openEdits, opening, openPost, openProfile } from "../nav";
@@ -66,30 +68,29 @@ const rows = <T,>(list: T[], n: number) =>
  */
 export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
   const shown = () => props.pics.slice(0, 9);
-  const pic = (p: Pic, i: number, cls: string) => (
-    <View
-      role="button"
-      accessibilityLabel={t("post.picture", { i: i + 1, n: props.pics.length })}
-      onPress={() => openViewer(props.pics, i)}
-      class={`${cls} overflow-hidden rounded-pic bg-well active:opacity-80`}
-    >
-      <Image src={p.thumb} class="size-full object-cover" />
-    </View>
-  );
+  // Rows and tiles are kept by place: a recycled card showing other pictures sets their sources
+  // in place instead of making its tiles again.
   return (
     <If when={props.pics.length}>
       <If
         when={!props.small && props.pics.length > 1}
         else={
           <View class="flex-row flex-wrap gap-1">
-            <Each of={shown()}>
-              {(p, i) => pic(p(), i(), props.small ? (props.pics.length === 1 ? "size-32" : "size-24") : "size-56")}
+            <Each of={shown()} key="index">
+              {(p, i) => (
+                <PicTile
+                  pic={p()}
+                  index={i()}
+                  pics={props.pics}
+                  class={props.small ? (props.pics.length === 1 ? "size-32" : "size-24") : "size-56"}
+                />
+              )}
             </Each>
           </View>
         }
       >
         <View class="gap-1">
-          <Each of={rows(shown(), 3)}>
+          <Each of={rows(shown(), 3)} key="index">
             {(row, r) => (
               <View class="flex-row gap-1">
                 {/* The cell takes a third of the row, the picture in it its width and as much
@@ -97,7 +98,9 @@ export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
                 <Each of={[0, 1, 2]}>
                   {(c) => (
                     <View class="flex-1">
-                      <If when={row()[c()]}>{(p) => pic(p(), r() * 3 + c(), "aspect-square w-full")}</If>
+                      <If when={row()[c()]}>
+                        {(p) => <PicTile pic={p()} index={r() * 3 + c()} pics={props.pics} class="aspect-square w-full" />}
+                      </If>
                     </View>
                   )}
                 </Each>
@@ -107,6 +110,20 @@ export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
         </View>
       </If>
     </If>
+  );
+}
+
+/** One picture of a post's, which opens the viewer at it. */
+function PicTile(props: { pic: Pic; index: number; pics: Status["pics"]; class: string }) {
+  return (
+    <View
+      role="button"
+      accessibilityLabel={t("post.picture", { i: props.index + 1, n: props.pics.length })}
+      onPress={() => openViewer(props.pics, props.index)}
+      class={`${props.class} overflow-hidden rounded-pic bg-well active:opacity-80`}
+    >
+      <Image src={props.pic.thumb} class="size-full object-cover" />
+    </View>
   );
 }
 
@@ -194,7 +211,7 @@ function ActivityLine(props: { activity: Activity }) {
       .filter(Boolean)
       .join(" · ");
   return (
-    <View class="h-[18px] shrink-0 flex-row items-center gap-2.5">
+    <View class="min-h-[18px] shrink-0 flex-row items-center gap-2.5">
       <Icon name={a().kind === "comment" ? "message-circle" : "thumb-up"} class="size-3.5 shrink-0 tint-ink-2" />
       <Text class="shrink text-meta font-medium text-ink-2 line-clamp-1">{text()}</Text>
     </View>
@@ -205,7 +222,7 @@ function ActivityLine(props: { activity: Activity }) {
  * Weibo's orange, in the activity line's place. */
 function PinnedLine() {
   return (
-    <View class="h-[18px] shrink-0 flex-row items-center gap-2.5">
+    <View class="min-h-[18px] shrink-0 flex-row items-center gap-2.5">
       <Icon name="pinned-filled" class="size-3.5 shrink-0 tint-weibo" />
       <Text class="shrink text-meta font-medium text-weibo line-clamp-1">{t("post.pinned")}</Text>
     </View>
@@ -260,10 +277,10 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
       <If when={props.full && (s().editCount || s().region)}>
         <View class="flex-row items-center gap-3">
           <If when={s().editCount}>
-            <View role="link" onPress={() => openEdits(s())} class="flex-row items-center gap-1 active:opacity-60">
+            <Button onPress={() => openEdits(s())} class="flex-row items-center gap-1 active:opacity-60">
               <Icon name="history" class="size-3.5 tint-ink-2" />
               <Text class="text-meta text-ink-2">{t("post.edit_history")}</Text>
-            </View>
+            </Button>
           </If>
           <View class="flex-1" />
           <If when={s().region}>
@@ -297,6 +314,7 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
 const likeChanges = signal<Record<string, { liked: boolean; likes: number }>>({});
 export const likeOf = (s: Status) => likeChanges()[s.id] ?? { liked: s.liked, likes: s.likes };
 const liking = new Set<string>();
+onForgetAccount(() => likeChanges.set({}));
 
 /** Likes the post, or takes the like back, at once; if Weibo refuses, as it was. */
 export async function toggleLike(s: Status) {

@@ -2,7 +2,7 @@
 // With `saveAs`, its first page is kept on the device (`saved.ts`): the next time it opens on it
 // while the first page loads, as if refreshing it (`refreshing`), and keeps it, marked by
 // `savedAt`, if that load fails.
-import { signal } from "nsh";
+import { batch, signal } from "nsh";
 import type { Page } from "./api";
 import { NotSignedIn } from "./bridge";
 import { loadSaved, save } from "./saved";
@@ -31,8 +31,10 @@ export function createFeed<T extends { id: string }, C = string>(
   /** `settled`: what a pull to refresh waits for before it shows its page (`refresh`). */
   async function fetchPage(cursor: C | undefined, replace: boolean, settled?: Promise<void>) {
     const mine = ++generation;
-    loading.set(true);
-    error.set(null);
+    batch(() => {
+      loading.set(true);
+      error.set(null);
+    });
     const key = replace ? (options.saveAs?.() ?? null) : null;
     // Nothing shown yet: show what was saved while this loads, or instead of it if it fails.
     let loaded = false;
@@ -40,10 +42,12 @@ export function createFeed<T extends { id: string }, C = string>(
       key && !items().length
         ? loadSaved<Page<T, C>>(key).then((s) => {
             if (!s || loaded || mine !== generation || items().length || !Array.isArray(s.data?.items)) return;
-            items.set(s.data.items);
-            next.set(s.data.next ?? null);
-            savedAt.set(s.at);
-            refreshing.set(true); // The page's refresh indicator turns until the new page is in.
+            batch(() => {
+              items.set(s.data.items);
+              next.set(s.data.next ?? null);
+              savedAt.set(s.at);
+              refreshing.set(true); // The page's refresh indicator turns until the new page is in.
+            });
           }, () => {})
         : undefined;
     try {
@@ -51,26 +55,31 @@ export function createFeed<T extends { id: string }, C = string>(
       loaded = true;
       await settled;
       if (mine !== generation) return; // A refresh started since.
-      if (replace) savedAt.set(null);
       if (key) save(key, page);
-      if (replace) items.set(page.items);
-      else {
-        // Pages overlap when new posts arrive between requests: drop repeated ids.
-        items.update((list) => {
-          const seen = new Set(list.map((i) => i.id));
-          return [...list, ...page.items.filter((i) => !seen.has(i.id))];
-        });
-      }
-      // Loaders return `next: null` at the end; a page may be empty after filtering yet not last.
-      next.set(page.next);
+      batch(() => {
+        if (replace) {
+          savedAt.set(null);
+          items.set(page.items);
+        } else {
+          // Pages overlap when new posts arrive between requests: drop repeated ids.
+          items.update((list) => {
+            const seen = new Set(list.map((i) => i.id));
+            return [...list, ...page.items.filter((i) => !seen.has(i.id))];
+          });
+        }
+        // Loaders return `next: null` at the end; a page may be empty after filtering yet not last.
+        next.set(page.next);
+      });
     } catch (e) {
       await settled;
       await saved; // The error shows with the saved items, not before them.
       if (mine === generation && !(e instanceof NotSignedIn)) error.set(String((e as Error)?.message ?? e));
     } finally {
       if (mine === generation) {
-        loading.set(false);
-        refreshing.set(false);
+        batch(() => {
+          loading.set(false);
+          refreshing.set(false);
+        });
       }
     }
   }

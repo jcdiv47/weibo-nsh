@@ -4,6 +4,7 @@
 // or likes.
 import { signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
+import { onForgetAccount } from "../account";
 import { type Comment, likeComment } from "../api";
 import { count, relativeTime } from "../format";
 import { openProfile } from "../nav";
@@ -12,9 +13,10 @@ import { LINK_CLASS, RichText } from "./RichText";
 import { Pictures } from "./StatusCard";
 
 // Who a reply answers isn't shown apart: Weibo starts its text with "回复@name:" already.
-const commentText = (c: Comment, cls: string) => (
-  <RichText text={c.text.trimEnd()} links={c.links} plainMentions hidePictureLinks class={cls} />
-);
+// A component, not a call: a recycled row passes its new comment to the same `RichText`.
+function CommentText(props: { comment: Comment; class: string }) {
+  return <RichText text={props.comment.text.trimEnd()} links={props.comment.links} plainMentions hidePictureLinks class={props.class} />;
+}
 
 /** The author's name, then the text and pictures. `root`: the comment heading its thread, its
  * name bold and its text larger. */
@@ -29,7 +31,7 @@ export function CommentBody(props: { comment: Comment; root?: boolean }) {
       >
         {props.comment.user.name}
       </Text>
-      {commentText(props.comment, `select-text ${props.root ? "text-base leading-[26px]" : "text-body"} text-ink`)}
+      <CommentText comment={props.comment} class={`select-text ${props.root ? "text-base leading-[26px]" : "text-body"} text-ink`} />
       <Pictures pics={props.comment.pics} small />
     </View>
   );
@@ -44,7 +46,7 @@ export function InlineReply(props: { comment: Comment }) {
           {props.comment.user.name}
         </Text>
         {": "}
-        {commentText(props.comment, "")}
+        <CommentText comment={props.comment} class="" />
       </Text>
       <Pictures pics={props.comment.pics} small />
     </View>
@@ -54,23 +56,25 @@ export function InlineReply(props: { comment: Comment }) {
 // Likes given or taken back here, by comment id. The lists hold plain objects, and a recycled row
 // shows another comment: the row reads its comment's like from here first.
 const likeChanges = signal<Record<string, { liked: boolean; likes: number }>>({});
-const likeOf = (c: Comment) => likeChanges()[c.id] ?? { liked: c.liked, likes: c.likes };
+export const commentLikeOf = (c: Comment) => likeChanges()[c.id] ?? { liked: c.liked, likes: c.likes };
 const liking = new Set<string>();
+onForgetAccount(() => likeChanges.set({}));
 
 /** Likes the comment, or takes the like back, at once; if Weibo refuses, as it was. */
-async function toggleLike(c: Comment) {
+export async function toggleCommentLike(c: Comment) {
   if (liking.has(c.id)) return;
-  const was = likeOf(c);
+  const before = likeChanges()[c.id];
+  const was = commentLikeOf(c);
   const now = { liked: !was.liked, likes: Math.max(0, was.likes + (was.liked ? -1 : 1)) };
-  const show = (v: typeof was) => likeChanges.update((m) => ({ ...m, [c.id]: v }));
-  show(now);
+  likeChanges.update((m) => ({ ...m, [c.id]: now }));
   liking.add(c.id);
   try {
     await likeComment(c, now.liked);
     c.liked = now.liked;
     c.likes = now.likes;
   } catch {
-    show(was);
+    // As it was: no change of its own left, so the comment's own counts show, fresh ones after a refresh.
+    likeChanges.update(({ [c.id]: _, ...rest }) => (before ? { ...rest, [c.id]: before } : rest));
   } finally {
     liking.delete(c.id);
   }
@@ -79,7 +83,7 @@ async function toggleLike(c: Comment) {
 /** When and where from at the left; like, repost and reply at the right, each in a lane of its own. */
 export function CommentFooter(props: { comment: Comment; onReply: () => void; onRepost: () => void }) {
   const c = () => props.comment;
-  const like = () => likeOf(c());
+  const like = () => commentLikeOf(c());
   const meta = () => [relativeTime(c().createdAt), c().region && t("post.comment_region", { region: c().region })].filter(Boolean).join(" · ");
   return (
     <View class="flex-row items-center gap-2 pt-0.5">
@@ -88,7 +92,7 @@ export function CommentFooter(props: { comment: Comment; onReply: () => void; on
       <View
         role="button"
         accessibilityLabel={`${t(like().liked ? "comment.unlike" : "comment.like")}, ${t("post.likes", { n: count(like().likes) })}`}
-        onPress={() => toggleLike(c())}
+        onPress={() => toggleCommentLike(c())}
         hitSlop={8}
         class="w-[52px] shrink-0 flex-row items-center justify-end gap-[3px] active:opacity-60"
       >

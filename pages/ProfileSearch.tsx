@@ -1,20 +1,18 @@
 // Search within one account's posts, from the magnifier on their profile: a field under the status
 // bar, and under it the posts of theirs that hold what was searched, newest first. Changing the
 // field and searching again searches anew on the same page; 取消 returns to the profile.
-import { type InputRef, List, signal, Text, View } from "nsh";
-import { Button, Input } from "nsh/base";
+import { List, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import { searchUserPosts, type Status } from "../api";
 import { FeedFooter } from "../components/FeedFooter";
 import { createPageScroll, Page } from "../components/Header";
 import { Icon } from "../components/Icon";
+import { SearchBar, SearchInput } from "../components/SearchBar";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed, type Feed } from "../feed";
-import { SearchBar } from "./Search";
 
 export function ProfileSearch(props: { uid: string; name?: string }) {
   const text = signal("");
-  let input: InputRef | undefined;
   const typed = () => text().trim();
   /** The search shown, and its posts; none until the first search. */
   const results = signal<{ q: string; feed: Feed<Status, number> } | null>(null);
@@ -33,32 +31,12 @@ export function ProfileSearch(props: { uid: string; name?: string }) {
       scroll={scroll}
       bar={
         <SearchBar>
-          <Input
-            ref={(r) => (input = r)}
+          <SearchInput
             value={text()}
-            onChange={(e) => text.set(e.value)}
+            onChange={(v) => text.set(v)}
             onSubmit={submit}
             placeholder={props.name ? t("search.profile_placeholder", { name: props.name }) : t("search.profile_placeholder_any")}
-            returnKeyType="search"
-            submitBehavior="blurAndSubmit"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus
-            maxLength={100}
-            class="h-10 flex-1 text-body text-ink placeholder:text-ink-3"
           />
-          <If when={text()}>
-            <Button
-              accessibilityLabel={t("search.clear")}
-              onPress={() => {
-                text.set("");
-                input?.focus();
-              }}
-              class="size-8 items-center justify-center active:opacity-60"
-            >
-              <Icon name="circle-x-filled" class="size-[18px] tint-ink-3" />
-            </Button>
-          </If>
         </SearchBar>
       }
     >

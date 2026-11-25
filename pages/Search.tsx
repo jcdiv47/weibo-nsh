@@ -2,8 +2,8 @@
 // under it until something is typed, then what Weibo suggests for it (accounts by that name,
 // searches that start so). A search opens what it finds over this page: posts and accounts, under
 // two tabs; its field brings back this page to change it.
-import { effect, type InputRef, type JSX, List, signal, Text, View } from "nsh";
-import { Button, Input } from "nsh/base";
+import { batch, effect, type JSX, List, signal, Text, View } from "nsh";
+import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
   follow,
@@ -16,43 +16,24 @@ import {
   type Suggestions,
   type User,
 } from "../api";
+import { onForgetAccount } from "../account";
 import { NotSignedIn } from "../bridge";
 import { FeedFooter } from "../components/FeedFooter";
-import { BAR, createPageScroll, Page } from "../components/Header";
+import { createPageScroll, Page } from "../components/Header";
 import { Icon } from "../components/Icon";
+import { PersonRow } from "../components/PersonRow";
+import { SearchBar, SearchInput } from "../components/SearchBar";
 import { Spinner } from "../components/Spinner";
 import { StatusCard } from "../components/StatusCard";
+import { TabBar } from "../components/TabBar";
 import { createFeed } from "../feed";
 import { count } from "../format";
 import { nav, openSearchResults } from "../nav";
-import { PersonRow } from "./People";
 
 /** How long typing pauses before Weibo is asked for suggestions. */
 const SUGGEST_DELAY_MS = 250;
 /** The most suggested searches shown: Weibo sends thirty or so. */
 const MAX_WORDS = 10;
-
-/** The field's capsule: the search icon, then what it holds. */
-function Field(props: { children: JSX.Element }) {
-  return (
-    <View class="h-10 flex-1 flex-row items-center gap-2 rounded-full bg-well pl-3.5 pr-2">
-      <Icon name="search" class="size-[18px] tint-ink-2" />
-      {props.children}
-    </View>
-  );
-}
-
-/** The bar: the field, then 取消, which leaves search (`depth` pages: results over search, two). */
-export function SearchBar(props: { children: JSX.Element; depth?: number }) {
-  return (
-    <View class="flex-row items-center gap-3.5 px-4" style={{ height: BAR }}>
-      <Field>{props.children}</Field>
-      <Button onPress={() => nav.pop(props.depth ?? 1)} class="h-10 justify-center active:opacity-60">
-        <Text class="text-body text-ink">{t("common.cancel")}</Text>
-      </Button>
-    </View>
-  );
-}
 
 /** A row that starts with an icon in the column of the accounts' pictures. */
 function IconRow(props: { icon: JSX.Element; label: string; onPress: () => void; children: JSX.Element; divider?: boolean }) {
@@ -125,10 +106,14 @@ type Row =
   | { id: string; kind: "user"; user: User }
   | { id: string; kind: "word"; word: string };
 
+// A row of each kind, or nothing: a recycled cell reads its row's kind again with each row it shows.
+const searchRowOf = (r: Row) => (r.kind === "search" ? r : undefined);
+const userOf = (r: Row) => (r.kind === "user" ? r.user : undefined);
+const wordOf = (r: Row) => (r.kind === "word" ? r.word : undefined);
+
 /** The search page: hot searches, or suggestions for what is typed. */
 export function Search() {
   const text = signal("");
-  let input: InputRef | undefined;
   const typed = () => text().trim();
 
   // Hot searches, once per visit: a list that changes by the minute is not saved.
@@ -137,8 +122,10 @@ export function Search() {
   const hotError = signal<string | null>(null);
   const loadHot = () => {
     if (hotLoading()) return;
-    hotLoading.set(true);
-    hotError.set(null);
+    batch(() => {
+      hotLoading.set(true);
+      hotError.set(null);
+    });
     hotSearches()
       .then((words) => hot.set(words))
       .catch((e) => {
@@ -163,6 +150,8 @@ export function Search() {
         () => {}, // Suggestions are a help: without them, the search itself still runs.
       );
     }, SUGGEST_DELAY_MS);
+    // Search popped while typing pauses asks for nothing more.
+    return () => clearTimeout(timer);
   });
   const rows = (): Row[] => {
     const q = typed();
@@ -192,32 +181,7 @@ export function Search() {
       scroll={scroll}
       bar={
         <SearchBar>
-          <Input
-            ref={(r) => (input = r)}
-            value={text()}
-            onChange={(e) => text.set(e.value)}
-            onSubmit={submit}
-            placeholder={t("search.placeholder")}
-            returnKeyType="search"
-            submitBehavior="blurAndSubmit"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus
-            maxLength={100}
-            class="h-10 flex-1 text-body text-ink placeholder:text-ink-3"
-          />
-          <If when={text()}>
-            <Button
-              accessibilityLabel={t("search.clear")}
-              onPress={() => {
-                text.set("");
-                input?.focus();
-              }}
-              class="size-8 items-center justify-center active:opacity-60"
-            >
-              <Icon name="circle-x-filled" class="size-[18px] tint-ink-3" />
-            </Button>
-          </If>
+          <SearchInput value={text()} onChange={(v) => text.set(v)} onSubmit={submit} placeholder={t("search.placeholder")} />
         </SearchBar>
       }
     >
@@ -256,28 +220,31 @@ export function Search() {
           keyboardDismissMode="on-drag"
           class="flex-1"
         >
-          {(row) => {
-            const r = row();
-            switch (r.kind) {
-              case "search":
-                return (
-                  <IconRow
-                    icon={<Icon name="arrow-right" class="size-[18px] tint-weibo" />}
-                    label={t("search.search_for", { q: r.q })}
-                    onPress={submit}
-                    divider
-                  >
-                    <Text class="flex-1 text-body font-semibold leading-5 text-weibo line-clamp-1">
-                      {t("search.search_for", { q: r.q })}
-                    </Text>
-                  </IconRow>
-                );
-              case "user":
-                return <PersonRow user={r.user} />;
-              case "word":
-                return <WordRow word={r.word} typed={typed()} onSearch={search} />;
-            }
-          }}
+          {/* Cells are recycled, and the first row's text changes as the user types: the row is read
+              again, never kept. */}
+          {(row) => (
+            <If
+              when={searchRowOf(row())}
+              else={
+                <If when={userOf(row())} else={<If when={wordOf(row())}>{(w) => <WordRow word={w()} typed={typed()} onSearch={search} />}</If>}>
+                  {(u) => <PersonRow user={u()} />}
+                </If>
+              }
+            >
+              {(r) => (
+                <IconRow
+                  icon={<Icon name="arrow-right" class="size-[18px] tint-weibo" />}
+                  label={t("search.search_for", { q: r().q })}
+                  onPress={submit}
+                  divider
+                >
+                  <Text class="flex-1 text-body font-semibold leading-5 text-weibo line-clamp-1">
+                    {t("search.search_for", { q: r().q })}
+                  </Text>
+                </IconRow>
+              )}
+            </If>
+          )}
         </List>
       </If>
     </Page>
@@ -289,49 +256,54 @@ type Tab = "posts" | "users";
 /** The height of the tabs under the bar, their hairline included. */
 const TABS = 44;
 
-/** 微博 and 用户, as a profile's people: the chosen one in ink over Weibo's orange bar. */
+/** 微博 and 用户, as a profile's people. */
 function Tabs(props: { value: Tab; onChange: (tab: Tab) => void }) {
   return (
-    <View role="tablist" class="h-[44px] flex-row items-end gap-7 border-b-[0.5px] border-hairline bg-ground px-4">
-      <Each of={["posts", "users"] as Tab[]}>
-        {(tab) => {
-          const on = () => props.value === tab();
-          return (
-            <Button
-              role="tab"
-              accessibilityLabel={t(`search.tab_${tab()}`)}
-              selected={on()}
-              onPress={() => props.onChange(tab())}
-              class="items-center gap-2 active:opacity-60"
-            >
-              <Text class={`text-body leading-5 ${on() ? "font-semibold text-ink" : "text-ink-2"}`}>{t(`search.tab_${tab()}`)}</Text>
-              <View class={`h-[3px] w-6 rounded-full ${on() ? "bg-weibo" : "bg-transparent"}`} />
-            </Button>
-          );
-        }}
-      </Each>
-    </View>
+    <TabBar
+      tabs={(["posts", "users"] as Tab[]).map((id) => ({ id, label: t(`search.tab_${id}`) }))}
+      value={props.value}
+      onChange={props.onChange}
+      class="h-[44px] border-hairline bg-ground"
+    />
+  );
+}
+
+// Follows asked for from the results, by account id: "busy" while Weibo answers, "failed" if it
+// refused. Kept out of the rows, which are recycled: a row reads its account's state from here.
+const follows = signal<Record<string, "busy" | "failed">>({});
+const setFollow = (uid: string, state: "busy" | "failed" | null) =>
+  follows.update(({ [uid]: _, ...rest }) => (state ? { ...rest, [uid]: state } : rest));
+onForgetAccount(() => follows.set({}));
+
+/** Follows `uid`; `onFollowed(uid)` once Weibo took it. A follow already asked for does nothing. */
+function followFromResults(uid: string, onFollowed: (uid: string) => void): Promise<void> {
+  if (follows()[uid] === "busy") return Promise.resolve();
+  setFollow(uid, "busy");
+  return follow(uid).then(
+    () => {
+      setFollow(uid, null);
+      onFollowed(uid);
+    },
+    () => setFollow(uid, "failed"),
   );
 }
 
 /** Follows an account from its row; once followed, says so (unfollowing is on their profile). */
-function FollowButton(props: { user: User; onFollowed: () => void }) {
+function FollowButton(props: { user: User; onFollowed: (uid: string) => void }) {
   const following = () => !!props.user.following;
-  const busy = signal(false);
-  const failed = signal(false);
+  const busy = () => follows()[props.user.id] === "busy";
+  const failed = () => follows()[props.user.id] === "failed";
   const press = () => {
     if (busy() || following()) return;
-    busy.set(true);
-    failed.set(false);
-    follow(props.user.id)
-      .then(props.onFollowed, () => failed.set(true))
-      .finally(() => busy.set(false));
+    // The account this press is for: by the time Weibo answers, the row may show another.
+    const uid = props.user.id;
+    followFromResults(uid, props.onFollowed);
   };
   return (
     <If
       when={!following()}
       else={
-        <View class="h-7 shrink-0 justify-center rounded-full bg-well px-3">
+        <View class="min-h-7 shrink-0 justify-center rounded-full bg-well px-3">
           <Text class="text-meta text-ink-2">{props.user.followsMe ? t("people.mutual") : t("profile.following")}</Text>
         </View>
       }
@@ -339,7 +311,8 @@ function FollowButton(props: { user: User; onFollowed: () => void }) {
       <Button
         accessibilityLabel={`${t("profile.follow")} ${props.user.name}`}
         onPress={press}
-        class={`h-7 shrink-0 flex-row items-center gap-0.5 rounded-full border px-3 active:opacity-60 ${failed() ? "border-danger" : "border-weibo"}`}
+        hitSlop={8}
+        class={`min-h-7 shrink-0 flex-row items-center gap-0.5 rounded-full border px-3 active:opacity-60 ${failed() ? "border-danger" : "border-weibo"}`}
       >
         <If when={busy()} else={<Icon name="user-plus" class={`size-3.5 ${failed() ? "tint-danger" : "tint-weibo"}`} />}>
           <Spinner />
@@ -427,7 +400,7 @@ export function SearchResults(props: { q: string }) {
                 <FollowButton
                   user={u()}
                   // The list keeps it, so the row says so again after a switch of tabs.
-                  onFollowed={() => users.update((list) => list.map((x) => (x.id === u().id ? { ...x, following: true } : x)))}
+                  onFollowed={(uid) => users.update((list) => list.map((x) => (x.id === uid ? { ...x, following: true } : x)))}
                 />
               }
             />

@@ -2,7 +2,7 @@
 // it, one on its replies opens its thread. A bar floats at the bottom, in glass: a field that
 // comments on the post, and buttons that repost and like it.
 // A post the app has not got (one a "微博正文" link points at) loads by its id first.
-import { computed, List, safeArea, signal, Text, View } from "nsh";
+import { batch, computed, List, safeArea, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
@@ -18,6 +18,7 @@ import { openComment, openReply, openRepost, openRepostStatus } from "../compone
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, likeOf as likeState, StatusCard, toggleLike } from "../components/StatusCard";
+import { TabBar, type TabItem } from "../components/TabBar";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
 import { keepPost, openPost, openProfile, openReplies, postById, withFullText } from "../nav";
@@ -140,9 +141,11 @@ function PostBody(props: { status: Status; scroll: PageScroll }) {
 
   // A comment on the post goes at the top of its comments, which the page then shows.
   const commented = (c: Comment | null) => {
-    full.update((s) => ({ ...s, comments: s.comments + 1 }));
-    if (c) feeds.comments.update((list) => [c, ...list]);
-    open("comments");
+    batch(() => {
+      full.update((s) => ({ ...s, comments: s.comments + 1 }));
+      if (c) feeds.comments.update((list) => [c, ...list]);
+      open("comments");
+    });
   };
 
   return (
@@ -211,20 +214,20 @@ const actionsBottom = () => Math.max(safeArea().bottom - 4, 16);
  * the post's repost and like buttons, the like filled while I like it. The counts are the tabs'.
  */
 function PostActions(props: { status: Status; onComment: () => void }) {
-  const look = glass("control");
+  const look = () => glass("control");
   const like = () => likeState(props.status);
   return (
     <View class="absolute inset-x-4 flex-row items-center gap-2.5" style={{ bottom: actionsBottom() }}>
       <Button
         accessibilityLabel={t("reply.post_placeholder")}
         onPress={props.onComment}
-        class={`h-[50px] flex-1 flex-row items-center gap-2 rounded-full px-[18px] ${GLASS_PRESS} ${look.class}`}
-        style={look.style}
+        class={`h-[50px] flex-1 flex-row items-center gap-2 rounded-full px-[18px] ${GLASS_PRESS} ${look().class}`}
+        style={look().style}
       >
         <Icon name="message-circle" class="size-[18px] tint-ink-2" />
         <Text class="text-body leading-5 text-ink-2">{t("reply.post_placeholder")}</Text>
       </Button>
-      <View class={`h-[50px] flex-row items-center rounded-full px-1 ${look.class}`} style={look.style}>
+      <View class={`h-[50px] flex-row items-center rounded-full px-1 ${look().class}`} style={look().style}>
         <Button
           accessibilityLabel={t("repost.action")}
           onPress={() => openRepostStatus(props.status)}
@@ -245,36 +248,26 @@ function PostActions(props: { status: Status; onComment: () => void }) {
   );
 }
 
+/** Under the post, on a band of the well: each tab's count after its name, when there is one. */
 function Tabs(props: { status: Status; tab: Tab; onTab: (tab: Tab) => void }) {
-  const tabs: { id: Tab; label: () => string; n: () => number; a11y: () => string }[] = [
-    { id: "reposts", label: () => t("post.tab_reposts"), n: () => props.status.reposts, a11y: () => t("post.reposts", { n: count(props.status.reposts) }) },
-    { id: "comments", label: () => t("post.tab_comments"), n: () => props.status.comments, a11y: () => t("post.comments", { n: count(props.status.comments) }) },
-    // The likes as the action bar's like button leaves them.
-    { id: "likes", label: () => t("post.tab_likes"), n: () => likeState(props.status).likes, a11y: () => t("post.likes", { n: count(likeState(props.status).likes) }) },
-  ];
+  const tab = (id: Tab, n: number, a11y: string): TabItem<Tab> => ({
+    id,
+    label: `${t(`post.tab_${id}`)}${n ? ` ${count(n)}` : ""}`,
+    accessibilityLabel: a11y,
+  });
   return (
-    <View class="flex-row items-end gap-7 border-b-[0.5px] border-t-8 border-b-hairline border-t-well px-4">
-      <Each of={tabs} key={(tb) => tb.id}>
-        {(tb) => {
-          const on = () => props.tab === tb().id;
-          return (
-            <Button
-              role="tab"
-              accessibilityLabel={tb().a11y()}
-              selected={on()}
-              onPress={() => props.onTab(tb().id)}
-              class="items-center gap-2 pt-3 active:opacity-60"
-            >
-              <Text class={`text-body leading-5 ${on() ? "font-semibold text-ink" : "text-ink-2"}`}>
-                {tb().label()}
-                {tb().n() ? ` ${count(tb().n())}` : ""}
-              </Text>
-              <View class={`h-[3px] w-6 rounded-full ${on() ? "bg-weibo" : "bg-transparent"}`} />
-            </Button>
-          );
-        }}
-      </Each>
-    </View>
+    <TabBar
+      tabs={[
+        tab("reposts", props.status.reposts, t("post.reposts", { n: count(props.status.reposts) })),
+        tab("comments", props.status.comments, t("post.comments", { n: count(props.status.comments) })),
+        // The likes as the action bar's like button leaves them.
+        tab("likes", likeState(props.status).likes, t("post.likes", { n: count(likeState(props.status).likes) })),
+      ]}
+      value={props.tab}
+      onChange={props.onTab}
+      class="border-t-8 border-b-hairline border-t-well"
+      tabClass="pt-3"
+    />
   );
 }
 

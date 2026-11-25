@@ -1,5 +1,5 @@
 // An account: who they are, how we relate (following, follows me, blocked), and their posts.
-import { List, signal, Text, View } from "nsh";
+import { batch, List, signal, Text, View } from "nsh";
 import { AlertDialog, Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
@@ -14,7 +14,8 @@ import {
   unfollow,
   userPosts,
 } from "../api";
-import { NotSignedIn, signOut } from "../bridge";
+import { NotSignedIn } from "../bridge";
+import { confirmSignOut } from "../components/account";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
 import { createPageScroll, GlassButton, Page } from "../components/Header";
 import { PopMenu } from "../components/PopMenu";
@@ -29,19 +30,6 @@ import { openPeople, openProfileSearch } from "../nav";
 import { loadSaved, save } from "../saved";
 
 type Action = "follow" | "unfollow" | "block" | "unblock";
-
-/** Asks first, then signs out (the timeline's menu and my profile's). */
-export async function confirmSignOut() {
-  const { action } = await AlertDialog.show({
-    title: t("menu.sign_out_title"),
-    description: t("menu.sign_out_description"),
-    actions: [
-      { id: "cancel", label: t("common.cancel"), role: "cancel" },
-      { id: "ok", label: t("menu.sign_out"), role: "destructive" },
-    ],
-  });
-  if (action === "ok") signOut();
-}
 
 const confirmations: Partial<Record<Action, (name: string) => { title: string; description: string; label: string }>> = {
   unfollow: (name) => ({
@@ -78,8 +66,10 @@ function createActions(data: () => ProfileData | null, reload: () => Promise<voi
       });
       if (chosen !== "ok") return;
     }
-    busy.set(action);
-    error.set(null);
+    batch(() => {
+      busy.set(action);
+      error.set(null);
+    });
     try {
       await { follow, unfollow, block, unblock }[action](d.user.id);
       await reload();
@@ -123,9 +113,9 @@ function ActionButton(props: { data: ProfileData; actions: Actions }) {
       >
         <Icon
           name={busy() === "unfollow" ? "user-minus" : following() ? "user-check" : "user-plus"}
-          class={`size-[15px] ${following() ? "tint-ink" : "tint-white"}`}
+          class={`size-[15px] ${following() ? "tint-ink" : "tint-primary-foreground"}`}
         />
-        <Text class={`text-sm leading-[18px] font-semibold ${following() ? "text-ink" : "text-white"}`}>
+        <Text class={`text-sm leading-[18px] font-semibold ${following() ? "text-ink" : "text-primary-foreground"}`}>
           {busy() === "follow"
             ? t("profile.following_busy")
             : busy() === "unfollow"
@@ -279,14 +269,18 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
           ? undefined
           : loadSaved<ProfileData>(`profile:${uid}`).then((s) => {
               if (!s || loaded || data() || !s.data.user?.id) return;
-              savedAt.set(s.at);
-              show(s.data);
+              batch(() => {
+                savedAt.set(s.at);
+                show(s.data);
+              });
             });
         return profile(uid).then(
           (p) => {
             loaded = true;
-            savedAt.set(null);
-            show(p);
+            batch(() => {
+              savedAt.set(null);
+              show(p);
+            });
             save(`profile:${uid}`, { ...p, raw: null }); // The raw answer is for debugging only.
           },
           async (e) => {
@@ -303,55 +297,40 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
   const title = () => data()?.user.name ?? ("screenName" in props ? `@${props.screenName}` : "me" in props ? t("profile.me") : t("profile.title"));
 
   const actions = createActions(data, loadProfile);
-  // The header's menu: block (unblock is a button of its own while blocked); on mine, sign out.
-  const menu = () => {
-    const d = data();
-    if (mine())
-      return (
+  // The header's actions, kept mounted across reloads: before the menu, a search of their posts
+  // (none while blocked: their posts are hidden); the menu blocks them (unblock is a button of its
+  // own while blocked), or on mine, signs out.
+  const searchable = () => !!data() && !blocked();
+  const right = (
+    <View class="flex-row items-center gap-2.5">
+      <If when={searchable() ? data() : undefined}>
+        {(d) => (
+          <GlassButton label={t("search.profile_search", { name: d().user.name })} onPress={() => openProfileSearch(d().user)}>
+            <Icon name="search" class="size-[22px] tint-ink" />
+          </GlassButton>
+        )}
+      </If>
+      <If when={mine() || searchable()}>
         <PopMenu
           trigger={
             <GlassButton label={t("profile.more")}>
               <Icon name="dots" class="size-6 tint-ink" />
             </GlassButton>
           }
-          items={[{ label: t("menu.sign_out"), icon: "logout", danger: true, onSelect: confirmSignOut }]}
+          items={
+            mine()
+              ? [{ label: t("menu.sign_out"), icon: "logout", danger: true, onSelect: confirmSignOut }]
+              : [{ label: t("profile.block"), icon: "ban", danger: true, onSelect: () => actions.run("block") }]
+          }
         />
-      );
-    if (!d || d.block.blocked === true) return undefined;
-    return (
-      <PopMenu
-        trigger={
-          <GlassButton label={t("profile.more")}>
-            <Icon name="dots" class="size-6 tint-ink" />
-          </GlassButton>
-        }
-        items={[{ label: t("profile.block"), icon: "ban", danger: true, onSelect: () => actions.run("block") }]}
-      />
-    );
-  };
-  // Before the menu, a search of their posts (none while blocked: their posts are hidden).
-  const right = () => {
-    const d = data();
-    const search =
-      d && d.block.blocked !== true ? (
-        <GlassButton label={t("search.profile_search", { name: d.user.name })} onPress={() => openProfileSearch(d.user)}>
-          <Icon name="search" class="size-[22px] tint-ink" />
-        </GlassButton>
-      ) : undefined;
-    const m = menu();
-    if (!search) return m;
-    return (
-      <View class="flex-row items-center gap-2.5">
-        {search}
-        {m}
-      </View>
-    );
-  };
+      </If>
+    </View>
+  );
 
   const scroll = createPageScroll();
   return (
     // The name is the header's below: none in the bar.
-    <Page title={title()} hideTitle right={right()} scroll={scroll}>
+    <Page title={title()} hideTitle right={right} scroll={scroll}>
       <List
         {...scroll.list()}
         each={blocked() ? [] : posts.items()}

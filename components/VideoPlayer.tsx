@@ -11,74 +11,35 @@
 // own app does: the app's pages stay upright, so nothing under the player moves. Upright, a drag up
 // or down (outside the controls) closes it.
 //
-// As the image viewer, it is an overlay over the app's pages, not a `Dialog`: a native modal
-// ignores touches while it comes in and goes, so a drag to close right after opening (or a tap on
-// the feed right after closing) was lost. The fades are the app's own and touches work throughout.
-import { cleanup, createAnimatedValue, type JSX, createMotion, effect, Image, safeArea, signal, Text, untracked, Video, type VideoRef, View, windowSize } from "nsh";
+// Its full screen layer, the fades and the drag that closes it, is `MediaOverlay.tsx`'s, as the
+// picture viewer's.
+import { batch, cleanup, type JSX, effect, Image, safeArea, signal, Text, untracked, Video, type VideoRef, View, windowSize } from "nsh";
 import { MenuButton } from "nsh/base";
 import { t } from "nsh/i18n";
-import { BackHandler } from "nsh/mobile";
 import type { Status, Video as VideoData } from "../api";
 import { nav } from "../nav";
 import { isFavorited, toggleFavorite } from "./FavoriteButton";
 import { GlassButton } from "./Header";
 import { Icon } from "./Icon";
+import { createMediaOverlay } from "./MediaOverlay";
 import { MediaMenu, MediaMoreButton } from "./SaveMedia";
+import { Spinner } from "./Spinner";
 
-const shown = signal<{ video: VideoData; status?: Status } | null>(null);
-/** Going away: it fades out letting touches through to the pages under it. */
-const closing = signal(false);
+const { shown, dragY, open, close, endDrag, Overlay } = createMediaOverlay<{ video: VideoData; status?: Status }>();
 /** The player is turned to landscape. */
 const landscape = signal(false);
-/** How far the video is dragged down (or up) to close it. */
-const dragY = createAnimatedValue(0);
-/** The whole player's opacity, 0 to 1, as it comes in and goes. */
-const fade = createAnimatedValue(0);
 
-const FADE_IN_MS = 180;
-const FADE_OUT_MS = 200;
-/** A drag released past this far (counting the fling) closes the player. */
-const CLOSE_DISTANCE = 120;
 /** The controls hide this long after the last touch, while the video plays. */
 const HIDE_CONTROLS_MS = 3000;
 
 export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-/** Opens the player on `video`; `status`, the post it is in, gives the favorite and the caption. */
+/** Opens the player on `video`; `status`, the post it is in, gives the favorite and the caption.
+ * Opened again while the last one fades out, the player remounts with the new video; unmounting
+ * it as it closes stops it. */
 export function openVideo(video: VideoData, status?: Status) {
-  closing.set(false);
   landscape.set(false);
-  dragY.set(0);
-  // Opened again while the last one fades out: the player remounts with the new video.
-  shown.set(null);
-  shown.set({ video, status });
-  fade.timing(1, { duration: FADE_IN_MS });
-}
-
-/** Fades the player out; `away` also carries the video off screen that way (a drag's fling).
- * Unmounting the video at the end stops it. */
-function close(away = 0) {
-  if (!shown() || closing()) return;
-  closing.set(true);
-  if (away) dragY.timing(Math.sign(away) * windowSize().height, { duration: FADE_OUT_MS + 20 });
-  fade.timing(0, { duration: FADE_OUT_MS }).then(({ finished }) => {
-    // Not finished: opened again meanwhile, which stopped this fade.
-    if (finished && closing()) {
-      shown.set(null);
-      closing.set(false);
-    }
-  });
-}
-
-/** Released: past `CLOSE_DISTANCE` the video carries on off screen and the player closes; short of
- * it, it springs back. */
-function endDrag(e: { value?: { y?: number }; velocity: { y: number } }) {
-  const projected = (e.value?.y ?? 0) + e.velocity.y * 0.2;
-  if (Math.abs(projected) < CLOSE_DISTANCE) {
-    dragY.spring(0, { velocity: e.velocity.y });
-    return;
-  }
-  close(projected);
+  open({ video, status });
 }
 
 /** "1:05", "1:02:03". */
@@ -181,25 +142,21 @@ function Player(props: { video: VideoData; status?: Status }) {
   const togglePlay = () => {
     if (ended()) {
       ref?.seek(0);
-      ended.set(false);
-      paused.set(false);
+      batch(() => {
+        ended.set(false);
+        paused.set(false);
+      });
     } else paused.set(!paused());
   };
   const setQuality = (i: number) => {
     if (i === quality()) return;
     // Switched again before the last one loaded: it still goes where the first switch was.
     if (!resumeAt) resumeAt = time();
-    buffering.set(true);
-    quality.set(i);
+    batch(() => {
+      buffering.set(true);
+      quality.set(i);
+    });
   };
-
-  // Android's back button: out of landscape first, then closes it.
-  BackHandler.on("press", () => {
-    if (closing()) return false;
-    if (landscape()) landscape.set(false);
-    else close();
-    return true;
-  });
 
   const W = () => windowSize().width;
   const H = () => windowSize().height;
@@ -227,20 +184,26 @@ function Player(props: { video: VideoData; status?: Status }) {
         audioSession="playback"
         progressUpdateInterval={250}
         onLoad={(e) => {
-          if (e.duration) duration.set(e.duration);
-          error.set(null);
+          batch(() => {
+            if (e.duration) duration.set(e.duration);
+            error.set(null);
+          });
           if (resumeAt) ref?.seek(resumeAt);
           resumeAt = 0;
         }}
-        onProgress={(e) => {
-          time.set(e.currentTime);
-          if (e.duration) duration.set(e.duration);
-        }}
+        onProgress={(e) =>
+          batch(() => {
+            time.set(e.currentTime);
+            if (e.duration) duration.set(e.duration);
+          })
+        }
         onBuffer={(e) => buffering.set(e.isBuffering)}
-        onEnd={() => {
-          ended.set(true);
-          paused.set(true);
-        }}
+        onEnd={() =>
+          batch(() => {
+            ended.set(true);
+            paused.set(true);
+          })
+        }
         onError={(e) => error.set(e.message)}
         class="absolute inset-0"
       />
@@ -264,7 +227,7 @@ function Player(props: { video: VideoData; status?: Status }) {
       </If>
       <If when={buffering() && !error() && !paused()}>
         <View class="pointer-events-none absolute inset-0 items-center justify-center">
-          <Turning />
+          <Spinner class="size-9 border-[3px] border-white/25 border-t-white" />
         </View>
       </If>
       <If when={error()}>
@@ -273,8 +236,9 @@ function Player(props: { video: VideoData; status?: Status }) {
         </View>
       </If>
       <View
-        class={`absolute inset-0 transition-opacity duration-200 ${controls() ? "opacity-100" : "pointer-events-none opacity-0"}`}
-        style={{ pointerEvents: "box-none" }}
+        class={`absolute inset-0 transition-opacity duration-200 ${controls() ? "opacity-100" : "opacity-0"}`}
+        // The style wins over the class: hidden, the bars take no touches (a tap shows them again).
+        style={{ pointerEvents: controls() ? "box-none" : "none" }}
       >
         {/* Shades under the bars, so white reads over a bright frame. */}
         <View class="pointer-events-none absolute inset-x-0 top-0 h-36 bg-linear-to-b from-black/55 to-transparent" />
@@ -338,9 +302,11 @@ function Player(props: { video: VideoData; status?: Status }) {
               }}
               onEnd={(to) => {
                 ref?.seek(to);
-                time.set(to);
-                scrub.set(null);
-                ended.set(false);
+                batch(() => {
+                  time.set(to);
+                  scrub.set(null);
+                  ended.set(false);
+                });
               }}
             />
             <Text class="w-14 text-right text-meta tabular-nums text-white/80">{clock(duration())}</Text>
@@ -401,15 +367,7 @@ function Poster(props: { video: VideoData }) {
   return <Image src={props.video.poster} class="bg-black object-cover" style={{ width: width(), height: height() }} />;
 }
 
-/** The buffering ring. */
-function Turning() {
-  const motion = createMotion();
-  motion.play("spin");
-  return <View style={motion.style} class="size-9 rounded-full border-[3px] border-white/25 border-t-white" />;
-}
-
 export function VideoPlayer() {
-  const height = () => windowSize().height;
   // A page opening under the player (the favorite toast's "View") closes it.
   let routes = nav.routes().length;
   effect(() => {
@@ -418,31 +376,9 @@ export function VideoPlayer() {
     routes = n;
   });
   return (
-    <If when={shown()}>
-      {(v) => (
-        <View
-          role="dialog"
-          class={`absolute inset-0 ${closing() ? "pointer-events-none" : ""}`}
-          style={{ opacity: fade }}
-        >
-          {/* The black behind the video fades as it is dragged away. */}
-          <View
-            class="pointer-events-none absolute inset-0 bg-black"
-            style={{
-              opacity: dragY.interpolate({ inputRange: [-height() / 2, 0, height() / 2], outputRange: [0.3, 1, 0.3] }),
-            }}
-          />
-          <View
-            class="flex-1"
-            style={{
-              translate: [0, dragY],
-              scale: dragY.interpolate({ inputRange: [-height(), 0, height()], outputRange: [0.75, 1, 0.75] }),
-            }}
-          >
-            <Player video={v().video} status={v().status} />
-          </View>
-        </View>
-      )}
-    </If>
+    // Android's back button: out of landscape first, then closes it.
+    <Overlay onBack={() => (landscape() ? landscape.set(false) : close())}>
+      {(v) => <Player video={v().video} status={v().status} />}
+    </Overlay>
   );
 }

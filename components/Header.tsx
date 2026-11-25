@@ -10,6 +10,7 @@
 // every platform.
 import {
   type AnimatedValue,
+  cleanup,
   createAnimatedValue,
   type JSX,
   type ListRef,
@@ -40,13 +41,13 @@ export function GlassButton(props: {
   /** Its glass: the header's (`"control"`, the default), or `"media"` over pictures and video. */
   kind?: GlassKind;
 }) {
-  const look = glass(props.kind ?? "control");
-  const cls = () => `${props.size ?? "size-11"} items-center justify-center rounded-full ${GLASS_PRESS} ${look.class}`;
+  const look = () => glass(props.kind ?? "control");
+  const cls = () => `${props.size ?? "size-11"} items-center justify-center rounded-full ${GLASS_PRESS} ${look().class}`;
   return (
     <If
       when={props.onPress}
       else={
-        <View role="button" accessibilityLabel={props.label} class={cls()} style={look.style}>
+        <View role="button" accessibilityLabel={props.label} class={cls()} style={look().style}>
           {props.children}
         </View>
       }
@@ -56,7 +57,7 @@ export function GlassButton(props: {
         selected={props.selected}
         onPress={props.onPress}
         class={cls()}
-        style={look.style}
+        style={look().style}
       >
         {props.children}
       </Button>
@@ -75,6 +76,9 @@ export function BackButton() {
 /** The bar's height; a large title's row is as tall. */
 export const BAR = 54;
 const LARGE_ROW = 57;
+/** How far the large title follows the system's text size: its 41 points of line (34 at 1.206)
+ * fit the row's 47 above its bottom padding up to this scale. */
+const LARGE_TITLE_MAX_SCALE = 1.14;
 /** How far the edge fades out below the header. */
 const EDGE_FADE = 20;
 /** The room the pull-to-refresh indicator takes under the header while it refreshes. */
@@ -135,6 +139,7 @@ const TOP_BUTTON_REST_MS = 300;
 /** How quickly the top button goes as a scroll starts: out of the way at once. */
 const TOP_BUTTON_HIDE_MS = 140;
 
+/** Call it in a page's body: the page's going away cancels its timer. */
 export function createPageScroll(
   options: { large?: boolean; accessory?: number; refreshing?: () => boolean; refresh?: () => void; news?: News } = {},
 ): PageScroll {
@@ -164,6 +169,8 @@ export function createPageScroll(
       else topShown.spring(1, { stiffness: 320, damping: 28, mass: 1 });
     }, TOP_BUTTON_REST_MS);
   };
+  // Called in a page's body: a page popped while its list rests brings no button back.
+  cleanup(() => clearTimeout(rest));
   const topEvents = options.refresh
     ? { onScrollDragStart: hideTop, onScrollDragEnd: showTopSoon, onMomentumStart: hideTop, onMomentumEnd: showTopSoon }
     : {};
@@ -228,11 +235,12 @@ export function Header(props: { title: string; hideTitle?: boolean; right?: JSX.
 }
 
 /** The timeline's title, large at the left: the first row of its list, which scrolls it away. Its
- * row is as tall as the bar's action beside it. */
+ * row is as tall as the bar's action beside it, and the header's scroll math counts on that
+ * (`LARGE_ROW`), so the title grows with the system's text size only as far as the row holds it. */
 export function LargeTitle(props: { title: string }) {
   return (
     <View class="h-[57px] flex-row items-end pb-2.5 pl-5 pr-4">
-      <Text role="header" class="text-large-title font-bold tracking-tight text-ink">
+      <Text role="header" maxFontSizeMultiplier={LARGE_TITLE_MAX_SCALE} class="text-large-title font-bold tracking-tight text-ink">
         {props.title}
       </Text>
     </View>
@@ -311,7 +319,11 @@ function PullIndicator(props: { scroll: PageScroll; refreshing: () => boolean })
  * the list rests (only fading with reduced motion). */
 function TopButton(props: { scroll: PageScroll }) {
   const top = () => -props.scroll.inset();
-  const away = () => props.scroll.offset.interpolate({ inputRange: [top() + AT_TOP, top() + 48], outputRange: [0, 1] });
+  // The refresh glyph shows at the top and the arrow away from it, each read from the offset once.
+  const fadeWith = (outputRange: [number, number]) =>
+    props.scroll.offset.interpolate({ inputRange: [top() + AT_TOP, top() + 48], outputRange });
+  const refreshOpacity = () => fadeWith([1, 0]);
+  const arrowOpacity = () => fadeWith([0, 1]);
   const shown = props.scroll.topShown;
   const motion = () =>
     reduceMotion()
@@ -335,10 +347,10 @@ function TopButton(props: { scroll: PageScroll }) {
         else={
           <GlassButton label={t("timeline.top")} onPress={() => void props.scroll.toTop()}>
             <View class="size-[22px]">
-              <View class="absolute inset-0" style={{ opacity: away().interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
+              <View class="absolute inset-0" style={{ opacity: refreshOpacity() }}>
                 <Icon name="refresh" class="size-[22px] tint-ink" />
               </View>
-              <View class="absolute inset-0" style={{ opacity: away() }}>
+              <View class="absolute inset-0" style={{ opacity: arrowOpacity() }}>
                 <Icon name="arrow-up" class="size-[22px] tint-ink" />
               </View>
             </View>
@@ -356,14 +368,14 @@ function TopButton(props: { scroll: PageScroll }) {
 /** The capsule counting the new posts: the count in the brand's ink, "new posts" after it ("20+"
  * when more may be past those counted). */
 function NewsButton(props: { count: number; more: boolean; onPress: () => void }) {
-  const look = glass("control");
+  const look = () => glass("control");
   const n = () => `${props.count}${props.more ? "+" : ""}`;
   return (
     <Button
       accessibilityLabel={t("timeline.news_label", { n: n() })}
       onPress={props.onPress}
-      class={`h-11 flex-row items-center gap-1.5 rounded-full px-[18px] ${GLASS_PRESS} ${look.class}`}
-      style={look.style}
+      class={`h-11 flex-row items-center gap-1.5 rounded-full px-[18px] ${GLASS_PRESS} ${look().class}`}
+      style={look().style}
     >
       <Text class="text-body font-bold text-weibo-ink">{n()}</Text>
       <Text class="text-body font-semibold text-ink">

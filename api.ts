@@ -4,9 +4,10 @@
 // answer goes through a `parse...` function (tested against `tests/fixtures/`), which checks it
 // with `drift.ts`: an answer that no longer fits throws `WeiboChanged` instead of showing nothing.
 import { t } from "nsh/i18n";
+import { forgetInMemory } from "./account";
 import { get, getSearchPage, NotSignedIn, post, weibo } from "./bridge";
 import { items, list, one, reportDrift, shapes, WeiboChanged } from "./drift";
-import { learnFromHtml, loadEmoticons } from "./emoticons";
+import { batchEmoticons, learnFromHtml, loadEmoticons } from "./emoticons";
 import { clearSaved, loadSaved, save } from "./saved";
 
 export interface User {
@@ -398,7 +399,7 @@ export function parseTimeline(json: any, gid: string): Page<Status> {
   const raw = list(EP, json, "statuses");
   if (raw.length && json.max_id_str === undefined && json.max_id === undefined) reportDrift(EP, ["max_id_str|max_id"], json);
   const next = raw.length ? cursor(json.max_id_str ?? json.max_id) : null;
-  return { items: items(EP, raw.filter((s) => isFromFollowed(s, gid)), shapes.status).map(toStatus), next };
+  return { items: batchEmoticons(() => items(EP, raw.filter((s) => isFromFollowed(s, gid)), shapes.status).map(toStatus)), next };
 }
 
 /** Whether post id `a` is newer than `b`: Weibo's ids are numbers too long for a JS number, which
@@ -469,7 +470,7 @@ export async function comments(status: Status, maxId?: string): Promise<Page<Com
 /** A page of comments, or of a comment's replies. */
 export function parseComments(json: any): Page<Comment> {
   const EP = "/ajax/statuses/buildComments";
-  return { items: items(EP, list(EP, json, "data"), shapes.comment).map(toComment), next: cursor(json.max_id) };
+  return { items: batchEmoticons(() => items(EP, list(EP, json, "data"), shapes.comment).map(toComment)), next: cursor(json.max_id) };
 }
 
 /** A post's reposts, newest first, each a post (its `retweeted` the post); pages count from 1. */
@@ -483,7 +484,7 @@ export function parseReposts(json: any, page: number): Page<Status, number> {
   // `max_page` counts the pages. Without it, read on until a page is empty.
   if (raw.length && json.max_page === undefined) reportDrift(EP, ["max_page"], json);
   const more = json.max_page === undefined ? raw.length > 0 : page < num(json.max_page);
-  return { items: items(EP, raw, shapes.status).map(toStatus), next: raw.length && more ? page + 1 : null };
+  return { items: batchEmoticons(() => items(EP, raw, shapes.status).map(toStatus)), next: raw.length && more ? page + 1 : null };
 }
 
 /** Who liked a post, latest first; pages count from 1. */
@@ -694,12 +695,14 @@ export function parseUserPosts(json: any, page: number, now = Date.now()): Page<
   const EP = "/ajax/statuses/mymblog";
   const raw = list(EP, json, "data.list");
   return {
-    items: items(EP, raw, shapes.status).map((s: any) => {
-      const status = toStatus(s);
-      const activity = toActivity(s, now);
-      if (activity) return { ...status, activity };
-      return isPinned(s) ? { ...status, pinned: true } : status;
-    }),
+    items: batchEmoticons(() =>
+      items(EP, raw, shapes.status).map((s: any) => {
+        const status = toStatus(s);
+        const activity = toActivity(s, now);
+        if (activity) return { ...status, activity };
+        return isPinned(s) ? { ...status, pinned: true } : status;
+      }),
+    ),
     next: raw.length ? page + 1 : null,
   };
 }
@@ -720,7 +723,7 @@ export function parseUserPostSearch(json: any, page: number): Page<Status, numbe
   const EP = "/ajax/statuses/searchProfile";
   const raw = list(EP, json, "data.list");
   // Read on until a page is empty.
-  return { items: items(EP, raw, shapes.status).map(toStatus), next: raw.length ? page + 1 : null };
+  return { items: batchEmoticons(() => items(EP, raw, shapes.status).map(toStatus)), next: raw.length ? page + 1 : null };
 }
 
 /** A post the account pinned to the top of their profile: `isTop` (1), or its `title` "置顶". */
@@ -799,7 +802,7 @@ export async function editHistory(mid: string, page = 1): Promise<Page<Version, 
 export function parseEditHistory(json: any, mid: string, page: number): Page<Version, number> {
   const EP = "/ajax/statuses/editHistory";
   const raw = list(EP, json, "statuses");
-  const versions = items(EP, raw, shapes.version).map((v: any): Version => {
+  const versions = batchEmoticons(() => items(EP, raw, shapes.version).map((v: any): Version => {
     const s = toStatus(v);
     // `text_raw` is the whole text today, long or not; `longText.content` too, in case it is cut.
     const long = decodeEntities(str(v?.longText?.content));
@@ -811,7 +814,7 @@ export function parseEditHistory(json: any, mid: string, page: number): Page<Ver
       video: s.video,
       links: s.links,
     };
-  });
+  }));
   // `total` counts every version, the original too. Without it, read on until a page is empty.
   if (raw.length && json.total === undefined) reportDrift(EP, ["total"], json);
   const more = json.total === undefined ? raw.length > 0 : num(json.total) > page * raw.length;
@@ -987,7 +990,7 @@ export function parseFavorites(json: any, page: number): Page<Status, number> {
   // No total to go by (`count` may be the page's size): read on until a page is empty.
   const more = json?.total_number === undefined ? raw.length > 0 : num(json.total_number) > page * raw.length;
   // A saved post deleted since comes without its author: dropped (and noted) as a post that fits no more.
-  const posts = items(EP, raw, shapes.status).map((s): Status => ({ ...toStatus(s), favorited: true }));
+  const posts = batchEmoticons(() => items(EP, raw, shapes.status).map((s): Status => ({ ...toStatus(s), favorited: true })));
   return { items: posts, next: raw.length && more ? page + 1 : null };
 }
 
@@ -1039,9 +1042,11 @@ export function parsePeople(json: any, page: number): Page<User, number> {
   return { items: items(EP, raw, shapes.user).map(toUser), next: raw.length && num(json.next_cursor) ? page + 1 : null };
 }
 
-/** Forgets the signed-in account (signing out): what was read of it, and all that was saved. */
+/** Forgets the signed-in account (signing out): what was read of it, what the app holds of it in
+ * memory (`account.ts`), and all that was saved. */
 export function forgetAccount(): Promise<void> {
   groupList = undefined;
   uids.clear();
+  forgetInMemory();
   return clearSaved();
 }

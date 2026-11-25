@@ -15,7 +15,7 @@ export interface PopMenuItem {
 
 export function PopMenu(props: { trigger: JSX.Element; items: PopMenuItem[] }) {
   const open = signal(false);
-  const look = glass("menu");
+  const look = () => glass("menu");
   return (
     <Popover
       open={open()}
@@ -25,8 +25,8 @@ export function PopMenu(props: { trigger: JSX.Element; items: PopMenuItem[] }) {
       offset={8}
       margin={16}
       trigger={props.trigger}
-      popupClass={`w-[232px] rounded-[24px] p-1.5 ${look.class} transition duration-150`}
-      popupStyle={look.style}
+      popupClass={`w-[232px] rounded-[24px] p-1.5 ${look().class} transition duration-150`}
+      popupStyle={look().style}
       popupStartingClass="opacity-0 scale-95"
       popupEndingClass="opacity-0 scale-95"
     >

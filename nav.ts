@@ -2,7 +2,9 @@
 // already has instead of fetching it again.
 import { signal } from "nsh";
 import { createNavStack } from "nsh/base";
+import { onForgetAccount } from "./account";
 import { type Comment, longText, type Status, type User } from "./api";
+import { BoundedMap } from "./bounded";
 
 export type Route =
   | { name: "timeline" }
@@ -38,9 +40,13 @@ export type Route =
 
 export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
-const posts = new Map<string, Status>();
+/** How many posts, long texts and comments are kept for the pages: far more than a stack of pages
+ * open at once needs, and bounded so a long session doesn't hold every one it ever passed. */
+export const KEPT = 200;
 
-const fullTexts = new Map<string, Promise<Awaited<ReturnType<typeof longText>>>>();
+const posts = new BoundedMap<string, Status>(KEPT);
+
+const fullTexts = new BoundedMap<string, Promise<Awaited<ReturnType<typeof longText>>>>(KEPT);
 
 /**
  * A long post (`isLongText`, its `text` cut) with its whole text and that text's links, asked
@@ -107,7 +113,7 @@ export const keepPost = (id: string, status: Status) => {
   posts.set(status.id, status);
 };
 
-const commentsById = new Map<string, Comment>();
+const commentsById = new BoundedMap<string, Comment>(KEPT);
 
 /** The thread of a comment: the comment and all its replies. */
 export function openReplies(status: Status, comment: Comment) {
@@ -117,6 +123,13 @@ export function openReplies(status: Status, comment: Comment) {
 }
 
 export const commentById = (id: string) => commentsById.get(id);
+
+// The posts and comments passed along were read as the account that is going.
+onForgetAccount(() => {
+  posts.clear();
+  fullTexts.clear();
+  commentsById.clear();
+});
 
 /** The versions of an edited post. */
 export function openEdits(status: Status) {

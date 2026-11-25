@@ -7,12 +7,13 @@
 // Save and share differ: save puts the file into Photos (iOS), share opens the system's share sheet
 // (WeChat, X, Messages...). Android has no save of its own (it could only open the share sheet as
 // well), so there the menu only shares.
-import { createMotion, type JSX, safeArea, signal, Text, View, type ViewRef, WebView, type WebViewRef } from "nsh";
+import { batch, type JSX, safeArea, signal, Text, View, type ViewRef, WebView, type WebViewRef } from "nsh";
 import { ContextMenu, MenuButton, type MenuButtonItem } from "nsh/base";
 import { t } from "nsh/i18n";
 import { type Anchor, CAN_SAVE, downloader, hostPage, job, prefetch, saveMedia, shareMedia } from "../download";
 import { GLASS_PRESS, glass } from "./Glass";
 import { Icon } from "./Icon";
+import { Spinner } from "./Spinner";
 
 type Kind = "image" | "video";
 
@@ -39,8 +40,10 @@ export async function save(url: string, kind: Kind, share = false, anchor?: Anch
   if (!share) say(t("save.saving"), "busy");
   // The share sheet opening ends the wait: no turning button or "Saving…" over it.
   const onSheet = () => {
-    if (saving() === mine) saving.set(null);
-    if (toast()?.tone === "busy") toast.set(null);
+    batch(() => {
+      if (saving() === mine) saving.set(null);
+      if (toast()?.tone === "busy") toast.set(null);
+    });
   };
   try {
     const { outcome } = await (share ? shareMedia(url, kind, anchor, onSheet) : saveMedia(url, kind));
@@ -93,7 +96,7 @@ export function MediaMenu(props: { url: string; kind: Kind; children: JSX.Elemen
 /** The "⋯" glass button over a viewer: the same menu, from a tap. Turns while a save runs. */
 export function MediaMoreButton(props: { url: string; kind: Kind }) {
   let view: ViewRef | undefined;
-  const look = glass("media");
+  const look = () => glass("media");
   return (
     <View ref={(r) => (view = r as ViewRef)}>
       <MenuButton
@@ -101,22 +104,19 @@ export function MediaMoreButton(props: { url: string; kind: Kind }) {
         items={items()}
         disabled={!!saving()}
         onSelect={(e) => choose(e.id, props.url, props.kind, () => view)}
-        class={`size-11 items-center justify-center rounded-full ${GLASS_PRESS} ${look.class}`}
-        style={look.style}
+        class={`size-11 items-center justify-center rounded-full ${GLASS_PRESS} ${look().class}`}
+        style={look().style}
       >
         <If when={saving()} else={<Icon name="dots" class="size-6 tint-white" />}>
-          <Turning />
+          <Spinner class={TURNING} />
         </If>
       </MenuButton>
     </View>
   );
 }
 
-function Turning() {
-  const motion = createMotion();
-  motion.play("spin");
-  return <View style={motion.style} class="size-5 rounded-full border-2 border-white/30 border-t-white" />;
-}
+/** The app's spinner in white, for the glass of the viewers and the toast. */
+const TURNING = "size-5 border-white/30 border-t-white";
 
 /** The toast: over everything, the viewers included. One for the app. */
 export function SaveToast() {
@@ -137,7 +137,7 @@ export function SaveToast() {
               />
             }
           >
-            <Turning />
+            <Spinner class={TURNING} />
           </If>
           <Text class="flex-1 text-body leading-5 font-medium text-white">{m().text}</Text>
         </View>

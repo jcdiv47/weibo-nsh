@@ -1,9 +1,9 @@
-//! The app's own Rust (an nshm in `ext/`, `nsh.json` `"dependencies"`): what TSX imports from
+//! The app's own Rust (a crate in `ext/`, named by `nsh.json`'s `"rust"`): what TSX imports from
 //! `weibo-media`. `PhotoLibrary.save` puts a picture or video the app downloaded into the user's
 //! photo library, so "Save to Photos" saves rather than opening the share sheet.
 //!
 //! iOS only, with the Photos framework: it asks for the add-only level of access, which can add
-//! but never read (`NSPhotoLibraryAddUsageDescription`, in the app's `nsh.json`). Elsewhere
+//! but never read (`NSPhotoLibraryAddUsageDescription`, in this crate's `Cargo.toml`). Elsewhere
 //! `available()` is false and the app saves another way (the desktops' Downloads folder) or shares.
 
 use nsh_core::prelude::*;

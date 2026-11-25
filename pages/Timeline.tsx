@@ -4,6 +4,7 @@
 import { Image, List, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
 import { friendsTimeline, myUid, newerPosts, profile, type User } from "../api";
+import { confirmSignOut } from "../components/account";
 import { FeedFooter } from "../components/FeedFooter";
 import { createPageScroll, GlassButton, LargeTitle, Page } from "../components/Header";
 import { PopMenu } from "../components/PopMenu";
@@ -13,7 +14,6 @@ import { createFeed } from "../feed";
 import { Icon } from "../components/Icon";
 import { nav, openFavorites, openMe, openSearch } from "../nav";
 import { createNews, mayCheck } from "../news";
-import { confirmSignOut } from "./Profile";
 
 // My picture in the header (a "我" until it loads): opens the menu.
 function MeMenu() {
@@ -26,7 +26,7 @@ function MeMenu() {
       trigger={
         <GlassButton label={t("profile.me")} size="size-10">
           <View class="size-8 items-center justify-center overflow-hidden rounded-full bg-weibo">
-            <If when={me()?.avatar} else={<Text class="text-sm font-semibold text-white">{t("profile.me")}</Text>}>
+            <If when={me()?.avatar} else={<Text class="text-sm font-semibold text-primary-foreground">{t("profile.me")}</Text>}>
               {(src) => <Image src={src()} class="size-full object-cover" />}
             </If>
           </View>

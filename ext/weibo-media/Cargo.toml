@@ -20,7 +20,8 @@ objc2 = "0.6.5"
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSBundle", "NSError", "NSString", "NSURL"] }
 
 # Adding to Photos asks the user, which iOS allows only with this description (without it the
-# system ends the app): `nsh` adds it to the packages and to the development hosts.
+# system ends the app): `nsh` adds it to the packages and to the development hosts. This is the
+# app's one declaration of it; `nsh.json` does not repeat it.
 [package.metadata.nsh.ios.infoPlist]
 NSPhotoLibraryAddUsageDescription = "Weibo saves the pictures and videos you choose to your photo library."
 

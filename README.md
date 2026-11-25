@@ -82,7 +82,7 @@ nsh package . --target android
 On first start, sign in on Weibo's page; once authenticated, the WebView hides and your Following timeline loads. Session data persists in the platform WebView store.
 
 > [!NOTE]
-> On iOS, packaged builds offer **Save Image / Save Video** directly to Photos via `NSPhotoLibraryAddUsageDescription` in [`nsh.json`](nsh.json). The development host (`nsh run`) does not carry this key, so its share sheet shows **Save to Files** and installed apps.
+> On iOS, **Save to Photos** puts pictures and videos straight into the photo library (the app's own Rust, [`ext/weibo-media`](ext/weibo-media)). Its `NSPhotoLibraryAddUsageDescription` is declared in that crate's [`Cargo.toml`](ext/weibo-media/Cargo.toml), which `nsh` adds to packaged builds and to the development host alike.
 
 ## Platform Support
 
