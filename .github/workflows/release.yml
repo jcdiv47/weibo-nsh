@@ -67,3 +67,142 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" Weibo-*.apk --clobber
+
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Check signing secrets
+        id: secrets
+        shell: bash
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          APP_STORE_APP_ID: ${{ secrets.APP_STORE_APP_ID }}
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_PRIVATE_KEY_BASE64 }}
+        run: |
+          if [ -n "$IOS_CERTIFICATE_BASE64" ] && [ -n "$IOS_PROVISIONING_PROFILE_BASE64" ]; then
+            echo "can_sign=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::IOS_CERTIFICATE_BASE64 or IOS_PROVISIONING_PROFILE_BASE64 is not set; skipping iOS release build"
+            echo "can_sign=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$APP_STORE_APP_ID" ] && [ -n "$APP_STORE_ISSUER_ID" ] && [ -n "$APP_STORE_KEY_ID" ] && [ -n "$APP_STORE_PRIVATE_KEY_BASE64" ]; then
+            echo "can_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::App Store Connect API secrets are incomplete; iOS build will be packaged but not uploaded to TestFlight"
+            echo "can_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: ./.github/actions/setup-nsh
+        if: steps.secrets.outputs.can_sign == 'true'
+
+      - name: Pin nsh and add iOS Rust target
+        if: steps.secrets.outputs.can_sign == 'true'
+        run: |
+          scripts/pin-nsh.sh
+          rustup target add aarch64-apple-ios
+
+      - name: Version
+        id: version
+        if: steps.secrets.outputs.can_sign == 'true'
+        shell: bash
+        run: |
+          version="${TAG#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag $TAG is not a version like 1.2.3"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Import signing certificate and profile
+        id: signing
+        if: steps.secrets.outputs.can_sign == 'true'
+        shell: bash
+        env:
+          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_SIGN_IDENTITY: ${{ secrets.IOS_SIGN_IDENTITY }}
+        run: |
+          keychain="$RUNNER_TEMP/build.keychain-db"
+          keychain_pass="$(openssl rand -base64 24)"
+          cert_path="$RUNNER_TEMP/dist.p12"
+          profile_path="$RUNNER_TEMP/appstore.mobileprovision"
+
+          echo "$IOS_CERTIFICATE_BASE64" | base64 --decode > "$cert_path"
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profile_path"
+
+          security create-keychain -p "$keychain_pass" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_pass" "$keychain"
+          security import "$cert_path" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_pass" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+
+          identity="$IOS_SIGN_IDENTITY"
+          if [ -z "$identity" ]; then
+            identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(.*\)".*/\1/p' | head -1)"
+          fi
+          [ -n "$identity" ] || { echo "::error::No code signing identity found in imported certificate"; exit 1; }
+
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+          echo "profile=$profile_path" >> "$GITHUB_OUTPUT"
+
+      - name: Package iOS
+        id: package
+        if: steps.secrets.outputs.can_sign == 'true'
+        shell: bash
+        env:
+          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+        run: |
+          extra=()
+          if [ -n "$IOS_BUNDLE_ID" ]; then
+            extra+=(--id "$IOS_BUNDLE_ID")
+          fi
+          nsh package . --target ios \
+            "${extra[@]}" \
+            --sign "${{ steps.signing.outputs.identity }}" \
+            --profile "${{ steps.signing.outputs.profile }}" \
+            --app-version "${{ steps.version.outputs.version }}" \
+            --build "${{ github.run_number }}" \
+            -o out
+          ipa="$(find out -name '*.ipa' | head -1)"
+          [ -n "$ipa" ] || { echo "::error::No .ipa produced by nsh package"; exit 1; }
+          echo "ipa=$ipa" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to TestFlight
+        if: steps.secrets.outputs.can_sign == 'true' && steps.secrets.outputs.can_publish == 'true'
+        shell: bash
+        env:
+          APP_STORE_APP_ID: ${{ secrets.APP_STORE_APP_ID }}
+          APP_STORE_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+          APP_STORE_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_PRIVATE_KEY_BASE64: ${{ secrets.APP_STORE_PRIVATE_KEY_BASE64 }}
+          IOS_BETA_GROUP: ${{ secrets.IOS_BETA_GROUP }}
+        run: |
+          key_path="$RUNNER_TEMP/AuthKey.p8"
+          echo "$APP_STORE_PRIVATE_KEY_BASE64" | base64 --decode > "$key_path"
+          chmod 600 "$key_path"
+
+          extra=()
+          if [ -n "$IOS_BETA_GROUP" ]; then
+            extra+=(--beta-group "$IOS_BETA_GROUP")
+          fi
+
+          nsh publish ios "${{ steps.package.outputs.ipa }}" \
+            --app-id "$APP_STORE_APP_ID" \
+            --issuer-id "$APP_STORE_ISSUER_ID" \
+            --key-id "$APP_STORE_KEY_ID" \
+            --private-key "$key_path" \
+            --testflight-only \
+            "${extra[@]}"
+
+      - name: Clean up signing files
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/build.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/dist.p12" "$RUNNER_TEMP/appstore.mobileprovision" "$RUNNER_TEMP/AuthKey.p8"
