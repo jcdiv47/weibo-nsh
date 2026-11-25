@@ -7,7 +7,7 @@
 // Save and share differ: save puts the file into Photos (iOS), share opens the system's share sheet
 // (WeChat, X, Messages...). Android has no save of its own (it could only open the share sheet as
 // well), so there the menu only shares.
-import { createMotion, type JSX, safeArea, signal, Text, View, type ViewRef, WebView, type WebViewRef } from "nsh";
+import { batch, createMotion, type JSX, safeArea, signal, Text, View, type ViewRef, WebView, type WebViewRef } from "nsh";
 import { ContextMenu, MenuButton, type MenuButtonItem } from "nsh/base";
 import { t } from "nsh/i18n";
 import { type Anchor, CAN_SAVE, downloader, hostPage, job, prefetch, saveMedia, shareMedia } from "../download";
@@ -39,8 +39,10 @@ export async function save(url: string, kind: Kind, share = false, anchor?: Anch
   if (!share) say(t("save.saving"), "busy");
   // The share sheet opening ends the wait: no turning button or "Saving…" over it.
   const onSheet = () => {
-    if (saving() === mine) saving.set(null);
-    if (toast()?.tone === "busy") toast.set(null);
+    batch(() => {
+      if (saving() === mine) saving.set(null);
+      if (toast()?.tone === "busy") toast.set(null);
+    });
   };
   try {
     const { outcome } = await (share ? shareMedia(url, kind, anchor, onSheet) : saveMedia(url, kind));

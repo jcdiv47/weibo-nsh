@@ -6,7 +6,7 @@
 // It is an overlay over the app's pages, not a `Dialog`: a native modal ignores touches while it
 // comes in and goes, so a drag to close right after opening (or a tap on the feed right after
 // closing) was lost. Here the fades are the app's own and touches work throughout them.
-import { cleanup, createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
+import { batch, cleanup, createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
 import { BackHandler } from "nsh/mobile";
 import type { Status } from "../api";
 import { glass } from "./Glass";
@@ -48,8 +48,10 @@ function close(away = 0) {
   fade.timing(0, { duration: FADE_OUT_MS }).then(({ finished }) => {
     // Not finished: opened again meanwhile, which stopped this fade.
     if (finished && closing()) {
-      shown.set(null);
-      closing.set(false);
+      batch(() => {
+        shown.set(null);
+        closing.set(false);
+      });
     }
   });
 }
@@ -105,8 +107,12 @@ function ZoomPage(props: { src: string }) {
       bounces={zoomedIn()}
       onScroll={(e) => {
         zoom = e.zoomScale;
-        zoomedIn.set(zoom > 1.01);
-        zoomed.set(zoomedIn());
+        // Read here, not back from the signal: a batch's writes apply at its end.
+        const z = zoom > 1.01;
+        batch(() => {
+          zoomedIn.set(z);
+          zoomed.set(z);
+        });
       }}
       style={{ width: windowSize().width, height: windowSize().height }}
     >
@@ -173,10 +179,12 @@ export function ImageViewer() {
                 pagingEnabled
                 scrollbar={false}
                 contentOffset={{ x: v().index * windowSize().width, y: 0 }}
-                onMomentumEnd={(e) => {
-                  page.set(Math.round(e.offset.x / Math.max(1, windowSize().width)));
-                  zoomed.set(false);
-                }}
+                onMomentumEnd={(e) =>
+                  batch(() => {
+                    page.set(Math.round(e.offset.x / Math.max(1, windowSize().width)));
+                    zoomed.set(false);
+                  })
+                }
                 class="flex-1"
               >
                 <Each of={v().pics} key="index">

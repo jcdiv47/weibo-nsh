@@ -67,30 +67,29 @@ const rows = <T,>(list: T[], n: number) =>
  */
 export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
   const shown = () => props.pics.slice(0, 9);
-  const pic = (p: Pic, i: number, cls: string) => (
-    <View
-      role="button"
-      accessibilityLabel={t("post.picture", { i: i + 1, n: props.pics.length })}
-      onPress={() => openViewer(props.pics, i)}
-      class={`${cls} overflow-hidden rounded-pic bg-well active:opacity-80`}
-    >
-      <Image src={p.thumb} class="size-full object-cover" />
-    </View>
-  );
+  // Rows and tiles are kept by place: a recycled card showing other pictures sets their sources
+  // in place instead of making its tiles again.
   return (
     <If when={props.pics.length}>
       <If
         when={!props.small && props.pics.length > 1}
         else={
           <View class="flex-row flex-wrap gap-1">
-            <Each of={shown()}>
-              {(p, i) => pic(p(), i(), props.small ? (props.pics.length === 1 ? "size-32" : "size-24") : "size-56")}
+            <Each of={shown()} key="index">
+              {(p, i) => (
+                <PicTile
+                  pic={p()}
+                  index={i()}
+                  pics={props.pics}
+                  class={props.small ? (props.pics.length === 1 ? "size-32" : "size-24") : "size-56"}
+                />
+              )}
             </Each>
           </View>
         }
       >
         <View class="gap-1">
-          <Each of={rows(shown(), 3)}>
+          <Each of={rows(shown(), 3)} key="index">
             {(row, r) => (
               <View class="flex-row gap-1">
                 {/* The cell takes a third of the row, the picture in it its width and as much
@@ -98,7 +97,9 @@ export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
                 <Each of={[0, 1, 2]}>
                   {(c) => (
                     <View class="flex-1">
-                      <If when={row()[c()]}>{(p) => pic(p(), r() * 3 + c(), "aspect-square w-full")}</If>
+                      <If when={row()[c()]}>
+                        {(p) => <PicTile pic={p()} index={r() * 3 + c()} pics={props.pics} class="aspect-square w-full" />}
+                      </If>
                     </View>
                   )}
                 </Each>
@@ -108,6 +109,20 @@ export function Pictures(props: { pics: Status["pics"]; small?: boolean }) {
         </View>
       </If>
     </If>
+  );
+}
+
+/** One picture of a post's, which opens the viewer at it. */
+function PicTile(props: { pic: Pic; index: number; pics: Status["pics"]; class: string }) {
+  return (
+    <View
+      role="button"
+      accessibilityLabel={t("post.picture", { i: props.index + 1, n: props.pics.length })}
+      onPress={() => openViewer(props.pics, props.index)}
+      class={`${props.class} overflow-hidden rounded-pic bg-well active:opacity-80`}
+    >
+      <Image src={props.pic.thumb} class="size-full object-cover" />
+    </View>
   );
 }
 

@@ -1,6 +1,6 @@
 // An edited post's versions, newest first, as weibo.com's "编辑记录" lists them. Each version
 // shows what changed from the one before it: added text marked, removed text struck through.
-import { List, signal, Text, View } from "nsh";
+import { computed, List, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { editHistory, type Version } from "../api";
@@ -90,8 +90,7 @@ export function Edits(props: { id: string }) {
         }
         class="flex-1"
       >
-        {(v) => {
-          const i = () => feed.items().indexOf(v());
+        {(v, i) => {
           // The version this one replaced: the next in the list (older), once loaded.
           const before = () => (changes() ? feed.items()[i() + 1] : undefined);
           return (
@@ -116,9 +115,11 @@ export function Edits(props: { id: string }) {
 }
 
 function Changes(props: { before: string; after: string }) {
+  // Worked out again only when either text changes, not each time the row draws.
+  const parts = computed(() => diff(props.before, props.after));
   return (
     <Text class={TEXT_CLASS}>
-      {diff(props.before, props.after).map((p) =>
+      {parts().map((p) =>
         p.kind === "same" ? (
           p.text
         ) : (

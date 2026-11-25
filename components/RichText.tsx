@@ -65,8 +65,9 @@ const EMOTICON = /\[[^\[\]\n]+\]/g;
 /** Plain text with its known emoticon codes as their pictures. */
 function Plain(props: { text: string }) {
   const parts = () => {
-    const known = emoticons();
+    // Text with no code needn't follow the table: it would draw again whenever any post teaches one.
     if (!props.text.includes("[")) return [props.text];
+    const known = emoticons();
     const out: (string | { code: string; src: string })[] = [];
     let last = 0;
     for (const m of props.text.matchAll(EMOTICON)) {

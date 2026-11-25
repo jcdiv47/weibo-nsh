@@ -5,7 +5,7 @@
 //
 // Requests run through `WebViewRef.evaluate`, which resolves the page's Promise and decodes its
 // JSON natively on both iOS and Android.
-import { signal, type WebViewRef } from "nsh";
+import { batch, signal, type WebViewRef } from "nsh";
 
 export const WEIBO_ORIGIN = "https://weibo.com";
 export const LOGIN_URL =
@@ -228,8 +228,10 @@ export function signOutLoaded(url: string | null) {
 function signedOutNow() {
   if (!signingOut()) return;
   clearTimeout(signOutTimer);
-  signingOut.set(false);
-  session.set("login");
+  batch(() => {
+    signingOut.set(false);
+    session.set("login");
+  });
 }
 
 const signedOut = (answer: PageAnswer) =>

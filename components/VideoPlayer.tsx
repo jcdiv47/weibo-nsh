@@ -14,7 +14,7 @@
 // As the image viewer, it is an overlay over the app's pages, not a `Dialog`: a native modal
 // ignores touches while it comes in and goes, so a drag to close right after opening (or a tap on
 // the feed right after closing) was lost. The fades are the app's own and touches work throughout.
-import { cleanup, createAnimatedValue, type JSX, createMotion, effect, Image, safeArea, signal, Text, untracked, Video, type VideoRef, View, windowSize } from "nsh";
+import { batch, cleanup, createAnimatedValue, type JSX, createMotion, effect, Image, safeArea, signal, Text, untracked, Video, type VideoRef, View, windowSize } from "nsh";
 import { MenuButton } from "nsh/base";
 import { t } from "nsh/i18n";
 import { BackHandler } from "nsh/mobile";
@@ -64,8 +64,10 @@ function close(away = 0) {
   fade.timing(0, { duration: FADE_OUT_MS }).then(({ finished }) => {
     // Not finished: opened again meanwhile, which stopped this fade.
     if (finished && closing()) {
-      shown.set(null);
-      closing.set(false);
+      batch(() => {
+        shown.set(null);
+        closing.set(false);
+      });
     }
   });
 }
@@ -181,16 +183,20 @@ function Player(props: { video: VideoData; status?: Status }) {
   const togglePlay = () => {
     if (ended()) {
       ref?.seek(0);
-      ended.set(false);
-      paused.set(false);
+      batch(() => {
+        ended.set(false);
+        paused.set(false);
+      });
     } else paused.set(!paused());
   };
   const setQuality = (i: number) => {
     if (i === quality()) return;
     // Switched again before the last one loaded: it still goes where the first switch was.
     if (!resumeAt) resumeAt = time();
-    buffering.set(true);
-    quality.set(i);
+    batch(() => {
+      buffering.set(true);
+      quality.set(i);
+    });
   };
 
   // Android's back button: out of landscape first, then closes it.
@@ -227,20 +233,26 @@ function Player(props: { video: VideoData; status?: Status }) {
         audioSession="playback"
         progressUpdateInterval={250}
         onLoad={(e) => {
-          if (e.duration) duration.set(e.duration);
-          error.set(null);
+          batch(() => {
+            if (e.duration) duration.set(e.duration);
+            error.set(null);
+          });
           if (resumeAt) ref?.seek(resumeAt);
           resumeAt = 0;
         }}
-        onProgress={(e) => {
-          time.set(e.currentTime);
-          if (e.duration) duration.set(e.duration);
-        }}
+        onProgress={(e) =>
+          batch(() => {
+            time.set(e.currentTime);
+            if (e.duration) duration.set(e.duration);
+          })
+        }
         onBuffer={(e) => buffering.set(e.isBuffering)}
-        onEnd={() => {
-          ended.set(true);
-          paused.set(true);
-        }}
+        onEnd={() =>
+          batch(() => {
+            ended.set(true);
+            paused.set(true);
+          })
+        }
         onError={(e) => error.set(e.message)}
         class="absolute inset-0"
       />
@@ -339,9 +351,11 @@ function Player(props: { video: VideoData; status?: Status }) {
               }}
               onEnd={(to) => {
                 ref?.seek(to);
-                time.set(to);
-                scrub.set(null);
-                ended.set(false);
+                batch(() => {
+                  time.set(to);
+                  scrub.set(null);
+                  ended.set(false);
+                });
               }}
             />
             <Text class="w-14 text-right text-meta tabular-nums text-white/80">{clock(duration())}</Text>

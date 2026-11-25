@@ -2,7 +2,7 @@
 // under it until something is typed, then what Weibo suggests for it (accounts by that name,
 // searches that start so). A search opens what it finds over this page: posts and accounts, under
 // two tabs; its field brings back this page to change it.
-import { effect, type InputRef, type JSX, List, signal, Text, View } from "nsh";
+import { batch, effect, type InputRef, type JSX, List, signal, Text, View } from "nsh";
 import { Button, Input } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
@@ -143,8 +143,10 @@ export function Search() {
   const hotError = signal<string | null>(null);
   const loadHot = () => {
     if (hotLoading()) return;
-    hotLoading.set(true);
-    hotError.set(null);
+    batch(() => {
+      hotLoading.set(true);
+      hotError.set(null);
+    });
     hotSearches()
       .then((words) => hot.set(words))
       .catch((e) => {

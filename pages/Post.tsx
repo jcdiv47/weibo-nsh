@@ -2,7 +2,7 @@
 // it, one on its replies opens its thread. A bar floats at the bottom, in glass: a field that
 // comments on the post, and buttons that repost and like it.
 // A post the app has not got (one a "微博正文" link points at) loads by its id first.
-import { computed, List, safeArea, signal, Text, View } from "nsh";
+import { batch, computed, List, safeArea, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { NotSignedIn } from "../bridge";
@@ -140,9 +140,11 @@ function PostBody(props: { status: Status; scroll: PageScroll }) {
 
   // A comment on the post goes at the top of its comments, which the page then shows.
   const commented = (c: Comment | null) => {
-    full.update((s) => ({ ...s, comments: s.comments + 1 }));
-    if (c) feeds.comments.update((list) => [c, ...list]);
-    open("comments");
+    batch(() => {
+      full.update((s) => ({ ...s, comments: s.comments + 1 }));
+      if (c) feeds.comments.update((list) => [c, ...list]);
+      open("comments");
+    });
   };
 
   return (

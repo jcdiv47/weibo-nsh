@@ -315,7 +315,11 @@ function PullIndicator(props: { scroll: PageScroll; refreshing: () => boolean })
  * the list rests (only fading with reduced motion). */
 function TopButton(props: { scroll: PageScroll }) {
   const top = () => -props.scroll.inset();
-  const away = () => props.scroll.offset.interpolate({ inputRange: [top() + AT_TOP, top() + 48], outputRange: [0, 1] });
+  // The refresh glyph shows at the top and the arrow away from it, each read from the offset once.
+  const fadeWith = (outputRange: [number, number]) =>
+    props.scroll.offset.interpolate({ inputRange: [top() + AT_TOP, top() + 48], outputRange });
+  const refreshOpacity = () => fadeWith([1, 0]);
+  const arrowOpacity = () => fadeWith([0, 1]);
   const shown = props.scroll.topShown;
   const motion = () =>
     reduceMotion()
@@ -339,10 +343,10 @@ function TopButton(props: { scroll: PageScroll }) {
         else={
           <GlassButton label={t("timeline.top")} onPress={() => void props.scroll.toTop()}>
             <View class="size-[22px]">
-              <View class="absolute inset-0" style={{ opacity: away().interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>
+              <View class="absolute inset-0" style={{ opacity: refreshOpacity() }}>
                 <Icon name="refresh" class="size-[22px] tint-ink" />
               </View>
-              <View class="absolute inset-0" style={{ opacity: away() }}>
+              <View class="absolute inset-0" style={{ opacity: arrowOpacity() }}>
                 <Icon name="arrow-up" class="size-[22px] tint-ink" />
               </View>
             </View>

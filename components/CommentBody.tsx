@@ -13,9 +13,10 @@ import { LINK_CLASS, RichText } from "./RichText";
 import { Pictures } from "./StatusCard";
 
 // Who a reply answers isn't shown apart: Weibo starts its text with "回复@name:" already.
-const commentText = (c: Comment, cls: string) => (
-  <RichText text={c.text.trimEnd()} links={c.links} plainMentions hidePictureLinks class={cls} />
-);
+// A component, not a call: a recycled row passes its new comment to the same `RichText`.
+function CommentText(props: { comment: Comment; class: string }) {
+  return <RichText text={props.comment.text.trimEnd()} links={props.comment.links} plainMentions hidePictureLinks class={props.class} />;
+}
 
 /** The author's name, then the text and pictures. `root`: the comment heading its thread, its
  * name bold and its text larger. */
@@ -30,7 +31,7 @@ export function CommentBody(props: { comment: Comment; root?: boolean }) {
       >
         {props.comment.user.name}
       </Text>
-      {commentText(props.comment, `select-text ${props.root ? "text-base leading-[26px]" : "text-body"} text-ink`)}
+      <CommentText comment={props.comment} class={`select-text ${props.root ? "text-base leading-[26px]" : "text-body"} text-ink`} />
       <Pictures pics={props.comment.pics} small />
     </View>
   );
@@ -45,7 +46,7 @@ export function InlineReply(props: { comment: Comment }) {
           {props.comment.user.name}
         </Text>
         {": "}
-        {commentText(props.comment, "")}
+        <CommentText comment={props.comment} class="" />
       </Text>
       <Pictures pics={props.comment.pics} small />
     </View>

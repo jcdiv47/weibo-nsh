@@ -10,14 +10,39 @@ import { signal } from "nsh";
 /** The pictures of the emoticons known so far, by code ("[允悲]"). */
 export const emoticons = signal<Record<string, string>>({});
 
-function learn(found: Record<string, string>) {
+function commit(found: Record<string, string>) {
   const known = emoticons();
   if (Object.entries(found).some(([code, url]) => known[code] !== url)) emoticons.set({ ...known, ...found });
 }
 
+// While a page is parsed (`batchEmoticons`), what its posts and comments teach is gathered here
+// and set once at the end: one change of `emoticons`, not one per post.
+let pending: Record<string, string> | undefined;
+
+function learn(found: Record<string, string>) {
+  if (pending) Object.assign(pending, found);
+  else commit(found);
+}
+
+/** Runs `fn`, keeping the emoticons it learns until it ends, then learning them all at once.
+ * Nested calls join the outer one. */
+export function batchEmoticons<T>(fn: () => T): T {
+  if (pending) return fn();
+  pending = {};
+  try {
+    return fn();
+  } finally {
+    const found = pending;
+    pending = undefined;
+    commit(found);
+  }
+}
+
 const IMG = /<img\b[^>]*>/gi;
-const attr = (tag: string, name: string) => {
-  const m = tag.match(new RegExp(`\\s${name}=(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i"));
+const ALT = /\salt=(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i;
+const SRC = /\ssrc=(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i;
+const attr = (tag: string, re: RegExp) => {
+  const m = tag.match(re);
   return m ? (m[1] ?? m[2] ?? m[3]) : undefined;
 };
 
@@ -25,8 +50,8 @@ const attr = (tag: string, name: string) => {
 export function emoticonsOfHtml(html: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [tag] of html.matchAll(IMG)) {
-    const code = attr(tag, "alt");
-    const src = attr(tag, "src");
+    const code = attr(tag, ALT);
+    const src = attr(tag, SRC);
     if (code && src && /^\[[^\[\]]+\]$/.test(code) && /^https?:/.test(src)) out[code] = src;
   }
   return out;
