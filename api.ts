@@ -99,8 +99,13 @@ export interface Link {
 }
 
 export interface Pic {
+  /** The picture in a post's tiles: sharp enough for a full-width tile on a 3x screen. */
   thumb: string;
+  /** The picture the viewer opens at, at most 960 pixels wide: quick to come. */
   large: string;
+  /** The picture as uploaded, which a held finger in the viewer loads, and which is saved and shared.
+   * Missing from pages kept from before it was read: `large` was the original then. */
+  original?: string;
 }
 
 export interface Comment {
@@ -218,10 +223,19 @@ function toVideo(info: any): Video | undefined {
   };
 }
 
-const pic = (id: string, info: any): Pic => ({
-  thumb: https(str(info?.bmiddle?.url || info?.thumbnail?.url) || `https://wx1.sinaimg.cn/orj360/${id}.jpg`),
-  large: https(str(info?.largest?.url || info?.large?.url) || `https://wx1.sinaimg.cn/large/${id}.jpg`),
-});
+// A sinaimg address names its size in its first path segment ("large", "orj960", "mw690"); the
+// same picture comes at another size with it replaced.
+const SINAIMG = /^(https:\/\/[^/]+\.sinaimg\.cn\/)[a-z0-9_]+(\/[^/?#]+)/;
+const sized = (url: string, size: string) => (SINAIMG.test(url) ? url.replace(SINAIMG, `$1${size}$2`) : undefined);
+
+const pic = (id: string, info: any): Pic => {
+  const original = https(str(info?.largest?.url || info?.original?.url || info?.large?.url) || `https://wx1.sinaimg.cn/large/${id}.jpg`);
+  // Weibo's `bmiddle` is 360 pixels wide (`wap360`, `orj360`): soft in a tile on a 3x screen.
+  const small = https(str(info?.bmiddle?.url || info?.thumbnail?.url) || `https://wx1.sinaimg.cn/orj360/${id}.jpg`);
+  // A GIF's sized copies may not move: the tile keeps Weibo's own, the viewer the original.
+  if (info?.type === "gif" || /\.gif(?:$|\?)/i.test(original)) return { thumb: small, large: original, original };
+  return { thumb: sized(original, "mw690") ?? small, large: sized(original, "orj960") ?? original, original };
+};
 
 // A post's id: its `mid` (digits) or its `mblogid` (9 letters and digits, never all lowercase,
 // unlike a path such as `followers`).

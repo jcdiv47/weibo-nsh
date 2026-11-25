@@ -81,6 +81,7 @@ edits:
 video:
   error: "Can't play this video: %{error}"
 save:
+  view_original: "View Original"
   failed: "Couldn't save: %{error}"
   share_failed: "Couldn't share: %{error}"
   saving: "Saving…"
