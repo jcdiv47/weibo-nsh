@@ -145,7 +145,7 @@ Releases are published from GitHub's **Releases** page—no tags are pushed by h
 The tag is the app's version (`nsh.json`'s `version` is only the development one), and the workflow run number is its build number. To rebuild a release's packages, run the **Release** workflow by hand with its tag. Coding agents can draft a release for you by following [`AGENTS.md`](AGENTS.md).
 
 - **Android:** signed with the keystore in the `ANDROID_KEYSTORE_BASE64` (the file, base64-encoded), `ANDROID_KEY_ALIAS`, and `ANDROID_KEYSTORE_PASSWORD` repository secrets. Without them, the APK gets a throwaway debug key and won't install over the previous release.
-- **iOS:** build and sign locally with `nsh package . --target ios --sign ... --profile ...`.
+- **iOS:** built on `macos-latest` and uploaded to TestFlight (`nsh publish ios --testflight-only`) when the iOS signing and App Store Connect repository secrets are set (`IOS_CERTIFICATE_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64`, `APP_STORE_APP_ID`, `APP_STORE_ISSUER_ID`, `APP_STORE_KEY_ID`, `APP_STORE_PRIVATE_KEY_BASE64`, plus optional `IOS_BUNDLE_ID`, `IOS_SIGN_IDENTITY`, `IOS_BETA_GROUP`). Without them, the iOS job skips cleanly; you can still build locally with `nsh package . --target ios --sign ... --profile ...`.
 
 ## Personal Use & Terms of Service
 
