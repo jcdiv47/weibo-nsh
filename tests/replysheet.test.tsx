@@ -42,3 +42,18 @@ test("panel mounts at bottom, rises on hardware-keyboard fallback, can reopen mi
   await app.clock!.runFor(650);
   expect(app.value("text:Draft text")).toBe("Draft text");
 });
+
+test("signing out forgets the drafts", async () => {
+  const app = await open("./fixtures/ReplyHarness.tsx", { clock: {} });
+  await app.press("id:open-comment");
+  await app.clock!.runFor(650);
+  await app.type("text:Write a comment…", "Draft text");
+  await app.press("label:Cancel >> nth=1");
+  await app.clock!.runFor(400);
+
+  await app.press("id:forget");
+  await app.press("id:open-comment");
+  await app.clock!.runFor(650);
+  expect(app.shows("text:Draft text")).toBe(false);
+  expect(app.value("text:Write a comment…")).toBe("");
+});

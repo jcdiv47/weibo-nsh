@@ -16,6 +16,7 @@ import {
   type Suggestions,
   type User,
 } from "../api";
+import { onForgetAccount } from "../account";
 import { NotSignedIn } from "../bridge";
 import { FeedFooter } from "../components/FeedFooter";
 import { BAR, createPageScroll, Page } from "../components/Header";
@@ -125,6 +126,11 @@ type Row =
   | { id: string; kind: "user"; user: User }
   | { id: string; kind: "word"; word: string };
 
+// A row of each kind, or nothing: a recycled cell reads its row's kind again with each row it shows.
+const searchRowOf = (r: Row) => (r.kind === "search" ? r : undefined);
+const userOf = (r: Row) => (r.kind === "user" ? r.user : undefined);
+const wordOf = (r: Row) => (r.kind === "word" ? r.word : undefined);
+
 /** The search page: hot searches, or suggestions for what is typed. */
 export function Search() {
   const text = signal("");
@@ -163,6 +169,8 @@ export function Search() {
         () => {}, // Suggestions are a help: without them, the search itself still runs.
       );
     }, SUGGEST_DELAY_MS);
+    // Search popped while typing pauses asks for nothing more.
+    return () => clearTimeout(timer);
   });
   const rows = (): Row[] => {
     const q = typed();
@@ -256,28 +264,31 @@ export function Search() {
           keyboardDismissMode="on-drag"
           class="flex-1"
         >
-          {(row) => {
-            const r = row();
-            switch (r.kind) {
-              case "search":
-                return (
-                  <IconRow
-                    icon={<Icon name="arrow-right" class="size-[18px] tint-weibo" />}
-                    label={t("search.search_for", { q: r.q })}
-                    onPress={submit}
-                    divider
-                  >
-                    <Text class="flex-1 text-body font-semibold leading-5 text-weibo line-clamp-1">
-                      {t("search.search_for", { q: r.q })}
-                    </Text>
-                  </IconRow>
-                );
-              case "user":
-                return <PersonRow user={r.user} />;
-              case "word":
-                return <WordRow word={r.word} typed={typed()} onSearch={search} />;
-            }
-          }}
+          {/* Cells are recycled, and the first row's text changes as the user types: the row is read
+              again, never kept. */}
+          {(row) => (
+            <If
+              when={searchRowOf(row())}
+              else={
+                <If when={userOf(row())} else={<If when={wordOf(row())}>{(w) => <WordRow word={w()} typed={typed()} onSearch={search} />}</If>}>
+                  {(u) => <PersonRow user={u()} />}
+                </If>
+              }
+            >
+              {(r) => (
+                <IconRow
+                  icon={<Icon name="arrow-right" class="size-[18px] tint-weibo" />}
+                  label={t("search.search_for", { q: r().q })}
+                  onPress={submit}
+                  divider
+                >
+                  <Text class="flex-1 text-body font-semibold leading-5 text-weibo line-clamp-1">
+                    {t("search.search_for", { q: r().q })}
+                  </Text>
+                </IconRow>
+              )}
+            </If>
+          )}
         </List>
       </If>
     </Page>
@@ -314,18 +325,36 @@ function Tabs(props: { value: Tab; onChange: (tab: Tab) => void }) {
   );
 }
 
+// Follows asked for from the results, by account id: "busy" while Weibo answers, "failed" if it
+// refused. Kept out of the rows, which are recycled: a row reads its account's state from here.
+const follows = signal<Record<string, "busy" | "failed">>({});
+const setFollow = (uid: string, state: "busy" | "failed" | null) =>
+  follows.update(({ [uid]: _, ...rest }) => (state ? { ...rest, [uid]: state } : rest));
+onForgetAccount(() => follows.set({}));
+
+/** Follows `uid`; `onFollowed(uid)` once Weibo took it. A follow already asked for does nothing. */
+function followFromResults(uid: string, onFollowed: (uid: string) => void): Promise<void> {
+  if (follows()[uid] === "busy") return Promise.resolve();
+  setFollow(uid, "busy");
+  return follow(uid).then(
+    () => {
+      setFollow(uid, null);
+      onFollowed(uid);
+    },
+    () => setFollow(uid, "failed"),
+  );
+}
+
 /** Follows an account from its row; once followed, says so (unfollowing is on their profile). */
-function FollowButton(props: { user: User; onFollowed: () => void }) {
+function FollowButton(props: { user: User; onFollowed: (uid: string) => void }) {
   const following = () => !!props.user.following;
-  const busy = signal(false);
-  const failed = signal(false);
+  const busy = () => follows()[props.user.id] === "busy";
+  const failed = () => follows()[props.user.id] === "failed";
   const press = () => {
     if (busy() || following()) return;
-    busy.set(true);
-    failed.set(false);
-    follow(props.user.id)
-      .then(props.onFollowed, () => failed.set(true))
-      .finally(() => busy.set(false));
+    // The account this press is for: by the time Weibo answers, the row may show another.
+    const uid = props.user.id;
+    followFromResults(uid, props.onFollowed);
   };
   return (
     <If
@@ -427,7 +456,7 @@ export function SearchResults(props: { q: string }) {
                 <FollowButton
                   user={u()}
                   // The list keeps it, so the row says so again after a switch of tabs.
-                  onFollowed={() => users.update((list) => list.map((x) => (x.id === u().id ? { ...x, following: true } : x)))}
+                  onFollowed={(uid) => users.update((list) => list.map((x) => (x.id === uid ? { ...x, following: true } : x)))}
                 />
               }
             />

@@ -10,6 +10,7 @@
 // every platform.
 import {
   type AnimatedValue,
+  cleanup,
   createAnimatedValue,
   type JSX,
   type ListRef,
@@ -40,13 +41,13 @@ export function GlassButton(props: {
   /** Its glass: the header's (`"control"`, the default), or `"media"` over pictures and video. */
   kind?: GlassKind;
 }) {
-  const look = glass(props.kind ?? "control");
-  const cls = () => `${props.size ?? "size-11"} items-center justify-center rounded-full ${GLASS_PRESS} ${look.class}`;
+  const look = () => glass(props.kind ?? "control");
+  const cls = () => `${props.size ?? "size-11"} items-center justify-center rounded-full ${GLASS_PRESS} ${look().class}`;
   return (
     <If
       when={props.onPress}
       else={
-        <View role="button" accessibilityLabel={props.label} class={cls()} style={look.style}>
+        <View role="button" accessibilityLabel={props.label} class={cls()} style={look().style}>
           {props.children}
         </View>
       }
@@ -56,7 +57,7 @@ export function GlassButton(props: {
         selected={props.selected}
         onPress={props.onPress}
         class={cls()}
-        style={look.style}
+        style={look().style}
       >
         {props.children}
       </Button>
@@ -135,6 +136,7 @@ const TOP_BUTTON_REST_MS = 300;
 /** How quickly the top button goes as a scroll starts: out of the way at once. */
 const TOP_BUTTON_HIDE_MS = 140;
 
+/** Call it in a page's body: the page's going away cancels its timer. */
 export function createPageScroll(
   options: { large?: boolean; accessory?: number; refreshing?: () => boolean; refresh?: () => void; news?: News } = {},
 ): PageScroll {
@@ -164,6 +166,8 @@ export function createPageScroll(
       else topShown.spring(1, { stiffness: 320, damping: 28, mass: 1 });
     }, TOP_BUTTON_REST_MS);
   };
+  // Called in a page's body: a page popped while its list rests brings no button back.
+  cleanup(() => clearTimeout(rest));
   const topEvents = options.refresh
     ? { onScrollDragStart: hideTop, onScrollDragEnd: showTopSoon, onMomentumStart: hideTop, onMomentumEnd: showTopSoon }
     : {};
@@ -356,14 +360,14 @@ function TopButton(props: { scroll: PageScroll }) {
 /** The capsule counting the new posts: the count in the brand's ink, "new posts" after it ("20+"
  * when more may be past those counted). */
 function NewsButton(props: { count: number; more: boolean; onPress: () => void }) {
-  const look = glass("control");
+  const look = () => glass("control");
   const n = () => `${props.count}${props.more ? "+" : ""}`;
   return (
     <Button
       accessibilityLabel={t("timeline.news_label", { n: n() })}
       onPress={props.onPress}
-      class={`h-11 flex-row items-center gap-1.5 rounded-full px-[18px] ${GLASS_PRESS} ${look.class}`}
-      style={look.style}
+      class={`h-11 flex-row items-center gap-1.5 rounded-full px-[18px] ${GLASS_PRESS} ${look().class}`}
+      style={look().style}
     >
       <Text class="text-body font-bold text-weibo-ink">{n()}</Text>
       <Text class="text-body font-semibold text-ink">

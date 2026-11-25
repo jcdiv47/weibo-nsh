@@ -2,6 +2,7 @@
 // already has instead of fetching it again.
 import { signal } from "nsh";
 import { createNavStack } from "nsh/base";
+import { onForgetAccount } from "./account";
 import { type Comment, longText, type Status, type User } from "./api";
 
 export type Route =
@@ -117,6 +118,13 @@ export function openReplies(status: Status, comment: Comment) {
 }
 
 export const commentById = (id: string) => commentsById.get(id);
+
+// The posts and comments passed along were read as the account that is going.
+onForgetAccount(() => {
+  posts.clear();
+  fullTexts.clear();
+  commentsById.clear();
+});
 
 /** The versions of an edited post. */
 export function openEdits(status: Status) {

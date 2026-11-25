@@ -273,8 +273,9 @@ function Player(props: { video: VideoData; status?: Status }) {
         </View>
       </If>
       <View
-        class={`absolute inset-0 transition-opacity duration-200 ${controls() ? "opacity-100" : "pointer-events-none opacity-0"}`}
-        style={{ pointerEvents: "box-none" }}
+        class={`absolute inset-0 transition-opacity duration-200 ${controls() ? "opacity-100" : "opacity-0"}`}
+        // The style wins over the class: hidden, the bars take no touches (a tap shows them again).
+        style={{ pointerEvents: controls() ? "box-none" : "none" }}
       >
         {/* Shades under the bars, so white reads over a bright frame. */}
         <View class="pointer-events-none absolute inset-x-0 top-0 h-36 bg-linear-to-b from-black/55 to-transparent" />

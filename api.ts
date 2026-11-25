@@ -4,6 +4,7 @@
 // answer goes through a `parse...` function (tested against `tests/fixtures/`), which checks it
 // with `drift.ts`: an answer that no longer fits throws `WeiboChanged` instead of showing nothing.
 import { t } from "nsh/i18n";
+import { forgetInMemory } from "./account";
 import { get, getSearchPage, NotSignedIn, post, weibo } from "./bridge";
 import { items, list, one, reportDrift, shapes, WeiboChanged } from "./drift";
 import { learnFromHtml, loadEmoticons } from "./emoticons";
@@ -1039,9 +1040,11 @@ export function parsePeople(json: any, page: number): Page<User, number> {
   return { items: items(EP, raw, shapes.user).map(toUser), next: raw.length && num(json.next_cursor) ? page + 1 : null };
 }
 
-/** Forgets the signed-in account (signing out): what was read of it, and all that was saved. */
+/** Forgets the signed-in account (signing out): what was read of it, what the app holds of it in
+ * memory (`account.ts`), and all that was saved. */
 export function forgetAccount(): Promise<void> {
   groupList = undefined;
   uids.clear();
+  forgetInMemory();
   return clearSaved();
 }

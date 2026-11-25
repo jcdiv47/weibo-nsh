@@ -1,6 +1,6 @@
 import { mount, Text, View } from "nsh";
 import { Button } from "nsh/base";
-import type { Comment, Status } from "../../api";
+import { type Comment, forgetAccount, type Status } from "../../api";
 import { openComment, openReply, openRepost, ReplySheet } from "../../components/ReplySheet";
 
 const status: Status = {
@@ -44,6 +44,9 @@ function Harness() {
       </Button>
       <Button testID="open-repost" onPress={() => openRepost(status, comment)} class="h-10 justify-center">
         <Text>Repost</Text>
+      </Button>
+      <Button testID="forget" onPress={() => forgetAccount()} class="h-10 justify-center">
+        <Text>Forget</Text>
       </Button>
       <ReplySheet />
     </View>

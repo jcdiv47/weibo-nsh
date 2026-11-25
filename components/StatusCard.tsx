@@ -4,6 +4,7 @@
 // An edited post says so; on its own page, its versions open from below it.
 import { Image, type JSX, signal, Text, View } from "nsh";
 import { t } from "nsh/i18n";
+import { onForgetAccount } from "../account";
 import { type Activity, likeStatus, type Pic, type Status, type User, type VerifiedKind, type Video } from "../api";
 import { count, relativeTime, timeAgo } from "../format";
 import { openEdits, opening, openPost, openProfile } from "../nav";
@@ -297,6 +298,7 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
 const likeChanges = signal<Record<string, { liked: boolean; likes: number }>>({});
 export const likeOf = (s: Status) => likeChanges()[s.id] ?? { liked: s.liked, likes: s.likes };
 const liking = new Set<string>();
+onForgetAccount(() => likeChanges.set({}));
 
 /** Likes the post, or takes the like back, at once; if Weibo refuses, as it was. */
 export async function toggleLike(s: Status) {

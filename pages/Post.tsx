@@ -211,20 +211,20 @@ const actionsBottom = () => Math.max(safeArea().bottom - 4, 16);
  * the post's repost and like buttons, the like filled while I like it. The counts are the tabs'.
  */
 function PostActions(props: { status: Status; onComment: () => void }) {
-  const look = glass("control");
+  const look = () => glass("control");
   const like = () => likeState(props.status);
   return (
     <View class="absolute inset-x-4 flex-row items-center gap-2.5" style={{ bottom: actionsBottom() }}>
       <Button
         accessibilityLabel={t("reply.post_placeholder")}
         onPress={props.onComment}
-        class={`h-[50px] flex-1 flex-row items-center gap-2 rounded-full px-[18px] ${GLASS_PRESS} ${look.class}`}
-        style={look.style}
+        class={`h-[50px] flex-1 flex-row items-center gap-2 rounded-full px-[18px] ${GLASS_PRESS} ${look().class}`}
+        style={look().style}
       >
         <Icon name="message-circle" class="size-[18px] tint-ink-2" />
         <Text class="text-body leading-5 text-ink-2">{t("reply.post_placeholder")}</Text>
       </Button>
-      <View class={`h-[50px] flex-row items-center rounded-full px-1 ${look.class}`} style={look.style}>
+      <View class={`h-[50px] flex-row items-center rounded-full px-1 ${look().class}`} style={look().style}>
         <Button
           accessibilityLabel={t("repost.action")}
           onPress={() => openRepostStatus(props.status)}

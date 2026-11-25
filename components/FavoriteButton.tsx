@@ -3,6 +3,7 @@
 import { safeArea, signal, Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
+import { onForgetAccount } from "../account";
 import { favorite, type Status } from "../api";
 import { nav, openFavorites } from "../nav";
 import { glass } from "./Glass";
@@ -14,22 +15,24 @@ import { Icon } from "./Icon";
 // reads the post's state from here first.
 const changes = signal<Record<string, boolean>>({});
 const pending = new Set<string>();
+onForgetAccount(() => changes.set({}));
 
 export const isFavorited = (s: Status) => changes()[s.id] ?? s.favorited;
 
 /** Saves the post, or takes it out, at once; if Weibo refuses, as it was. */
 export async function toggleFavorite(s: Status) {
   if (pending.has(s.id)) return;
+  const before = changes()[s.id];
   const was = isFavorited(s);
-  const show = (v: boolean) => changes.update((m) => ({ ...m, [s.id]: v }));
-  show(!was);
+  changes.update((m) => ({ ...m, [s.id]: !was }));
   pending.add(s.id);
   try {
     await favorite(s, !was);
     s.favorited = !was;
     if (!was) showSavedToast();
   } catch {
-    show(was);
+    // As it was: no change of its own left, so the post's own state shows, a fresh one after a refresh.
+    changes.update(({ [s.id]: _, ...rest }) => (before !== undefined ? { ...rest, [s.id]: before } : rest));
   } finally {
     pending.delete(s.id);
   }

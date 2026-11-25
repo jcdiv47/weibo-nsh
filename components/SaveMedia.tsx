@@ -93,7 +93,7 @@ export function MediaMenu(props: { url: string; kind: Kind; children: JSX.Elemen
 /** The "⋯" glass button over a viewer: the same menu, from a tap. Turns while a save runs. */
 export function MediaMoreButton(props: { url: string; kind: Kind }) {
   let view: ViewRef | undefined;
-  const look = glass("media");
+  const look = () => glass("media");
   return (
     <View ref={(r) => (view = r as ViewRef)}>
       <MenuButton
@@ -101,8 +101,8 @@ export function MediaMoreButton(props: { url: string; kind: Kind }) {
         items={items()}
         disabled={!!saving()}
         onSelect={(e) => choose(e.id, props.url, props.kind, () => view)}
-        class={`size-11 items-center justify-center rounded-full ${GLASS_PRESS} ${look.class}`}
-        style={look.style}
+        class={`size-11 items-center justify-center rounded-full ${GLASS_PRESS} ${look().class}`}
+        style={look().style}
       >
         <If when={saving()} else={<Icon name="dots" class="size-6 tint-white" />}>
           <Turning />

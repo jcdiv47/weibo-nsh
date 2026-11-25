@@ -36,6 +36,7 @@ import {
 } from "nsh";
 import { Button, Input } from "nsh/base";
 import { t } from "nsh/i18n";
+import { onForgetAccount } from "../account";
 import {
   type Comment,
   commentStatus,
@@ -181,6 +182,13 @@ function dismiss() {
   }
   Keyboard.dismiss();
 }
+
+// The drafts were written as the account that is going: a box still open closes without keeping one.
+onForgetAccount(() => {
+  drafts.clear();
+  text.set("");
+  dismiss();
+});
 
 function close() {
   const cur = target();
