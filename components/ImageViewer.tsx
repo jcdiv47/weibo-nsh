@@ -130,6 +130,8 @@ function ZoomPage(props: { pic: Pic; index: number }) {
                     src={src()}
                     class={`absolute inset-0 object-contain ${loaded() === src() ? "opacity-100" : "opacity-0"}`}
                     onLoad={() => loaded.set(src())}
+                    // Failed (offline, gone): the spinner goes and "View Original" comes back, to try again.
+                    onError={() => originals.set(originals().filter((i) => i !== props.index))}
                   />
                   <If when={loaded() !== src()}>
                     <View class="pointer-events-none absolute inset-0 items-center justify-center">
