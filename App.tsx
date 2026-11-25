@@ -63,12 +63,11 @@ function Bridge() {
       else web?.load({ src: BRIDGE_URL });
     } catch (e) {
       // Not signed in: the sign-in page shows, and its next load asks again. Any other failure (a
-      // request that timed out, a network not up yet, an odd answer) asks again on the same page
-      // a little later: no new page may come to ask, and the startup screen would stay for good.
+      // request that timed out, a network not up yet, an odd answer) asks again a little later, on
+      // the page loaded then: no new page may come to ask (one that loaded during this probe was
+      // not asked about), and the startup screen would stay for good.
       if (!(e instanceof NotSignedIn)) {
-        retryTimer = setTimeout(() => {
-          if (loadedUrl === url) probe(url);
-        }, retryDelay);
+        retryTimer = setTimeout(() => probe(loadedUrl), retryDelay);
         retryDelay = Math.min(retryDelay * 2, PROBE_RETRY_MAX_MS);
       }
     } finally {
