@@ -73,5 +73,10 @@
       ]
     }
   },
+  "ios": {
+    "infoPlist": {
+      "ITSAppUsesNonExemptEncryption": false
+    }
+  },
   "rust": "ext/weibo-media"
 }
