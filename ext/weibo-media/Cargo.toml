@@ -12,7 +12,7 @@ description = "Saves a downloaded picture or video into the user's photo library
 # 0.6.x: an app with Rust builds its runtime from wherever its crates take nsh, and the releases
 # lack what the app needs (files on iOS: `Share.show`'s files and `fs/promises` there). Move `rev`
 # with `nsh update nightly`, which otherwise stops naming both commits.
-nsh-core = { git = "https://github.com/longbridge/nsh", rev = "589a60f7569c14023c262c126f50279f27ddf470" }
+nsh-core = { git = "https://github.com/longbridge/nsh", rev = "3f8ecd8b3c55ad6274c6babbf7ee55c4cd4ae359" }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 block2 = "0.6.2"
