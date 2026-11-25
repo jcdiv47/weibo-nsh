@@ -227,7 +227,7 @@ function Player(props: { video: VideoData; status?: Status }) {
       </If>
       <If when={buffering() && !error() && !paused()}>
         <View class="pointer-events-none absolute inset-0 items-center justify-center">
-          <Spinner class="size-9 border-[3px] border-white/25 border-t-white" />
+          <Spinner size={36} stroke={3} tone="media" />
         </View>
       </If>
       <If when={error()}>
