@@ -108,15 +108,12 @@ export function MediaMoreButton(props: { url: string; kind: Kind }) {
         style={look().style}
       >
         <If when={saving()} else={<Icon name="dots" class="size-6 tint-white" />}>
-          <Spinner class={TURNING} />
+          <Spinner size={20} tone="media" />
         </If>
       </MenuButton>
     </View>
   );
 }
-
-/** The app's spinner in white, for the glass of the viewers and the toast. */
-const TURNING = "size-5 border-white/30 border-t-white";
 
 /** The toast: over everything, the viewers included. One for the app. */
 export function SaveToast() {
@@ -137,7 +134,7 @@ export function SaveToast() {
               />
             }
           >
-            <Spinner class={TURNING} />
+            <Spinner size={20} tone="media" />
           </If>
           <Text class="flex-1 text-body leading-5 font-medium text-white">{m().text}</Text>
         </View>

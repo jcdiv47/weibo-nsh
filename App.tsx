@@ -136,7 +136,7 @@ function Bridge() {
 function Connecting() {
   return (
     <View class="absolute inset-0 items-center justify-center gap-3 bg-ground">
-      <Spinner />
+      <Spinner size={28} stroke={2.5} />
       <Text class="text-sm text-ink-2">{signingOut() ? t("app.signing_out") : t("app.connecting")}</Text>
     </View>
   );

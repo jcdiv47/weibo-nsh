@@ -298,9 +298,9 @@ function PullIndicator(props: { scroll: PageScroll; refreshing: () => boolean })
       <If
         when={props.refreshing()}
         else={
-          <View
-            class="size-6 rounded-full border-2 border-hairline border-t-weibo"
-            style={{ transform: [{ rotate: pull.interpolate({ inputRange: [0, PULL * 2], outputRange: ["0deg", "360deg"], extrapolate: "extend" }) }] }}
+          <Spinner
+            accessibilityLabel={null}
+            turn={{ transform: [{ rotate: pull.interpolate({ inputRange: [0, PULL * 2], outputRange: ["0deg", "360deg"], extrapolate: "extend" }) }] }}
           />
         }
       >
