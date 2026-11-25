@@ -34,7 +34,7 @@ import {
   View,
   type ViewRef,
 } from "nsh";
-import { Button, Input } from "nsh/base";
+import { Button, Checkbox, Input } from "nsh/base";
 import { t } from "nsh/i18n";
 import { onForgetAccount } from "../account";
 import {
@@ -429,8 +429,8 @@ export function ReplySheet() {
                 disabled={!canSend(target(), text().trim()) || sending()}
                 class="flex-row items-center gap-1.5 rounded-full bg-weibo px-3.5 py-[7px] active:opacity-70 disabled:opacity-40"
               >
-                <Icon name={repost() ? "repeat" : "send"} class="size-4 tint-white" />
-                <Text class="text-sm leading-[18px] font-semibold text-white">
+                <Icon name={repost() ? "repeat" : "send"} class="size-4 tint-primary-foreground" />
+                <Text class="text-sm leading-[18px] font-semibold text-primary-foreground">
                   {sending() ? t("reply.sending") : repost() ? t("repost.action") : t("reply.send")}
                 </Text>
               </Button>
@@ -456,17 +456,18 @@ export function ReplySheet() {
               <Text class="text-xs text-danger">{error()}</Text>
             </If>
             <View class="h-9 flex-row items-center gap-1">
-              <Button
-                role="checkbox"
-                selected={also()}
-                onPress={() => also.update((v) => !v)}
+              <Checkbox
+                checked={also()}
+                onChange={({ checked }) => also.set(checked)}
                 class="flex-1 flex-row items-center gap-2 pl-0.5 active:opacity-60"
+                indicator={
+                  <If when={also()} else={<View class="size-5 rounded-full border-[1.5px] border-ink-3" />}>
+                    <Icon name="circle-check-filled" class="size-5 tint-weibo" />
+                  </If>
+                }
               >
-                <If when={also()} else={<View class="size-5 rounded-full border-[1.5px] border-ink-3" />}>
-                  <Icon name="circle-check-filled" class="size-5 tint-weibo" />
-                </If>
                 <Text class="text-sm leading-[18px] text-ink">{t(repost() ? "repost.also_comment" : "reply.also_repost")}</Text>
-              </Button>
+              </Checkbox>
               <ToolButton label={t("compose.mention")} icon="at" onPress={() => insert("@")} />
               <If when={repost()}>
                 <ToolButton label={t("compose.topic")} icon="hash" onPress={() => insert("#")} />

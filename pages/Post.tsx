@@ -18,6 +18,7 @@ import { openComment, openReply, openRepost, openRepostStatus } from "../compone
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, likeOf as likeState, StatusCard, toggleLike } from "../components/StatusCard";
+import { TabBar, type TabItem } from "../components/TabBar";
 import { createFeed } from "../feed";
 import { count, relativeTime } from "../format";
 import { keepPost, openPost, openProfile, openReplies, postById, withFullText } from "../nav";
@@ -247,36 +248,26 @@ function PostActions(props: { status: Status; onComment: () => void }) {
   );
 }
 
+/** Under the post, on a band of the well: each tab's count after its name, when there is one. */
 function Tabs(props: { status: Status; tab: Tab; onTab: (tab: Tab) => void }) {
-  const tabs: { id: Tab; label: () => string; n: () => number; a11y: () => string }[] = [
-    { id: "reposts", label: () => t("post.tab_reposts"), n: () => props.status.reposts, a11y: () => t("post.reposts", { n: count(props.status.reposts) }) },
-    { id: "comments", label: () => t("post.tab_comments"), n: () => props.status.comments, a11y: () => t("post.comments", { n: count(props.status.comments) }) },
-    // The likes as the action bar's like button leaves them.
-    { id: "likes", label: () => t("post.tab_likes"), n: () => likeState(props.status).likes, a11y: () => t("post.likes", { n: count(likeState(props.status).likes) }) },
-  ];
+  const tab = (id: Tab, n: number, a11y: string): TabItem<Tab> => ({
+    id,
+    label: `${t(`post.tab_${id}`)}${n ? ` ${count(n)}` : ""}`,
+    accessibilityLabel: a11y,
+  });
   return (
-    <View class="flex-row items-end gap-7 border-b-[0.5px] border-t-8 border-b-hairline border-t-well px-4">
-      <Each of={tabs} key={(tb) => tb.id}>
-        {(tb) => {
-          const on = () => props.tab === tb().id;
-          return (
-            <Button
-              role="tab"
-              accessibilityLabel={tb().a11y()}
-              selected={on()}
-              onPress={() => props.onTab(tb().id)}
-              class="items-center gap-2 pt-3 active:opacity-60"
-            >
-              <Text class={`text-body leading-5 ${on() ? "font-semibold text-ink" : "text-ink-2"}`}>
-                {tb().label()}
-                {tb().n() ? ` ${count(tb().n())}` : ""}
-              </Text>
-              <View class={`h-[3px] w-6 rounded-full ${on() ? "bg-weibo" : "bg-transparent"}`} />
-            </Button>
-          );
-        }}
-      </Each>
-    </View>
+    <TabBar
+      tabs={[
+        tab("reposts", props.status.reposts, t("post.reposts", { n: count(props.status.reposts) })),
+        tab("comments", props.status.comments, t("post.comments", { n: count(props.status.comments) })),
+        // The likes as the action bar's like button leaves them.
+        tab("likes", likeState(props.status).likes, t("post.likes", { n: count(likeState(props.status).likes) })),
+      ]}
+      value={props.tab}
+      onChange={props.onTab}
+      class="border-t-8 border-b-hairline border-t-well"
+      tabClass="pt-3"
+    />
   );
 }
 

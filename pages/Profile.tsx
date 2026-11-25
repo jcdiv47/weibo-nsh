@@ -14,7 +14,8 @@ import {
   unfollow,
   userPosts,
 } from "../api";
-import { NotSignedIn, signOut } from "../bridge";
+import { NotSignedIn } from "../bridge";
+import { confirmSignOut } from "../components/account";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
 import { createPageScroll, GlassButton, Page } from "../components/Header";
 import { PopMenu } from "../components/PopMenu";
@@ -29,19 +30,6 @@ import { openPeople, openProfileSearch } from "../nav";
 import { loadSaved, save } from "../saved";
 
 type Action = "follow" | "unfollow" | "block" | "unblock";
-
-/** Asks first, then signs out (the timeline's menu and my profile's). */
-export async function confirmSignOut() {
-  const { action } = await AlertDialog.show({
-    title: t("menu.sign_out_title"),
-    description: t("menu.sign_out_description"),
-    actions: [
-      { id: "cancel", label: t("common.cancel"), role: "cancel" },
-      { id: "ok", label: t("menu.sign_out"), role: "destructive" },
-    ],
-  });
-  if (action === "ok") signOut();
-}
 
 const confirmations: Partial<Record<Action, (name: string) => { title: string; description: string; label: string }>> = {
   unfollow: (name) => ({
@@ -125,9 +113,9 @@ function ActionButton(props: { data: ProfileData; actions: Actions }) {
       >
         <Icon
           name={busy() === "unfollow" ? "user-minus" : following() ? "user-check" : "user-plus"}
-          class={`size-[15px] ${following() ? "tint-ink" : "tint-white"}`}
+          class={`size-[15px] ${following() ? "tint-ink" : "tint-primary-foreground"}`}
         />
-        <Text class={`text-sm leading-[18px] font-semibold ${following() ? "text-ink" : "text-white"}`}>
+        <Text class={`text-sm leading-[18px] font-semibold ${following() ? "text-ink" : "text-primary-foreground"}`}>
           {busy() === "follow"
             ? t("profile.following_busy")
             : busy() === "unfollow"
@@ -315,10 +303,12 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
   const searchable = () => !!data() && !blocked();
   const right = (
     <View class="flex-row items-center gap-2.5">
-      <If when={searchable()}>
-        <GlassButton label={t("search.profile_search", { name: data()!.user.name })} onPress={() => openProfileSearch(data()!.user)}>
-          <Icon name="search" class="size-[22px] tint-ink" />
-        </GlassButton>
+      <If when={searchable() ? data() : undefined}>
+        {(d) => (
+          <GlassButton label={t("search.profile_search", { name: d().user.name })} onPress={() => openProfileSearch(d().user)}>
+            <Icon name="search" class="size-[22px] tint-ink" />
+          </GlassButton>
+        )}
       </If>
       <If when={mine() || searchable()}>
         <PopMenu

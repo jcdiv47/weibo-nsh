@@ -7,12 +7,13 @@
 // Save and share differ: save puts the file into Photos (iOS), share opens the system's share sheet
 // (WeChat, X, Messages...). Android has no save of its own (it could only open the share sheet as
 // well), so there the menu only shares.
-import { batch, createMotion, type JSX, safeArea, signal, Text, View, type ViewRef, WebView, type WebViewRef } from "nsh";
+import { batch, type JSX, safeArea, signal, Text, View, type ViewRef, WebView, type WebViewRef } from "nsh";
 import { ContextMenu, MenuButton, type MenuButtonItem } from "nsh/base";
 import { t } from "nsh/i18n";
 import { type Anchor, CAN_SAVE, downloader, hostPage, job, prefetch, saveMedia, shareMedia } from "../download";
 import { GLASS_PRESS, glass } from "./Glass";
 import { Icon } from "./Icon";
+import { Spinner } from "./Spinner";
 
 type Kind = "image" | "video";
 
@@ -107,18 +108,15 @@ export function MediaMoreButton(props: { url: string; kind: Kind }) {
         style={look().style}
       >
         <If when={saving()} else={<Icon name="dots" class="size-6 tint-white" />}>
-          <Turning />
+          <Spinner class={TURNING} />
         </If>
       </MenuButton>
     </View>
   );
 }
 
-function Turning() {
-  const motion = createMotion();
-  motion.play("spin");
-  return <View style={motion.style} class="size-5 rounded-full border-2 border-white/30 border-t-white" />;
-}
+/** The app's spinner in white, for the glass of the viewers and the toast. */
+const TURNING = "size-5 border-white/30 border-t-white";
 
 /** The toast: over everything, the viewers included. One for the app. */
 export function SaveToast() {
@@ -139,7 +137,7 @@ export function SaveToast() {
               />
             }
           >
-            <Turning />
+            <Spinner class={TURNING} />
           </If>
           <Text class="flex-1 text-body leading-5 font-medium text-white">{m().text}</Text>
         </View>

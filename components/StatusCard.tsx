@@ -3,6 +3,7 @@
 // the post's comments; its repost count opens the box to repost it, its likes like it.
 // An edited post says so; on its own page, its versions open from below it.
 import { Image, type JSX, signal, Text, View } from "nsh";
+import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { onForgetAccount } from "../account";
 import { type Activity, likeStatus, type Pic, type Status, type User, type VerifiedKind, type Video } from "../api";
@@ -210,7 +211,7 @@ function ActivityLine(props: { activity: Activity }) {
       .filter(Boolean)
       .join(" · ");
   return (
-    <View class="h-[18px] shrink-0 flex-row items-center gap-2.5">
+    <View class="min-h-[18px] shrink-0 flex-row items-center gap-2.5">
       <Icon name={a().kind === "comment" ? "message-circle" : "thumb-up"} class="size-3.5 shrink-0 tint-ink-2" />
       <Text class="shrink text-meta font-medium text-ink-2 line-clamp-1">{text()}</Text>
     </View>
@@ -221,7 +222,7 @@ function ActivityLine(props: { activity: Activity }) {
  * Weibo's orange, in the activity line's place. */
 function PinnedLine() {
   return (
-    <View class="h-[18px] shrink-0 flex-row items-center gap-2.5">
+    <View class="min-h-[18px] shrink-0 flex-row items-center gap-2.5">
       <Icon name="pinned-filled" class="size-3.5 shrink-0 tint-weibo" />
       <Text class="shrink text-meta font-medium text-weibo line-clamp-1">{t("post.pinned")}</Text>
     </View>
@@ -276,10 +277,10 @@ export function StatusCard(props: { status: Status; full?: boolean; trailing?: J
       <If when={props.full && (s().editCount || s().region)}>
         <View class="flex-row items-center gap-3">
           <If when={s().editCount}>
-            <View role="link" onPress={() => openEdits(s())} class="flex-row items-center gap-1 active:opacity-60">
+            <Button onPress={() => openEdits(s())} class="flex-row items-center gap-1 active:opacity-60">
               <Icon name="history" class="size-3.5 tint-ink-2" />
               <Text class="text-meta text-ink-2">{t("post.edit_history")}</Text>
-            </View>
+            </Button>
           </If>
           <View class="flex-1" />
           <If when={s().region}>

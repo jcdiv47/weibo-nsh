@@ -2,75 +2,30 @@
 // when zoomed, tap or drag up or down to close. A finger held on a picture, or the "⋯" button at the
 // top right, opens what it offers: save it (to Photos on iOS) and share it (`SaveMedia.tsx`).
 // One viewer for the app, opened with `openViewer`.
-//
-// It is an overlay over the app's pages, not a `Dialog`: a native modal ignores touches while it
-// comes in and goes, so a drag to close right after opening (or a tap on the feed right after
-// closing) was lost. Here the fades are the app's own and touches work throughout them.
-import { batch, cleanup, createAnimatedValue, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
-import { BackHandler } from "nsh/mobile";
+// Its full screen layer, the fades and the drag that closes it, is `MediaOverlay.tsx`'s.
+import { batch, cleanup, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
 import type { Status } from "../api";
 import { glass } from "./Glass";
+import { createMediaOverlay } from "./MediaOverlay";
 import { MediaMenu, MediaMoreButton } from "./SaveMedia";
 
 type Pics = Status["pics"];
 
-const shown = signal<{ pics: Pics; index: number } | null>(null);
-/** Going away: it fades out letting touches through to the pages under it. */
-const closing = signal(false);
+const { open, close, Overlay } = createMediaOverlay<{ pics: Pics; index: number }>();
 const page = signal(0);
 /** The picture shown is zoomed in: a drag pans it rather than closing the viewer. */
 const zoomed = signal(false);
-/** How far the pictures are dragged down (or up) to close them. */
-const dragY = createAnimatedValue(0);
-/** The whole viewer's opacity, 0 to 1, as it comes in and goes. */
-const fade = createAnimatedValue(0);
-
-const FADE_IN_MS = 180;
-const FADE_OUT_MS = 200;
 
 export function openViewer(pics: Pics, index: number) {
   if (!pics.length) return;
   page.set(index);
   zoomed.set(false);
-  closing.set(false);
-  dragY.set(0);
   // Opened again while the last one fades out: the pager remounts at the new picture.
-  shown.set(null);
-  shown.set({ pics, index });
-  fade.timing(1, { duration: FADE_IN_MS });
-}
-
-/** Fades the viewer out; `away` also carries the pictures off screen that way (a drag's fling). */
-function close(away = 0) {
-  if (!shown() || closing()) return;
-  closing.set(true);
-  if (away) dragY.timing(Math.sign(away) * windowSize().height, { duration: FADE_OUT_MS + 20 });
-  fade.timing(0, { duration: FADE_OUT_MS }).then(({ finished }) => {
-    // Not finished: opened again meanwhile, which stopped this fade.
-    if (finished && closing()) {
-      batch(() => {
-        shown.set(null);
-        closing.set(false);
-      });
-    }
-  });
+  open({ pics, index });
 }
 
 const MAX_ZOOM = 4;
 const DOUBLE_TAP_MS = 280;
-/** A drag released past this far (counting the fling) closes the viewer. */
-const CLOSE_DISTANCE = 120;
-
-/** Released: past `CLOSE_DISTANCE` the pictures carry on off screen and the viewer closes; short
- * of it they spring back. */
-function endDrag(e: { value?: { y?: number }; velocity: { y: number } }) {
-  const projected = (e.value?.y ?? 0) + e.velocity.y * 0.2;
-  if (Math.abs(projected) < CLOSE_DISTANCE) {
-    dragY.spring(0, { velocity: e.velocity.y });
-    return;
-  }
-  close(projected);
-}
 
 /** What iOS lifts beside the menu: the picture at its own shape, as wide as the screen allows. */
 function Preview(props: { src: string; size: { width: number; height: number } | null }) {
@@ -141,72 +96,45 @@ function ZoomPage(props: { src: string }) {
 }
 
 export function ImageViewer() {
-  const height = () => windowSize().height;
   return (
-    <If when={shown()}>
-      {(v) => {
-        // Android's back button closes it, as it closed the dialog it was.
-        BackHandler.on("press", () => {
-          if (closing()) return false;
-          close();
-          return true;
-        });
-        return (
-          <View
-            role="dialog"
-            class={`absolute inset-0 ${closing() ? "pointer-events-none" : ""}`}
-            style={{ opacity: fade }}
-          >
-            {/* The black behind the pictures fades as they are dragged away. */}
-            <View
-              class="pointer-events-none absolute inset-0 bg-black"
-              style={{
-                opacity: dragY.interpolate({ inputRange: [-height() / 2, 0, height() / 2], outputRange: [0.3, 1, 0.3] }),
-              }}
-            />
-            <View
-              pan={zoomed() ? undefined : { y: dragY }}
-              panActivation={{ activeOffsetY: 12, failOffsetX: 12 }}
-              onPanEnd={endDrag}
-              class="flex-1"
-              style={{
-                translate: [0, dragY],
-                scale: dragY.interpolate({ inputRange: [-height(), 0, height()], outputRange: [0.75, 1, 0.75] }),
-              }}
-            >
-              <Scroll
-                horizontal
-                pagingEnabled
-                scrollbar={false}
-                contentOffset={{ x: v().index * windowSize().width, y: 0 }}
-                onMomentumEnd={(e) =>
-                  batch(() => {
-                    page.set(Math.round(e.offset.x / Math.max(1, windowSize().width)));
-                    zoomed.set(false);
-                  })
-                }
-                class="flex-1"
-              >
-                <Each of={v().pics} key="index">
-                  {(pic) => <ZoomPage src={pic().large} />}
-                </Each>
-              </Scroll>
-            </View>
-            <If when={v().pics.length > 1}>
-              <View class="pointer-events-none absolute inset-x-0 h-11 items-center justify-center" style={{ top: safeArea().top + 4 }}>
-                <View class={`rounded-full px-3 py-1 ${glass("media").class}`} style={glass("media").style}>
-                  <Text class="text-sm font-medium text-white">
-                    {`${Math.min(page(), v().pics.length - 1) + 1} / ${v().pics.length}`}
-                  </Text>
-                </View>
+    <Overlay
+      drag={!zoomed()}
+      over={(v) => (
+        <>
+          <If when={v().pics.length > 1}>
+            <View class="pointer-events-none absolute inset-x-0 h-11 items-center justify-center" style={{ top: safeArea().top + 4 }}>
+              <View class={`rounded-full px-3 py-1 ${glass("media").class}`} style={glass("media").style}>
+                <Text class="text-sm font-medium text-white">
+                  {`${Math.min(page(), v().pics.length - 1) + 1} / ${v().pics.length}`}
+                </Text>
               </View>
-            </If>
-            <View class="absolute right-4 h-11 flex-row items-center" style={{ top: safeArea().top + 4 }}>
-              <MediaMoreButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
             </View>
+          </If>
+          <View class="absolute right-4 h-11 flex-row items-center" style={{ top: safeArea().top + 4 }}>
+            <MediaMoreButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
           </View>
-        );
-      }}
-    </If>
+        </>
+      )}
+    >
+      {(v) => (
+        <Scroll
+          horizontal
+          pagingEnabled
+          scrollbar={false}
+          contentOffset={{ x: v().index * windowSize().width, y: 0 }}
+          onMomentumEnd={(e) =>
+            batch(() => {
+              page.set(Math.round(e.offset.x / Math.max(1, windowSize().width)));
+              zoomed.set(false);
+            })
+          }
+          class="flex-1"
+        >
+          <Each of={v().pics} key="index">
+            {(pic) => <ZoomPage src={pic().large} />}
+          </Each>
+        </Scroll>
+      )}
+    </Overlay>
   );
 }

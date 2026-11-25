@@ -8,7 +8,6 @@ import {
   DESKTOP_UA,
   get,
   LOGIN_URL,
-  NotSignedIn,
   search,
   session,
   signingOut,
@@ -40,7 +39,6 @@ const onWeibo = (url: string) => /^https:\/\/(www\.)?weibo\.com\//.test(url);
 
 function Bridge() {
   let web: WebViewRef | undefined;
-  const problem = signal<string | null>(null);
   let probing = false;
 
   // A page of weibo.com loaded: ask the API whether the session is signed in.
@@ -49,13 +47,12 @@ function Bridge() {
     probing = true;
     try {
       await get("/ajax/feed/unreadfriendstimeline?list_id=&refresh=4&since_id=0&count=1");
-      problem.set(null);
       // Signed in on weibo.com's own app (after a sign-in): move to the idle page first, so no
       // request starts in a page that is about to go.
       if (url.startsWith(BRIDGE_URL)) session.set("ready");
       else web?.load({ src: BRIDGE_URL });
-    } catch (e) {
-      if (!(e instanceof NotSignedIn)) problem.set(String((e as Error)?.message ?? e));
+    } catch {
+      // Not signed in (or the probe failed): the sign-in page stays, and its next load asks again.
     } finally {
       probing = false;
     }
@@ -106,10 +103,7 @@ function Bridge() {
         onError={(e) => {
           if (weibo.onError(e)) return;
           if (signingOut()) signOutLoaded(null);
-          else {
-            problem.set(e.message);
-            showPage.set(true); // What the web view shows now (the form, or its error) beats a spinner.
-          }
+          else showPage.set(true); // What the web view shows now (the form, or its error) beats a spinner.
         }}
       />
       <If when={visible() && !showPage()}>

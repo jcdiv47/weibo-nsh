@@ -2,8 +2,8 @@
 // under it until something is typed, then what Weibo suggests for it (accounts by that name,
 // searches that start so). A search opens what it finds over this page: posts and accounts, under
 // two tabs; its field brings back this page to change it.
-import { batch, effect, type InputRef, type JSX, List, signal, Text, View } from "nsh";
-import { Button, Input } from "nsh/base";
+import { batch, effect, type JSX, List, signal, Text, View } from "nsh";
+import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
   follow,
@@ -19,41 +19,21 @@ import {
 import { onForgetAccount } from "../account";
 import { NotSignedIn } from "../bridge";
 import { FeedFooter } from "../components/FeedFooter";
-import { BAR, createPageScroll, Page } from "../components/Header";
+import { createPageScroll, Page } from "../components/Header";
 import { Icon } from "../components/Icon";
+import { PersonRow } from "../components/PersonRow";
+import { SearchBar, SearchInput } from "../components/SearchBar";
 import { Spinner } from "../components/Spinner";
 import { StatusCard } from "../components/StatusCard";
+import { TabBar } from "../components/TabBar";
 import { createFeed } from "../feed";
 import { count } from "../format";
 import { nav, openSearchResults } from "../nav";
-import { PersonRow } from "./People";
 
 /** How long typing pauses before Weibo is asked for suggestions. */
 const SUGGEST_DELAY_MS = 250;
 /** The most suggested searches shown: Weibo sends thirty or so. */
 const MAX_WORDS = 10;
-
-/** The field's capsule: the search icon, then what it holds. */
-function Field(props: { children: JSX.Element }) {
-  return (
-    <View class="h-10 flex-1 flex-row items-center gap-2 rounded-full bg-well pl-3.5 pr-2">
-      <Icon name="search" class="size-[18px] tint-ink-2" />
-      {props.children}
-    </View>
-  );
-}
-
-/** The bar: the field, then 取消, which leaves search (`depth` pages: results over search, two). */
-export function SearchBar(props: { children: JSX.Element; depth?: number }) {
-  return (
-    <View class="flex-row items-center gap-3.5 px-4" style={{ height: BAR }}>
-      <Field>{props.children}</Field>
-      <Button onPress={() => nav.pop(props.depth ?? 1)} class="h-10 justify-center active:opacity-60">
-        <Text class="text-body text-ink">{t("common.cancel")}</Text>
-      </Button>
-    </View>
-  );
-}
 
 /** A row that starts with an icon in the column of the accounts' pictures. */
 function IconRow(props: { icon: JSX.Element; label: string; onPress: () => void; children: JSX.Element; divider?: boolean }) {
@@ -134,7 +114,6 @@ const wordOf = (r: Row) => (r.kind === "word" ? r.word : undefined);
 /** The search page: hot searches, or suggestions for what is typed. */
 export function Search() {
   const text = signal("");
-  let input: InputRef | undefined;
   const typed = () => text().trim();
 
   // Hot searches, once per visit: a list that changes by the minute is not saved.
@@ -202,32 +181,7 @@ export function Search() {
       scroll={scroll}
       bar={
         <SearchBar>
-          <Input
-            ref={(r) => (input = r)}
-            value={text()}
-            onChange={(e) => text.set(e.value)}
-            onSubmit={submit}
-            placeholder={t("search.placeholder")}
-            returnKeyType="search"
-            submitBehavior="blurAndSubmit"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus
-            maxLength={100}
-            class="h-10 flex-1 text-body text-ink placeholder:text-ink-3"
-          />
-          <If when={text()}>
-            <Button
-              accessibilityLabel={t("search.clear")}
-              onPress={() => {
-                text.set("");
-                input?.focus();
-              }}
-              class="size-8 items-center justify-center active:opacity-60"
-            >
-              <Icon name="circle-x-filled" class="size-[18px] tint-ink-3" />
-            </Button>
-          </If>
+          <SearchInput value={text()} onChange={(v) => text.set(v)} onSubmit={submit} placeholder={t("search.placeholder")} />
         </SearchBar>
       }
     >
@@ -302,28 +256,15 @@ type Tab = "posts" | "users";
 /** The height of the tabs under the bar, their hairline included. */
 const TABS = 44;
 
-/** 微博 and 用户, as a profile's people: the chosen one in ink over Weibo's orange bar. */
+/** 微博 and 用户, as a profile's people. */
 function Tabs(props: { value: Tab; onChange: (tab: Tab) => void }) {
   return (
-    <View role="tablist" class="h-[44px] flex-row items-end gap-7 border-b-[0.5px] border-hairline bg-ground px-4">
-      <Each of={["posts", "users"] as Tab[]}>
-        {(tab) => {
-          const on = () => props.value === tab();
-          return (
-            <Button
-              role="tab"
-              accessibilityLabel={t(`search.tab_${tab()}`)}
-              selected={on()}
-              onPress={() => props.onChange(tab())}
-              class="items-center gap-2 active:opacity-60"
-            >
-              <Text class={`text-body leading-5 ${on() ? "font-semibold text-ink" : "text-ink-2"}`}>{t(`search.tab_${tab()}`)}</Text>
-              <View class={`h-[3px] w-6 rounded-full ${on() ? "bg-weibo" : "bg-transparent"}`} />
-            </Button>
-          );
-        }}
-      </Each>
-    </View>
+    <TabBar
+      tabs={(["posts", "users"] as Tab[]).map((id) => ({ id, label: t(`search.tab_${id}`) }))}
+      value={props.value}
+      onChange={props.onChange}
+      class="h-[44px] border-hairline bg-ground"
+    />
   );
 }
 
@@ -362,7 +303,7 @@ function FollowButton(props: { user: User; onFollowed: (uid: string) => void }) 
     <If
       when={!following()}
       else={
-        <View class="h-7 shrink-0 justify-center rounded-full bg-well px-3">
+        <View class="min-h-7 shrink-0 justify-center rounded-full bg-well px-3">
           <Text class="text-meta text-ink-2">{props.user.followsMe ? t("people.mutual") : t("profile.following")}</Text>
         </View>
       }
@@ -370,7 +311,8 @@ function FollowButton(props: { user: User; onFollowed: (uid: string) => void }) 
       <Button
         accessibilityLabel={`${t("profile.follow")} ${props.user.name}`}
         onPress={press}
-        class={`h-7 shrink-0 flex-row items-center gap-0.5 rounded-full border px-3 active:opacity-60 ${failed() ? "border-danger" : "border-weibo"}`}
+        hitSlop={8}
+        class={`min-h-7 shrink-0 flex-row items-center gap-0.5 rounded-full border px-3 active:opacity-60 ${failed() ? "border-danger" : "border-weibo"}`}
       >
         <If when={busy()} else={<Icon name="user-plus" class={`size-3.5 ${failed() ? "tint-danger" : "tint-weibo"}`} />}>
           <Spinner />

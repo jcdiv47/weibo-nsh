@@ -76,6 +76,9 @@ export function BackButton() {
 /** The bar's height; a large title's row is as tall. */
 export const BAR = 54;
 const LARGE_ROW = 57;
+/** How far the large title follows the system's text size: its 41 points of line (34 at 1.206)
+ * fit the row's 47 above its bottom padding up to this scale. */
+const LARGE_TITLE_MAX_SCALE = 1.14;
 /** How far the edge fades out below the header. */
 const EDGE_FADE = 20;
 /** The room the pull-to-refresh indicator takes under the header while it refreshes. */
@@ -232,11 +235,12 @@ export function Header(props: { title: string; hideTitle?: boolean; right?: JSX.
 }
 
 /** The timeline's title, large at the left: the first row of its list, which scrolls it away. Its
- * row is as tall as the bar's action beside it. */
+ * row is as tall as the bar's action beside it, and the header's scroll math counts on that
+ * (`LARGE_ROW`), so the title grows with the system's text size only as far as the row holds it. */
 export function LargeTitle(props: { title: string }) {
   return (
     <View class="h-[57px] flex-row items-end pb-2.5 pl-5 pr-4">
-      <Text role="header" class="text-large-title font-bold tracking-tight text-ink">
+      <Text role="header" maxFontSizeMultiplier={LARGE_TITLE_MAX_SCALE} class="text-large-title font-bold tracking-tight text-ink">
         {props.title}
       </Text>
     </View>

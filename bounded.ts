@@ -18,6 +18,10 @@ export class BoundedMap<K, V> extends Map<K, V> {
 
   /** Sets the value as the one used last; past `max`, drops the one used longest ago. */
   override set(key: K, value: V): this {
+    if (this.max <= 0) {
+      super.clear();
+      return this;
+    }
     super.delete(key);
     super.set(key, value);
     // A `Map` iterates in insertion order: its first key is the one used longest ago.
