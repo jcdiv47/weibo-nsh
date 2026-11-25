@@ -57,33 +57,48 @@ export async function save(url: string, kind: Kind, share = false, anchor?: Anch
   }
 }
 
-/** The menu's items (SF Symbols on iOS): save where it does something sharing does not, and share. */
-const items = (): MenuButtonItem[] => [
+/** The menu's items (SF Symbols on iOS): the viewer's own first (`extra`: "View Original"), save
+ * where it does something sharing does not, and share. */
+const items = (extra: MenuButtonItem[] = []): MenuButtonItem[] => [
+  ...extra,
   ...(CAN_SAVE ? [{ id: "save", label: t("save.to_photos"), icon: "square.and.arrow.down", disabled: !!saving() }] : []),
   { id: "share", label: t("save.share_ellipsis"), icon: "square.and.arrow.up", disabled: !!saving() },
 ];
 
-function choose(id: string, url: string, kind: Kind, anchor: Anchor) {
+/** An item of the viewer's own, and what choosing it does. */
+export interface MediaAction {
+  item: MenuButtonItem;
+  run: () => void;
+}
+
+function choose(id: string, url: string, kind: Kind, anchor: Anchor, actions: MediaAction[] = []) {
   if (id === "save" || id === "share") save(url, kind, id === "share", anchor);
+  else actions.find((a) => a.item.id === id)?.run();
 }
 
 /** A finger held on `children` (a picture, a video) opens the menu: the system's, on iOS and
  * Android. `preview` is what iOS lifts beside the menu (the picture at its own shape), else
  * `children` lifts. It fills what it is in, as its trigger does: left to its content's size it would
  * be none, and the picture in it would not show. */
-export function MediaMenu(props: { url: string; kind: Kind; children: JSX.Element; preview?: JSX.Element }) {
+export function MediaMenu(props: {
+  url: string;
+  kind: Kind;
+  children: JSX.Element;
+  preview?: JSX.Element;
+  actions?: MediaAction[];
+}) {
   let view: ViewRef | undefined;
   return (
     <ContextMenu
       class="flex-1 self-stretch"
-      items={items()}
+      items={items(props.actions?.map((a) => a.item))}
       preview={props.preview}
       // Opened: the user is about to save or share it, so a picture's file starts coming now (into
       // the app's own storage; nothing is saved until a choice), and the share sheet opens as the
       // menu goes rather than after a wait. Not a video's: tens of MB fetched for a menu that may
       // close without a choice.
       onOpen={() => props.kind === "image" && prefetch(props.url, props.kind)}
-      onSelect={(e) => choose(e.id, props.url, props.kind, () => view)}
+      onSelect={(e) => choose(e.id, props.url, props.kind, () => view, props.actions)}
       trigger={
         <View ref={(r) => (view = r as ViewRef)} class="flex-1 self-stretch">
           {props.children}
@@ -94,16 +109,16 @@ export function MediaMenu(props: { url: string; kind: Kind; children: JSX.Elemen
 }
 
 /** The "⋯" glass button over a viewer: the same menu, from a tap. Turns while a save runs. */
-export function MediaMoreButton(props: { url: string; kind: Kind }) {
+export function MediaMoreButton(props: { url: string; kind: Kind; actions?: MediaAction[] }) {
   let view: ViewRef | undefined;
   const look = () => glass("media");
   return (
     <View ref={(r) => (view = r as ViewRef)}>
       <MenuButton
         accessibilityLabel={t("save.more")}
-        items={items()}
+        items={items(props.actions?.map((a) => a.item))}
         disabled={!!saving()}
-        onSelect={(e) => choose(e.id, props.url, props.kind, () => view)}
+        onSelect={(e) => choose(e.id, props.url, props.kind, () => view, props.actions)}
         class={`size-11 items-center justify-center rounded-full ${GLASS_PRESS} ${look().class}`}
         style={look().style}
       >

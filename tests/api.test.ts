@@ -106,13 +106,15 @@ test("timeline: a post's fields, pictures and links", () => {
   });
   expect(s.pics).toEqual([
     {
-      thumb: "https://wx1.sinaimg.cn/wap360/006aaaa1ly1hxyz0001.jpg",
-      large: "https://wx1.sinaimg.cn/large/006aaaa1ly1hxyz0001.jpg",
+      thumb: "https://wx1.sinaimg.cn/mw690/006aaaa1ly1hxyz0001.jpg",
+      large: "https://wx1.sinaimg.cn/orj960/006aaaa1ly1hxyz0001.jpg",
+      original: "https://wx1.sinaimg.cn/large/006aaaa1ly1hxyz0001.jpg",
     },
     // No `pic_infos` for it: the addresses its id makes.
     {
-      thumb: "https://wx1.sinaimg.cn/orj360/006aaaa1ly1hxyz0002.jpg",
-      large: "https://wx1.sinaimg.cn/large/006aaaa1ly1hxyz0002.jpg",
+      thumb: "https://wx1.sinaimg.cn/mw690/006aaaa1ly1hxyz0002.jpg",
+      large: "https://wx1.sinaimg.cn/orj960/006aaaa1ly1hxyz0002.jpg",
+      original: "https://wx1.sinaimg.cn/large/006aaaa1ly1hxyz0002.jpg",
     },
   ]);
   expect(s.links["http://t.cn/A6abcd"]).toEqual({ title: "网页链接", url: "https://example.com/sunset", video: false });
@@ -205,8 +207,9 @@ test("timeline: pictures of a mixed post", () => {
   expect(s.isLongText).toBe(true);
   expect(s.pics).toEqual([
     {
-      thumb: "https://wx1.sinaimg.cn/orj360/006mine01ly1hmix0001.jpg",
-      large: "https://wx1.sinaimg.cn/large/006mine01ly1hmix0001.jpg",
+      thumb: "https://wx1.sinaimg.cn/mw690/006mine01ly1hmix0001.jpg",
+      large: "https://wx1.sinaimg.cn/orj960/006mine01ly1hmix0001.jpg",
+      original: "https://wx1.sinaimg.cn/large/006mine01ly1hmix0001.jpg",
     },
   ]);
 });
@@ -263,8 +266,9 @@ test("comments: pictures, previewed replies without their parent's links", () =>
   expect(first).toMatchObject({ id: "5200000000000001", likes: 25, replyCount: 3, user: { name: "路人甲" } });
   expect(first.pics).toEqual([
     {
-      thumb: "https://wx1.sinaimg.cn/orj360/008cmt01ly1hcmt0001.jpg",
-      large: "https://wx2.sinaimg.cn/large/008cmt01ly1hcmt0001.jpg",
+      thumb: "https://wx2.sinaimg.cn/mw690/008cmt01ly1hcmt0001.jpg",
+      large: "https://wx2.sinaimg.cn/orj960/008cmt01ly1hcmt0001.jpg",
+      original: "https://wx2.sinaimg.cn/large/008cmt01ly1hcmt0001.jpg",
     },
   ]);
   expect(first.preview.map((r) => r.text)).toEqual(["同感"]);
@@ -378,8 +382,9 @@ test("edit history: versions newest first, with their own text, time and picture
   expect(page.items[0].text).toBe("今天的晚霞是橘红色的，从六点一直烧到七点。\n明天再去江边看看。");
   expect(page.items[0].pics).toEqual([
     {
-      thumb: "https://wx1.sinaimg.cn/bmiddle/006aaaa1ly1hedit0002.jpg",
-      large: "https://wx1.sinaimg.cn/large/006aaaa1ly1hedit0002.jpg",
+      thumb: "https://wx1.sinaimg.cn/mw690/006aaaa1ly1hedit0002.jpg",
+      large: "https://wx1.sinaimg.cn/orj960/006aaaa1ly1hedit0002.jpg",
+      original: "https://wx1.sinaimg.cn/large/006aaaa1ly1hedit0002.jpg",
     },
   ]);
   expect(page.items[2].pics).toEqual([]);

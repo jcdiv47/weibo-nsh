@@ -81,6 +81,7 @@ edits:
 video:
   error: "无法播放此视频：%{error}"
 save:
+  view_original: "查看原图"
   failed: "保存失败：%{error}"
   share_failed: "分享失败：%{error}"
   saving: "正在保存…"

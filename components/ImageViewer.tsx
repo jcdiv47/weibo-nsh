@@ -1,13 +1,17 @@
 // A post's pictures full screen: swipe between them, pinch or double tap to zoom, drag to pan
 // when zoomed, tap or drag up or down to close. A finger held on a picture, or the "⋯" button at the
-// top right, opens what it offers: save it (to Photos on iOS) and share it (`SaveMedia.tsx`).
+// top right, opens what it offers: the picture as uploaded ("View Original": the viewer opens at
+// Weibo's 960 pixel wide copy, quick to come), save it (to Photos on iOS) and share it
+// (`SaveMedia.tsx`). Saving and sharing take the original either way.
 // One viewer for the app, opened with `openViewer`.
 // Its full screen layer, the fades and the drag that closes it, is `MediaOverlay.tsx`'s.
 import { batch, cleanup, Image, Scroll, type ScrollRef, safeArea, signal, Text, View, windowSize } from "nsh";
-import type { Status } from "../api";
+import { t } from "nsh/i18n";
+import type { Pic, Status } from "../api";
 import { glass } from "./Glass";
 import { createMediaOverlay } from "./MediaOverlay";
-import { MediaMenu, MediaMoreButton } from "./SaveMedia";
+import { type MediaAction, MediaMenu, MediaMoreButton } from "./SaveMedia";
+import { Spinner } from "./Spinner";
 
 type Pics = Status["pics"];
 
@@ -15,11 +19,28 @@ const { open, close, Overlay } = createMediaOverlay<{ pics: Pics; index: number 
 const page = signal(0);
 /** The picture shown is zoomed in: a drag pans it rather than closing the viewer. */
 const zoomed = signal(false);
+/** The pictures, by place, shown as uploaded ("View Original"), until the viewer opens again. */
+const originals = signal<readonly number[]>([]);
+
+/** The picture as uploaded, when it differs from what the viewer opens at. */
+const originalOf = (pic: Pic) => (pic.original && pic.original !== pic.large ? pic.original : undefined);
+
+/** "View Original", for a picture that has one and does not show it yet. */
+const originalAction = (pic: Pic, index: number): MediaAction[] =>
+  originalOf(pic) && !originals().includes(index)
+    ? [
+        {
+          item: { id: "original", label: t("save.view_original"), icon: "photo" },
+          run: () => originals.set([...originals(), index]),
+        },
+      ]
+    : [];
 
 export function openViewer(pics: Pics, index: number) {
   if (!pics.length) return;
   page.set(index);
   zoomed.set(false);
+  originals.set([]);
   // Opened again while the last one fades out: the pager remounts at the new picture.
   open({ pics, index });
 }
@@ -40,10 +61,17 @@ function Preview(props: { src: string; size: { width: number; height: number } |
   return <Image src={props.src} class="object-cover" style={box()} />;
 }
 
-/** One picture, zoomable on its own: zoom resets as it scrolls out of the pager and back. */
-function ZoomPage(props: { src: string }) {
+/** One picture, zoomable on its own: zoom resets as it scrolls out of the pager and back. Its
+ * original, once asked for, comes over the smaller copy, which stays until it has loaded. */
+function ZoomPage(props: { pic: Pic; index: number }) {
   /** The picture's own size, once loaded: the menu's preview takes its shape. */
   const natural = signal<{ width: number; height: number } | null>(null);
+  const original = () => (originals().includes(props.index) ? originalOf(props.pic) : undefined);
+  /** The original that has loaded, if any: a recycled page showing another picture shows its own. */
+  const loaded = signal<string | undefined>(undefined);
+  const shown = () => (original() && loaded() === original() ? original()! : props.pic.large);
+  /** What saving and sharing take: the picture as uploaded. */
+  const file = () => props.pic.original ?? props.pic.large;
   let scroll: ScrollRef | undefined;
   let zoom = 1;
   // Not zoomed, it must not bounce: a vertical drag then goes to the viewer, to close it.
@@ -87,13 +115,39 @@ function ZoomPage(props: { src: string }) {
         }}
         style={{ width: windowSize().width, height: windowSize().height }}
       >
-        <MediaMenu url={props.src} kind="image" preview={<Preview src={props.src} size={natural()} />}>
-          <Image src={props.src} class="size-full object-contain" onLoad={(e) => natural.set(e.size)} />
+        <MediaMenu
+          url={file()}
+          kind="image"
+          actions={originalAction(props.pic, props.index)}
+          preview={<Preview src={shown()} size={natural()} />}
+        >
+          <View class="size-full">
+            <Image src={props.pic.large} class="size-full object-contain" onLoad={(e) => natural.set(e.size)} />
+            <If when={original()}>
+              {(src) => (
+                <>
+                  <Image
+                    src={src()}
+                    class={`absolute inset-0 object-contain ${loaded() === src() ? "opacity-100" : "opacity-0"}`}
+                    onLoad={() => loaded.set(src())}
+                  />
+                  <If when={loaded() !== src()}>
+                    <View class="pointer-events-none absolute inset-0 items-center justify-center">
+                      <Spinner size={28} tone="media" />
+                    </View>
+                  </If>
+                </>
+              )}
+            </If>
+          </View>
         </MediaMenu>
       </View>
     </Scroll>
   );
 }
+
+/** The picture the pager is at. */
+const shownPic = (pics: Pics) => pics[Math.min(page(), pics.length - 1)];
 
 export function ImageViewer() {
   return (
@@ -111,7 +165,11 @@ export function ImageViewer() {
             </View>
           </If>
           <View class="absolute right-4 h-11 flex-row items-center" style={{ top: safeArea().top + 4 }}>
-            <MediaMoreButton url={v().pics[Math.min(page(), v().pics.length - 1)].large} kind="image" />
+            <MediaMoreButton
+              url={shownPic(v().pics).original ?? shownPic(v().pics).large}
+              kind="image"
+              actions={originalAction(shownPic(v().pics), Math.min(page(), v().pics.length - 1))}
+            />
           </View>
         </>
       )}
@@ -131,7 +189,7 @@ export function ImageViewer() {
           class="flex-1"
         >
           <Each of={v().pics} key="index">
-            {(pic) => <ZoomPage src={pic().large} />}
+            {(pic, i) => <ZoomPage pic={pic()} index={i()} />}
           </Each>
         </Scroll>
       )}
