@@ -176,7 +176,19 @@ export class Channel {
   private async runOnce(path: string, asText: boolean, form?: Record<string, string>): Promise<PageAnswer> {
     const web = this.web;
     if (!web) throw new Error("The session bridge is not mounted");
-    const { value } = await web.evaluate(pageFetch(path, asText, form), { timeout: TIMEOUT_MS });
+    // The app keeps its own deadline too: a page fetch has been seen to hang well past the web
+    // view's `timeout`, which left whoever waited on it (the startup probe) waiting for good.
+    let timer: number | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(Object.assign(new Error(`Timed out fetching ${path}`), { code: "ETIMEDOUT" })),
+        TIMEOUT_MS + 1_000,
+      );
+    });
+    const { value } = await Promise.race([
+      web.evaluate(pageFetch(path, asText, form), { timeout: TIMEOUT_MS }),
+      deadline,
+    ]).finally(() => clearTimeout(timer));
     return value as unknown as PageAnswer;
   }
 }

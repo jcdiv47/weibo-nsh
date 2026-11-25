@@ -8,6 +8,7 @@ import {
   DESKTOP_UA,
   get,
   LOGIN_URL,
+  NotSignedIn,
   search,
   session,
   signingOut,
@@ -36,23 +37,39 @@ import { Topic } from "./pages/Topic";
 // the hidden web view runs none of weibo.com's own app.
 const BRIDGE_URL = weibo.idleUrl;
 const onWeibo = (url: string) => /^https:\/\/(www\.)?weibo\.com\//.test(url);
+// A failed sign-in probe asks again after this long, doubling each time up to the most.
+const PROBE_RETRY_MS = 2_000;
+const PROBE_RETRY_MAX_MS = 30_000;
 
 function Bridge() {
   let web: WebViewRef | undefined;
   let probing = false;
+  // The page the web view last loaded, and the probe that asks again on it after a failure.
+  let loadedUrl = "";
+  let retryTimer: number | undefined;
+  let retryDelay = PROBE_RETRY_MS;
 
   // A page of weibo.com loaded: ask the API whether the session is signed in.
   async function probe(url: string) {
     if (session() === "ready" || probing || !onWeibo(url)) return;
     probing = true;
+    clearTimeout(retryTimer);
     try {
       await get("/ajax/feed/unreadfriendstimeline?list_id=&refresh=4&since_id=0&count=1");
+      retryDelay = PROBE_RETRY_MS;
       // Signed in on weibo.com's own app (after a sign-in): move to the idle page first, so no
       // request starts in a page that is about to go.
       if (url.startsWith(BRIDGE_URL)) session.set("ready");
       else web?.load({ src: BRIDGE_URL });
-    } catch {
-      // Not signed in (or the probe failed): the sign-in page stays, and its next load asks again.
+    } catch (e) {
+      // Not signed in: the sign-in page shows, and its next load asks again. Any other failure (a
+      // request that timed out, a network not up yet, an odd answer) asks again a little later, on
+      // the page loaded then: no new page may come to ask (one that loaded during this probe was
+      // not asked about), and the startup screen would stay for good.
+      if (!(e instanceof NotSignedIn)) {
+        retryTimer = setTimeout(() => probe(loadedUrl), retryDelay);
+        retryDelay = Math.min(retryDelay * 2, PROBE_RETRY_MAX_MS);
+      }
     } finally {
       probing = false;
     }
@@ -91,10 +108,12 @@ function Bridge() {
         userAgent={DESKTOP_UA}
         class="flex-1"
         onLoadStart={(e) => {
+          loadedUrl = "";
           showPage.set(false);
           weibo.onLoadStart();
         }}
         onLoad={(e) => {
+          loadedUrl = e.url;
           showPage.set(!onWeibo(e.url));
           weibo.onLoad(e.url);
           signOutLoaded(e.url);
