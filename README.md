@@ -127,6 +127,7 @@ The test suite runs all API parsers against real-shaped responses in `tests/fixt
 ├── pages/           # Screen views (Timeline, Post, Replies, Edits, Profile, Search, Topic, Favorites, People)
 ├── components/      # Shared native UI components (Header, Glass, StatusCard, RichText, VideoPlayer, ImageViewer, …)
 ├── locales/         # Localization strings (en.yml, zh.yml)
+├── icon.png         # App icon (1024×1024), set as `icon` in nsh.json
 ├── icons/           # Tabler Icons SVGs
 ├── tests/           # Unit & fixture tests (api, download, emoticons, richtext, saved)
 ├── nsh.json         # NSH manifest, capabilities, typography scale, and iOS plist config
