@@ -47,6 +47,7 @@ import {
   repostText,
   type Status,
 } from "../api";
+import { failed, succeeded } from "../haptics";
 import { Icon, type IconName } from "./Icon";
 
 interface Target {
@@ -211,11 +212,13 @@ async function send() {
         : c
           ? await replyComment(cur.status, c, body, also())
           : await commentStatus(cur.status, body, also());
+    succeeded();
     drafts.delete(draftKey(cur));
     text.set("");
     if (target() === cur) dismiss();
     cur.onSent?.(reply);
   } catch (e) {
+    failed();
     error.set(t(cur.kind === "repost" ? "repost.failed" : "reply.failed", { error: String((e as Error)?.message ?? e) }));
   } finally {
     sending.set(false);

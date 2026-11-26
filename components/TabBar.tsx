@@ -3,6 +3,7 @@
 import { Text, View } from "nsh";
 import { Button } from "nsh/base";
 import { count } from "../format";
+import { selected } from "../haptics";
 
 export type TabItem<K extends string> = {
   id: K;
@@ -39,7 +40,10 @@ export function TabBar<K extends string>(props: {
               role="tab"
               accessibilityLabel={tab().accessibilityLabel ?? tab().label}
               selected={on()}
-              onPress={() => props.onChange(id())}
+              onPress={() => {
+                if (!on()) selected();
+                props.onChange(id());
+              }}
               class={`items-center gap-2 active:opacity-60 ${props.tabClass ?? ""}`}
             >
               <View class="flex-row items-center gap-1">

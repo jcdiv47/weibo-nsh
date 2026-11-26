@@ -11,6 +11,7 @@ import { batch, type JSX, safeArea, signal, Text, View, type ViewRef, WebView, t
 import { ContextMenu, MenuButton, type MenuButtonItem } from "nsh/base";
 import { t } from "nsh/i18n";
 import { type Anchor, CAN_SAVE, downloader, hostPage, job, prefetch, saveMedia, shareMedia } from "../download";
+import { failed, succeeded } from "../haptics";
 import { GLASS_PRESS, glass } from "./Glass";
 import { Icon } from "./Icon";
 import { Spinner } from "./Spinner";
@@ -47,8 +48,12 @@ export async function save(url: string, kind: Kind, share = false, anchor?: Anch
   };
   try {
     const { outcome } = await (share ? shareMedia(url, kind, anchor, onSheet) : saveMedia(url, kind));
-    if (outcome === "photos") say(t("save.saved_photos"));
+    if (outcome === "photos") {
+      succeeded();
+      say(t("save.saved_photos"));
+    }
   } catch (e) {
+    failed();
     const error = e as { code?: string; message?: string };
     if (error?.code === "EACCES") say(t("save.denied"), "error");
     else say(t(share ? "save.share_failed" : "save.failed", { error: String(error?.message ?? e) }), "error");

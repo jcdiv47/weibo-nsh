@@ -8,6 +8,7 @@ import { t } from "nsh/i18n";
 import { onForgetAccount } from "../account";
 import { type Activity, likeStatus, type Pic, type Status, type User, type VerifiedKind, type Video } from "../api";
 import { count, relativeTime, timeAgo } from "../format";
+import { failed, toggledOn } from "../haptics";
 import { openEdits, opening, openPost, openProfile } from "../nav";
 import { Icon, type IconName } from "./Icon";
 import { openViewer } from "./ImageViewer";
@@ -323,12 +324,14 @@ export async function toggleLike(s: Status) {
   const was = likeOf(s);
   const now = { liked: !was.liked, likes: Math.max(0, was.likes + (was.liked ? -1 : 1)) };
   likeChanges.update((m) => ({ ...m, [s.id]: now }));
+  if (now.liked) toggledOn();
   liking.add(s.id);
   try {
     await likeStatus(s, now.liked);
     s.liked = now.liked;
     s.likes = now.likes;
   } catch {
+    failed();
     // As it was: no change of its own left, so the post's own counts show, fresh ones after a refresh.
     likeChanges.update(({ [s.id]: _, ...rest }) => (before ? { ...rest, [s.id]: before } : rest));
   } finally {

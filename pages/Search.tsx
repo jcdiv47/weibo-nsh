@@ -28,6 +28,7 @@ import { StatusCard } from "../components/StatusCard";
 import { TabBar } from "../components/TabBar";
 import { createFeed } from "../feed";
 import { count } from "../format";
+import * as haptics from "../haptics";
 import { nav, openSearchResults } from "../nav";
 
 /** How long typing pauses before Weibo is asked for suggestions. */
@@ -281,10 +282,14 @@ function followFromResults(uid: string, onFollowed: (uid: string) => void): Prom
   setFollow(uid, "busy");
   return follow(uid).then(
     () => {
+      haptics.succeeded();
       setFollow(uid, null);
       onFollowed(uid);
     },
-    () => setFollow(uid, "failed"),
+    () => {
+      haptics.failed();
+      setFollow(uid, "failed");
+    },
   );
 }
 
