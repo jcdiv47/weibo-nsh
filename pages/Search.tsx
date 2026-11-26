@@ -378,7 +378,10 @@ export function SearchResults(props: { q: string }) {
             keyExtractor={(s) => s.id}
             estimatedItemSize={220}
             refreshing={posts.refreshing()}
-            onRefresh={() => posts.refresh()}
+            onRefresh={() => {
+              haptics.pulled();
+              posts.refresh();
+            }}
             onLoadMore={() => posts.more()}
             footer={footer()}
             class="flex-1"
@@ -393,7 +396,10 @@ export function SearchResults(props: { q: string }) {
           keyExtractor={(u) => u.id}
           estimatedItemSize={84}
           refreshing={users.refreshing()}
-          onRefresh={() => users.refresh()}
+          onRefresh={() => {
+            haptics.pulled();
+            users.refresh();
+          }}
           onLoadMore={() => users.more()}
           footer={footer()}
           class="flex-1"

@@ -14,6 +14,7 @@ import { createFeed } from "../feed";
 import { Icon } from "../components/Icon";
 import { nav, openFavorites, openMe, openSearch } from "../nav";
 import { createNews, mayCheck } from "../news";
+import { pulled } from "../haptics";
 
 // My picture in the header (a "我" until it loads): opens the menu.
 function MeMenu() {
@@ -71,7 +72,10 @@ export function Timeline() {
         keyExtractor={(s) => s.id}
         estimatedItemSize={220}
         refreshing={feed.refreshing()}
-        onRefresh={() => feed.refresh()}
+        onRefresh={() => {
+          pulled();
+          feed.refresh();
+        }}
         onLoadMore={() => feed.more()}
         header={
           <View>

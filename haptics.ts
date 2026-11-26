@@ -2,9 +2,12 @@
 // says "a like was given" rather than which generator plays it.
 //
 // They play only where the app does something of its own. The system's controls already play
-// theirs (pull to refresh, a finger held for a context menu, a menu button's menu), and a second
-// one there would double them. Android maps these to its view feedback only roughly (a long press
-// for a warning), so it keeps its own touch feedback and plays none of these.
+// theirs (a finger held for a context menu, a menu button's menu), and a second one there would
+// double them. Pull to refresh is the app's own: its lists draw their own indicator
+// (`refreshIndicator`), so iOS's refresh control, and its haptic, never come.
+//
+// Android maps these to its view feedback only roughly (a long press for a warning), so it keeps
+// its own touch feedback and plays none of these.
 import { platform } from "nsh";
 import { Haptics } from "nsh/mobile";
 
@@ -12,6 +15,11 @@ const ON = platform.os === "ios";
 
 /** Something was turned on by a tap: a like given, a post saved to my favorites. */
 export function toggledOn() {
+  if (ON) Haptics.impact("light");
+}
+
+/** A list was pulled far enough to refresh. */
+export function pulled() {
   if (ON) Haptics.impact("light");
 }
 

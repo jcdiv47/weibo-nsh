@@ -15,6 +15,7 @@ import { diff } from "../diff";
 import { createFeed } from "../feed";
 import { count, fullTime } from "../format";
 import { openProfile, postById } from "../nav";
+import { pulled } from "../haptics";
 
 const TEXT_CLASS = "select-text text-body text-ink";
 
@@ -63,7 +64,10 @@ export function Edits(props: { id: string }) {
         keyExtractor={(v) => v.id}
         estimatedItemSize={200}
         refreshing={feed.refreshing()}
-        onRefresh={() => feed.refresh()}
+        onRefresh={() => {
+          pulled();
+          feed.refresh();
+        }}
         onLoadMore={() => feed.more()}
         header={
           <View>
