@@ -6,6 +6,7 @@
 import { effect, lifecycle, signal, untracked } from "nsh";
 import { isNewerId } from "./api";
 import type { Feed } from "./feed";
+import { refreshed } from "./haptics";
 
 /** How often the timeline checks for new posts while it is in view. */
 export const CHECK_EVERY_MS = 2 * 60_000;
@@ -82,11 +83,12 @@ export function createNews<T extends { id: string }>(
       found.set({ items: [], more: false });
       if (!shown.length) return;
       if (more) {
-        void feed.refresh();
+        void refreshed(feed.refresh());
         return;
       }
       const ids = new Set(shown.map((i) => i.id));
       feed.update((list) => [...shown, ...list.filter((i) => !ids.has(i.id))]);
+      void refreshed("loaded");
     },
   };
 }

@@ -18,9 +18,13 @@ export function toggledOn() {
   if (ON) Haptics.impact("light");
 }
 
-/** A list was pulled far enough to refresh. */
-export function pulled() {
-  if (ON) Haptics.impact("light");
+/** A refresh the user asked for (a pull, the timeline's button) finished: its new posts are in,
+ * or it failed. None when a later load replaced it (`Feed.refresh`). */
+export async function refreshed(refresh: Promise<"loaded" | "failed" | null> | "loaded") {
+  const outcome = await refresh;
+  if (outcome === "loaded") {
+    if (ON) Haptics.impact("light");
+  } else if (outcome === "failed") failed();
 }
 
 /** Another tab, segment or option was chosen. */
