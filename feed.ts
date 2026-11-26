@@ -28,8 +28,15 @@ export function createFeed<T extends { id: string }, C = string>(
   const savedAt = signal<number | null>(null);
   let generation = 0;
 
-  /** `settled`: what a pull to refresh waits for before it shows its page (`refresh`). */
-  async function fetchPage(cursor: C | undefined, replace: boolean, settled?: Promise<void>) {
+  /** `settled`: what a pull to refresh waits for before it shows its page (`refresh`). Resolves,
+   * once the page shows and the indicator stops, to how the load ended: `null` when a later load
+   * replaced it, or it failed for want of a sign-in (which shows the sign-in, not an error). */
+  async function fetchPage(
+    cursor: C | undefined,
+    replace: boolean,
+    settled?: Promise<void>,
+  ): Promise<"loaded" | "failed" | null> {
+    let outcome: "loaded" | "failed" | null = null;
     const mine = ++generation;
     batch(() => {
       loading.set(true);
@@ -54,7 +61,7 @@ export function createFeed<T extends { id: string }, C = string>(
       const page = await load(cursor);
       loaded = true;
       await settled;
-      if (mine !== generation) return; // A refresh started since.
+      if (mine !== generation) return null; // A refresh started since.
       if (key) save(key, page);
       batch(() => {
         if (replace) {
@@ -70,10 +77,14 @@ export function createFeed<T extends { id: string }, C = string>(
         // Loaders return `next: null` at the end; a page may be empty after filtering yet not last.
         next.set(page.next);
       });
+      outcome = "loaded";
     } catch (e) {
       await settled;
       await saved; // The error shows with the saved items, not before them.
-      if (mine === generation && !(e instanceof NotSignedIn)) error.set(String((e as Error)?.message ?? e));
+      if (mine === generation && !(e instanceof NotSignedIn)) {
+        error.set(String((e as Error)?.message ?? e));
+        outcome = "failed";
+      }
     } finally {
       if (mine === generation) {
         batch(() => {
@@ -82,6 +93,7 @@ export function createFeed<T extends { id: string }, C = string>(
         });
       }
     }
+    return outcome;
   }
 
   return {
@@ -97,7 +109,8 @@ export function createFeed<T extends { id: string }, C = string>(
     },
     /** A pull to refresh. Its page shows, and the indicator's room closes, once the list has
      * sprung back from the pull to that room (`PULL_SETTLE_MS`): on iOS, ending the refresh while
-     * the list still moves leaves it scrolled past its top, the first post under the header. */
+     * the list still moves leaves it scrolled past its top, the first post under the header.
+     * Resolves to how it ended once that page shows (`fetchPage`). */
     refresh() {
       refreshing.set(true);
       return fetchPage(undefined, true, new Promise((done) => setTimeout(done, PULL_SETTLE_MS)));

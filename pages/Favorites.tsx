@@ -12,7 +12,7 @@ import { Icon } from "../components/Icon";
 import { SavedNotice } from "../components/SavedNotice";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
-import { pulled } from "../haptics";
+import { refreshed } from "../haptics";
 
 /** At the end of a saved post's counts: the bookmark, filled while saved; a press toggles it. */
 function SavedMark(props: { status: Status }) {
@@ -60,10 +60,7 @@ export function Favorites() {
           keyExtractor={(s) => s.id}
           estimatedItemSize={220}
           refreshing={feed.refreshing()}
-          onRefresh={() => {
-            pulled();
-            feed.refresh();
-          }}
+          onRefresh={() => refreshed(feed.refresh())}
           onLoadMore={() => feed.more()}
           header={<SavedNotice at={feed.savedAt()} failed={!!feed.error()} onRetry={() => feed.more()} />}
           footer={
