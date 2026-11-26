@@ -10,6 +10,7 @@ import { SavedNotice } from "../components/SavedNotice";
 import { TabBar, type TabItem } from "../components/TabBar";
 import { createFeed } from "../feed";
 import { count } from "../format";
+import { pulled } from "../haptics";
 
 type Kind = "following" | "followers";
 
@@ -69,7 +70,10 @@ export function People(props: {
         keyExtractor={(u) => u.id}
         estimatedItemSize={84}
         refreshing={feed().refreshing()}
-        onRefresh={() => feed().refresh()}
+        onRefresh={() => {
+          pulled();
+          feed().refresh();
+        }}
         onLoadMore={() => feed().more()}
         header={<SavedNotice at={feed().savedAt()} failed={!!feed().error()} onRetry={() => feed().more()} />}
         footer={

@@ -5,6 +5,7 @@ import { Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import { onForgetAccount } from "../account";
 import { favorite, type Status } from "../api";
+import { failed, toggledOn } from "../haptics";
 import { nav, openFavorites } from "../nav";
 import { glass } from "./Glass";
 import { GlassButton } from "./Header";
@@ -25,12 +26,14 @@ export async function toggleFavorite(s: Status) {
   const before = changes()[s.id];
   const was = isFavorited(s);
   changes.update((m) => ({ ...m, [s.id]: !was }));
+  if (!was) toggledOn();
   pending.add(s.id);
   try {
     await favorite(s, !was);
     s.favorited = !was;
     if (!was) showSavedToast();
   } catch {
+    failed();
     // As it was: no change of its own left, so the post's own state shows, a fresh one after a refresh.
     changes.update(({ [s.id]: _, ...rest }) => (before !== undefined ? { ...rest, [s.id]: before } : rest));
   } finally {

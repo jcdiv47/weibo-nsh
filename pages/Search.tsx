@@ -28,6 +28,7 @@ import { StatusCard } from "../components/StatusCard";
 import { TabBar } from "../components/TabBar";
 import { createFeed } from "../feed";
 import { count } from "../format";
+import * as haptics from "../haptics";
 import { nav, openSearchResults } from "../nav";
 
 /** How long typing pauses before Weibo is asked for suggestions. */
@@ -281,10 +282,14 @@ function followFromResults(uid: string, onFollowed: (uid: string) => void): Prom
   setFollow(uid, "busy");
   return follow(uid).then(
     () => {
+      haptics.succeeded();
       setFollow(uid, null);
       onFollowed(uid);
     },
-    () => setFollow(uid, "failed"),
+    () => {
+      haptics.failed();
+      setFollow(uid, "failed");
+    },
   );
 }
 
@@ -373,7 +378,10 @@ export function SearchResults(props: { q: string }) {
             keyExtractor={(s) => s.id}
             estimatedItemSize={220}
             refreshing={posts.refreshing()}
-            onRefresh={() => posts.refresh()}
+            onRefresh={() => {
+              haptics.pulled();
+              posts.refresh();
+            }}
             onLoadMore={() => posts.more()}
             footer={footer()}
             class="flex-1"
@@ -388,7 +396,10 @@ export function SearchResults(props: { q: string }) {
           keyExtractor={(u) => u.id}
           estimatedItemSize={84}
           refreshing={users.refreshing()}
-          onRefresh={() => users.refresh()}
+          onRefresh={() => {
+            haptics.pulled();
+            users.refresh();
+          }}
           onLoadMore={() => users.more()}
           footer={footer()}
           class="flex-1"

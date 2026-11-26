@@ -26,6 +26,7 @@ import { SavedNotice } from "../components/SavedNotice";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
+import { failed, succeeded } from "../haptics";
 import { openPeople, openProfileSearch } from "../nav";
 import { loadSaved, save } from "../saved";
 
@@ -71,7 +72,13 @@ function createActions(data: () => ProfileData | null, reload: () => Promise<voi
       error.set(null);
     });
     try {
-      await { follow, unfollow, block, unblock }[action](d.user.id);
+      try {
+        await { follow, unfollow, block, unblock }[action](d.user.id);
+      } catch (e) {
+        failed();
+        throw e;
+      }
+      succeeded();
       await reload();
     } catch (e) {
       error.set(String((e as Error)?.message ?? e));

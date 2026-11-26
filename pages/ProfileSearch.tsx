@@ -10,6 +10,7 @@ import { Icon } from "../components/Icon";
 import { SearchBar, SearchInput } from "../components/SearchBar";
 import { StatusCard } from "../components/StatusCard";
 import { createFeed, type Feed } from "../feed";
+import { pulled } from "../haptics";
 
 export function ProfileSearch(props: { uid: string; name?: string }) {
   const text = signal("");
@@ -61,7 +62,10 @@ export function ProfileSearch(props: { uid: string; name?: string }) {
             estimatedItemSize={220}
             keyboardDismissMode="on-drag"
             refreshing={f().refreshing()}
-            onRefresh={() => f().refresh()}
+            onRefresh={() => {
+              pulled();
+              f().refresh();
+            }}
             onLoadMore={() => f().more()}
             footer={
               <FeedFooter

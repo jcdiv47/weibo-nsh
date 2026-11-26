@@ -7,6 +7,7 @@ import { t } from "nsh/i18n";
 import { onForgetAccount } from "../account";
 import { type Comment, likeComment } from "../api";
 import { count, relativeTime } from "../format";
+import { failed, toggledOn } from "../haptics";
 import { openProfile } from "../nav";
 import { Icon } from "./Icon";
 import { LINK_CLASS, RichText } from "./RichText";
@@ -67,12 +68,14 @@ export async function toggleCommentLike(c: Comment) {
   const was = commentLikeOf(c);
   const now = { liked: !was.liked, likes: Math.max(0, was.likes + (was.liked ? -1 : 1)) };
   likeChanges.update((m) => ({ ...m, [c.id]: now }));
+  if (now.liked) toggledOn();
   liking.add(c.id);
   try {
     await likeComment(c, now.liked);
     c.liked = now.liked;
     c.likes = now.likes;
   } catch {
+    failed();
     // As it was: no change of its own left, so the comment's own counts show, fresh ones after a refresh.
     likeChanges.update(({ [c.id]: _, ...rest }) => (before ? { ...rest, [c.id]: before } : rest));
   } finally {
