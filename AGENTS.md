@@ -17,6 +17,7 @@ page's own same-origin `fetch` (`bridge.ts`). The app never sees the password or
   `emoticons.ts`, `diff.ts`.
 - `locales/en.yml`, `locales/zh.yml`: every UI string, read with `t()` from `nsh/i18n`.
 - `theme.json` (color tokens, light and dark), `nsh.json` (app config, type scale, capabilities).
+- `icon.png`: the app icon (1024×1024), named by `nsh.json` so every package carries it.
 - `icons/`: Tabler SVGs, registered in `components/Icon.tsx`.
 - `tests/`: `*.test.ts` and `fixtures/`, real answers in weibo.com's shapes.
 
