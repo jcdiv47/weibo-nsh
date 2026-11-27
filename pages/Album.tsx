@@ -40,6 +40,9 @@ export function Album(props: { uid: string }) {
   });
   const fill = () => {
     target = items().length + FILL;
+    // A scroll to the end while a page loads raises the target, which the load reads on to; it
+    // does not start the page count again.
+    if (posts.loading()) return;
     pages = 0;
     posts.more();
   };
@@ -47,10 +50,8 @@ export function Album(props: { uid: string }) {
   const open = (item: AlbumItem) => {
     if (item.video) return openVideo(item.video, item.status);
     const pics = items().filter((i) => i.pic);
-    openViewer(
-      pics.map((i) => i.pic!),
-      pics.findIndex((i) => i.id === item.id),
-    );
+    const index = pics.findIndex((i) => i.id === item.id);
+    if (index >= 0) openViewer(pics.map((i) => i.pic!), index);
   };
 
   const scroll = createPageScroll({ refreshing: () => posts.refreshing() });

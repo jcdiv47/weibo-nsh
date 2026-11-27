@@ -399,7 +399,7 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
               <View>
                 <SavedNotice at={savedAt()} failed={!!error()} onRetry={loadProfile} />
                 <ProfileHeader data={d()} actions={actions} mine={mine()} />
-                <If when={!blocked() && hasAlbum()}>
+                <If when={!blocked() && hasAlbum() && album().length}>
                   <AlbumStrip items={album()} onPress={() => openAlbum(d().user)} />
                 </If>
                 <If when={!blocked()}>
