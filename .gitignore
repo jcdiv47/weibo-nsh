@@ -1,3 +1,5 @@
 .nsh/
 target/
 .DS_Store
+.perf/
+perf/*.run.test.tsx

@@ -20,6 +20,9 @@ page's own same-origin `fetch` (`bridge.ts`). The app never sees the password or
 - `icon.png`: the app icon (1024×1024), named by `nsh.json` so every package carries it.
 - `icons/`: Tabler SVGs, registered in `components/Icon.tsx`.
 - `tests/`: `*.test.ts` and `fixtures/`, real answers in weibo.com's shapes.
+- `perf/`: measuring performance and resource use (`perf/README.md`): the timeline over a stand-in
+  bridge and the scenarios `scripts/perf.sh` times; `scripts/pull-crashes.sh` and
+  `scripts/xtrace.sh` for the iPhone.
 
 ## Commands
 
@@ -30,6 +33,9 @@ nsh run . --target ios # run with hot reload (iOS simulator; --target android fo
 ```
 
 Run `nsh check .` and `nsh test` before handing back a change. CI runs both on every PR.
+
+For a change made for speed or memory, measure before and after with `scripts/perf.sh` and
+`scripts/perf.sh compare`, and say what moved (`perf/README.md`).
 
 ## Conventions
 
