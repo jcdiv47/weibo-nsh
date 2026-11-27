@@ -22,6 +22,7 @@ import { Downloader, SaveToast } from "./components/SaveMedia";
 import { Spinner } from "./components/Spinner";
 import { VideoPlayer } from "./components/VideoPlayer";
 import { nav } from "./nav";
+import { Album } from "./pages/Album";
 import { Edits } from "./pages/Edits";
 import { Favorites } from "./pages/Favorites";
 import { Post } from "./pages/Post";
@@ -212,6 +213,8 @@ function App() {
                 return <SearchResults q={route.q} />;
               case "profile-search":
                 return <ProfileSearch uid={route.uid} name={route.userName} />;
+              case "album":
+                return <Album uid={route.uid} />;
             }
           }}
         </NavStack>

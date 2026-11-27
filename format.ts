@@ -43,6 +43,19 @@ export function fullTime(s: string): string {
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`;
 }
 
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** A month (1 to 12) as a heading: "11月", "2025年11月"; "November", "November 2025" (the year
+ * only when it is not this one). */
+export function monthLabel(year: number, month: number, now = Date.now()): string {
+  const sameYear = year === new Date(now).getFullYear();
+  if (chinese()) return `${sameYear ? "" : `${year}年`}${month}月`;
+  return `${MONTH_NAMES[month - 1]}${sameYear ? "" : ` ${year}`}`;
+}
+
 // One decimal, without a trailing ".0".
 const short = (n: number) => n.toFixed(1).replace(/\.0$/, "");
 
