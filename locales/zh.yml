@@ -163,3 +163,7 @@ menu:
 compose:
   mention: "提及"
   topic: "话题"
+album:
+  title: "相册"
+  picture: "图片，%{when}"
+  video: "视频：%{title}，%{when}"

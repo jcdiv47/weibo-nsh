@@ -163,3 +163,7 @@ menu:
 compose:
   mention: "Mention"
   topic: "Topic"
+album:
+  title: "Album"
+  picture: "Picture, %{when}"
+  video: "Video: %{title}, %{when}"

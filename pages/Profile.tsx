@@ -1,5 +1,5 @@
 // An account: who they are, how we relate (following, follows me, blocked), and their posts.
-import { batch, List, signal, Text, View } from "nsh";
+import { batch, computed, List, signal, Text, View } from "nsh";
 import { AlertDialog, Button } from "nsh/base";
 import { t } from "nsh/i18n";
 import {
@@ -14,6 +14,7 @@ import {
   unfollow,
   userPosts,
 } from "../api";
+import { type AlbumItem, albumOf } from "../album";
 import { NotSignedIn } from "../bridge";
 import { confirmSignOut } from "../components/account";
 import { ErrorText, FeedFooter, RetryButton } from "../components/FeedFooter";
@@ -23,11 +24,12 @@ import { Spinner } from "../components/Spinner";
 import { Icon } from "../components/Icon";
 import { RichText } from "../components/RichText";
 import { SavedNotice } from "../components/SavedNotice";
+import { AlbumTile } from "../components/AlbumTile";
 import { Avatar, StatusCard } from "../components/StatusCard";
 import { createFeed } from "../feed";
 import { count } from "../format";
 import { failed, succeeded } from "../haptics";
-import { openPeople, openProfileSearch } from "../nav";
+import { openAlbum, openPeople, openProfileSearch } from "../nav";
 import { loadSaved, save } from "../saved";
 
 type Action = "follow" | "unfollow" | "block" | "unblock";
@@ -220,6 +222,37 @@ function ProfileHeader(props: { data: ProfileData; actions: Actions; mine: boole
   );
 }
 
+/** How many of the album's latest the strip shows. */
+const STRIP = 5;
+
+/**
+ * The album's latest pictures and videos in a row, under the counts; a press anywhere on it opens
+ * the album. Short of `STRIP`, the tiles keep their size and leave the rest of the row empty.
+ */
+function AlbumStrip(props: { items: AlbumItem[]; onPress: () => void }) {
+  return (
+    <View class="border-t-8 border-well">
+      <Button onPress={props.onPress} accessibilityLabel={t("album.title")} class="gap-2.5 px-5 pb-4 pt-3 active:opacity-70">
+        <View class="h-[22px] flex-row items-center justify-between">
+          <Text class="text-headline font-semibold leading-[22px] text-ink">{t("album.title")}</Text>
+          <Icon name="chevron-right" class="size-[18px] tint-ink-3" />
+        </View>
+        <View class="flex-row gap-1">
+          <Each of={Array.from({ length: STRIP }, (_, i) => i)}>
+            {(i) => (
+              <View class="flex-1">
+                <If when={props.items[i()]}>
+                  {(item) => <AlbumTile item={item()} class="aspect-square w-full rounded-pic" />}
+                </If>
+              </View>
+            )}
+          </Each>
+        </View>
+      </Button>
+    </View>
+  );
+}
+
 /** Where the posts would be, for an account I block. */
 function BlockedNotice(props: { message?: string }) {
   return (
@@ -247,6 +280,12 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
   const posts = createFeed<Status, number>(async (page) => userPosts(await resolveUid(), page ?? 1), {
     saveAs: () => (knownUid ? `posts:${knownUid}` : null),
   });
+  const album = computed(() => albumOf(posts.items()).slice(0, STRIP));
+  // Whether the strip shows is settled by the first posts in (saved or loaded): a strip that came
+  // in later, as more posts load, would push the posts down under a reader scrolled to them.
+  const hasAlbum = computed<boolean | undefined>((settled) =>
+    settled !== undefined ? settled : posts.items().length ? album().length > 0 : posts.done() ? false : undefined,
+  );
   /** The profile shown is the saved one, saved then: it has not loaded since. */
   const savedAt = signal<number | null>(null);
   // weibo.com shows no posts of an account I block (the posts API still returns them): load them
@@ -360,6 +399,9 @@ export function Profile(props: { uid: string } | { screenName: string } | { me: 
               <View>
                 <SavedNotice at={savedAt()} failed={!!error()} onRetry={loadProfile} />
                 <ProfileHeader data={d()} actions={actions} mine={mine()} />
+                <If when={!blocked() && hasAlbum() && album().length}>
+                  <AlbumStrip items={album()} onPress={() => openAlbum(d().user)} />
+                </If>
                 <If when={!blocked()}>
                   <View class="h-2 bg-well" />
                 </If>

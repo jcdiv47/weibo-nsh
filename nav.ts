@@ -36,7 +36,9 @@ export type Route =
   /** What a search found: posts and accounts, under two tabs. */
   | { name: "search-results"; q: string }
   /** Search within one account's posts, from their profile (their name for the field's hint). */
-  | { name: "profile-search"; uid: string; userName?: string };
+  | { name: "profile-search"; uid: string; userName?: string }
+  /** An account's pictures and videos, from their profile. */
+  | { name: "album"; uid: string };
 
 export const nav = createNavStack<Route>([{ name: "timeline" }]);
 
@@ -183,4 +185,9 @@ export const openSearchResults = (q: string) => {
 /** Search within `user`'s posts. */
 export const openProfileSearch = (user: User) => {
   if (user.id) nav.push({ name: "profile-search", uid: user.id, userName: user.name });
+};
+
+/** `user`'s pictures and videos. */
+export const openAlbum = (user: User) => {
+  if (user.id) nav.push({ name: "album", uid: user.id });
 };
